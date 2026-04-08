@@ -1,0 +1,390 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+:root {
+    --primary-color: #0056b3;
+    --primary-gradient: linear-gradient(135deg, #0056b3 0%, #004494 100%);
+    --accent-color: #fca311;
+    --text-dark: #1b263b;
+    --text-light: #e0e1dd;
+    --white: #ffffff;
+    --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 20px 25px rgba(0, 0, 0, 0.15);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    overflow-y: scroll; /* Force scrollbar to always show to prevent layout shift */
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(0, 86, 179, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(252, 163, 17, 0.1) 0px, transparent 50%);
+}
+
+/* Navigation Bar */
+.navbar {
+    width: 100%;
+    background: var(--primary-color);
+    background: var(--primary-gradient);
+    padding: 14px clamp(18px, 2vw, 28px);
+    box-shadow: var(--shadow-md);
+    color: var(--white);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.nav-content {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.brand-subtitle {
+    font-size: clamp(10px, 1vw, 11px);
+    font-weight: 500;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 2.4px;
+    line-height: 1.1;
+}
+
+.navbar h1 {
+    font-size: clamp(18px, 2.2vw, 22px);
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.08;
+}
+
+.brand-caption {
+    font-size: clamp(11px, 1.2vw, 13px);
+    font-weight: 300;
+    opacity: 0.92;
+    line-height: 1.18;
+    white-space: normal;
+}
+
+/* ─── Nav links (desktop: inline row, mobile: hamburger dropdown) ─── */
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.nav-link {
+    color: rgba(255,255,255,.85);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 13px;
+    border-radius: 8px;
+    transition: background .2s, color .2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+.nav-link:hover {
+    background: rgba(255,255,255,.15);
+    color: #fff;
+}
+.nav-link.active {
+    background: rgba(255,255,255,.18);
+    color: #fff;
+}
+.nav-hamburger {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    color: #fff;
+    font-size: 20px;
+    z-index: 101;
+    align-items: center;
+    justify-content: center;
+    transition: transform .2s;
+}
+.nav-hamburger.open {
+    transform: rotate(90deg);
+}
+
+/* Main Container */
+.main-wrapper {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto; /* Center horizontally */
+    flex-grow: 1; /* Occupy remaining vertical space */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Vertically center content */
+    align-items: center; /* Horizontally center content inside wrapper */
+}
+
+/* Removed old .header styles inside container */
+
+/* Main Content */
+.main-content {
+    padding: 10px 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 480px;
+}
+
+.greeting {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.greeting-logo {
+    width: clamp(220px, 55vw, 440px);
+    height: auto;
+    max-height: 130px;
+    max-width: 100%;
+    object-fit: contain;
+    margin-bottom: 0;
+}
+
+@media (min-width: 769px) {
+    .home-page .main-content {
+        max-width: 660px;
+    }
+
+    .home-page .greeting-logo {
+        width: min(100%, 600px);
+        max-height: 200px;
+    }
+}
+
+.greeting h2 {
+    font-size: clamp(18px, 4vw, 28px);
+    font-weight: 600;
+    color: var(--text-dark);
+    line-height: 1.4;
+}
+
+.greeting p {
+    color: #64748b;
+    margin-top: 0;
+    font-size: clamp(13px, 2.5vw, 16px);
+}
+
+/* Button Group */
+.button-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(10px, 3vw, 20px);
+    width: 100%;
+}
+
+.btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(14px, 3.5vw, 24px);
+    font-size: clamp(12px, 2.2vw, 15px);
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: center;
+    line-height: 1.4;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary {
+    background: #ffffff;
+    color: var(--primary-color);
+    border: 2px solid #e2e8f0;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    background: #f8fafc;
+}
+
+.btn-primary .icon {
+    font-size: clamp(18px, 3.5vw, 24px);
+    margin-bottom: 8px;
+    display: block;
+}
+
+/* Login Button */
+.btn-login {
+    background: var(--primary-color);
+    color: var(--white);
+    width: 100%;
+    padding: clamp(12px, 2.5vw, 16px);
+    font-size: clamp(13px, 2.5vw, 16px);
+    letter-spacing: 0.5px;
+    margin-top: 10px;
+    box-shadow: 0 4px 6px rgba(0, 86, 179, 0.3);
+    border-radius: 12px;
+}
+
+.btn-login:hover {
+    background: #004494;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 86, 179, 0.4);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .navbar {
+        padding: 14px 4%;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .navbar h1 {
+        font-size: clamp(18px, 4.8vw, 22px);
+        line-height: 1.08;
+    }
+
+    .brand-subtitle {
+        font-size: clamp(10px, 2.4vw, 11px);
+        letter-spacing: 2.4px;
+    }
+
+    .brand-caption {
+        font-size: clamp(11px, 2.9vw, 13px);
+        line-height: 1.18;
+    }
+
+    /* Hamburger visible on mobile — placed on the left */
+    .nav-hamburger {
+        display: flex;
+        order: -1;
+    }
+
+    .nav-content,
+    .brand-text {
+        flex: 1;
+    }
+
+    /* Nav links as dropdown on mobile */
+    .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        left: 0;
+        background: linear-gradient(135deg, #004494, #003378);
+        flex-direction: column;
+        padding: 6px 0;
+        box-shadow: 0 8px 24px rgba(0,0,0,.18);
+        z-index: 100;
+    }
+    .nav-links.open {
+        display: flex;
+    }
+    .nav-link {
+        width: 100%;
+        padding: 13px 20px;
+        border-radius: 0;
+        font-size: 13px;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .nav-link:last-child {
+        border-bottom: none;
+    }
+    .nav-link:hover {
+        background: rgba(255,255,255,.1);
+    }
+
+    /* Hide old nav-actions style on mobile */
+    .nav-actions {
+        display: none;
+    }
+
+    .main-wrapper {
+        padding: 20px 10px;
+    }
+
+    .main-content {
+        padding: 25px 10px;
+        gap: 20px;
+    }
+}
+
+/* ─── Site-wide Footer ─── */
+.dash-footer {
+    width: 100%;
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
+    padding: 20px 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 40px;
+}
+.footer-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.footer-right {
+    font-size: 11px;
+    color: #b0b8c4;
+}
+@media (max-width: 768px) {
+    .dash-footer {
+        flex-direction: column;
+        gap: 6px;
+        text-align: center;
+        padding: 16px 5%;
+    }
+}
