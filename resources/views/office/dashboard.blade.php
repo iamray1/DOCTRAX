@@ -97,14 +97,14 @@
         .table-doc-count{font-size:11px;color:#94a3b8;font-weight:500;margin-left:8px}
         .doc-update-flash{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;padding:3px 10px;border-radius:20px;opacity:0;transform:translateY(-4px);transition:opacity .4s ease,transform .4s ease;pointer-events:none}
         .doc-update-flash.show{opacity:1;transform:translateY(0)}
-        .filters{display:flex;gap:8px;align-items:center;flex-wrap:nowrap}
-        .search-wrap{position:relative;display:flex;align-items:center;flex:1;min-width:0}
-        .search-wrap i{position:absolute;left:10px;color:#94a3b8;font-size:12px;pointer-events:none;z-index:1}
-        .filters input{padding:7px 10px 7px 30px;font-family:Poppins,sans-serif;font-size:12.5px;border:1.5px solid var(--border);border-radius:7px;outline:none;transition:border-color .2s,box-shadow .2s;width:100%;color:var(--text-dark);background:#fff}
+        .filters{display:flex;gap:10px;align-items:center;flex-wrap:nowrap;flex:1 1 720px;justify-content:flex-end;min-width:min(100%,560px)}
+        .search-wrap{position:relative;display:flex;align-items:center;flex:1 1 460px;min-width:0;max-width:580px}
+        .search-wrap i{position:absolute;left:11px;color:#94a3b8;font-size:13px;pointer-events:none;z-index:1}
+        .filters input{padding:8px 12px 8px 34px;font-family:Poppins,sans-serif;font-size:13px;border:1.5px solid var(--border);border-radius:9px;outline:none;transition:border-color .2s,box-shadow .2s;width:100%;color:var(--text-dark);background:#fff}
         .filters input::placeholder{color:#94a3b8;font-size:12px}
-        .filters input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,86,179,.09)}
-        .filters select{padding:7px 28px 7px 10px;font-family:Poppins,sans-serif;font-size:12.5px;border:1.5px solid var(--border);border-radius:7px;outline:none;transition:border-color .2s;color:var(--text-dark);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%2394a3b8' d='M5 7L0 2h10z'/%3E%3C/svg%3E") no-repeat right 10px center;-webkit-appearance:none;appearance:none;cursor:pointer;min-width:140px}
-        .filters select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,86,179,.09)}
+        .filters input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,86,179,.1)}
+        .filters select{padding:8px 32px 8px 12px;font-family:Poppins,sans-serif;font-size:13px;border:1.5px solid var(--border);border-radius:9px;outline:none;transition:border-color .2s,box-shadow .2s;color:var(--text-dark);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%2394a3b8' d='M5 7L0 2h10z'/%3E%3C/svg%3E") no-repeat right 11px center;-webkit-appearance:none;appearance:none;cursor:pointer;min-width:150px}
+        .filters select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,86,179,.1)}
         table{width:100%;border-collapse:collapse}
         th{text-align:left;padding:10px 18px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;border-bottom:1px solid var(--border);background:#fff}
         td{padding:13px 18px;font-size:13px;color:var(--text-dark);border-bottom:1px solid #f1f5f9;vertical-align:middle}
@@ -211,6 +211,7 @@
         .tl-office-hdr{display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--text-dark);text-transform:none;letter-spacing:0;margin:18px 0 8px -7px;padding-left:7px;padding-bottom:6px;position:relative}
         .tl-office-hdr::after{content:'';position:absolute;left:21px;right:0;bottom:0;height:1.5px;background:var(--border)}
         .tl-office-hdr:first-child{margin-top:0}
+        .tl-dur{font-size:10px;font-weight:600;color:#6366f1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:20px;padding:1px 8px;text-transform:none;letter-spacing:0;white-space:nowrap;flex-shrink:0;margin-left:auto}
         .drawer-loader{display:flex;align-items:center;justify-content:center;padding:48px;flex-direction:column;gap:12px;color:var(--text-muted);font-size:13px}
         .spin{width:22px;height:22px;border:3px solid #e2e8f0;border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
         /* ─── Mobile sidebar ─── */
@@ -250,10 +251,11 @@
             .live-clock{display:none}
             /* Table head filters */
             .table-head{flex-direction:column;align-items:stretch;gap:10px;padding:14px 16px}
-            .filters{gap:6px}
-            .filters input{font-size:11px;padding:6px 8px 6px 26px}
+            .filters{gap:6px;flex-wrap:wrap;min-width:0;justify-content:stretch;flex-basis:auto}
+            .search-wrap{flex:1 1 100%;max-width:none}
+            .filters input{font-size:11px;padding:7px 9px 7px 28px}
             .filters input::placeholder{font-size:10px}
-            .filters select{font-size:11px;padding:6px 22px 6px 8px;min-width:100px}
+            .filters select{font-size:11px;padding:7px 24px 7px 8px;min-width:0;flex:1 1 100%}
             .dashboard-table-card.has-list .table-card-scroll{display:none!important}
             .dashboard-table-card.has-list .mob-cards{display:block!important;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px}
             .mob-cards{display:block;padding:10px}
@@ -312,7 +314,7 @@
     </style>
     <script src="/js/spa.js" defer></script>
     <script src="/js/form-utils.js" defer></script>
-    <script src="/js/request-utils.js" defer></script>
+    <script src="/js/request-utils.js"></script>
 </head>
 <body>
 @php
@@ -360,6 +362,7 @@
         <span class="nav-section">My Documents</span>
         <a href="/submit"><i class="fas fa-paper-plane"></i> Submit Document</a>
         <a href="/my-documents"><i class="fas fa-folder"></i> My Documents</a>
+        <a href="/track"><i class="fas fa-search"></i> Track Document</a>
         <span class="nav-section">Account</span>
         <a href="/profile"><i class="fas fa-user-circle"></i> My Profile</a>
     </nav>
@@ -399,7 +402,7 @@
 
     <div class="receive-strip">
         <h2>Receive Document</h2>
-        <p class="rs-sub">Enter the 8-character reference number</p>
+        <p class="rs-sub">Enter the 8-character tracking number</p>
         <div class="rs-center">
             <div class="rs-main">
                 <div class="ref-boxes-row" id="refBoxes">
@@ -431,9 +434,9 @@
             <div class="stat-sub">Being processed</div>
         </div>
         <div class="stat-card c-emerald">
-            <div class="stat-label">Completed</div>
-            <div class="stat-num" id="stat-completed">{{ \App\Support\UiNumber::compact($stats['completed']) }}</div>
-            <div class="stat-sub">Completed and closed</div>
+            <div class="stat-label">Processed</div>
+            <div class="stat-num" id="stat-processed">{{ \App\Support\UiNumber::compact($stats['processed']) }}</div>
+            <div class="stat-sub">Documents you have finished</div>
         </div>
     </div>
 
@@ -448,7 +451,7 @@
             <div class="filters">
                 <div class="search-wrap">
                     <i class="fas fa-search"></i>
-                    <input type="text" id="searchInput" placeholder="Search subject or sender..." data-clearable data-no-capitalize oninput="filterTable()">
+                    <input type="text" id="searchInput" placeholder="Search tracking/document control, subject, sender, type..." data-clearable data-no-capitalize oninput="filterTable()">
                 </div>
                 <select id="statusFilter" onchange="filterTable()">
                     <option value="">All Statuses</option>
@@ -479,8 +482,8 @@
                 </colgroup>
                 <thead>
                     <tr>
-                        <th>Reference #</th>
                         <th>Tracking #</th>
+                        <th>Document Control #</th>
                         <th>Subject</th>
                         <th>Submitted</th>
                         <th>Status</th>
@@ -541,7 +544,7 @@
                         <div class="mob-card-top">
                             <div class="mob-card-ids">
                                 <div class="mob-card-ref">{{ $doc->reference_number ?: 'N/A' }}</div>
-                                <div class="mob-card-track">Tracking: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
+                                <div class="mob-card-track">Document Control #: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
                             </div>
                             <span class="mob-card-arrow"><i class="fas fa-chevron-right"></i></span>
                         </div>
@@ -628,6 +631,7 @@
 <script>
 var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 var docsData = JSON.parse(document.getElementById('docsData').textContent || '{}');
+var showTimePill = {!! json_encode($user->hasReportsAccess()) !!};
 
 function filterTable(){
     var q      = document.getElementById('searchInput').value.toLowerCase().trim();
@@ -738,7 +742,7 @@ async function submitReceiveLookup(lookupValue, pendingMessage){
     var lookup = String(lookupValue || '').trim().toUpperCase();
 
     if(!lookup){
-        showReceiveMsg('Reference number is required.', 'err');
+        showReceiveMsg('Tracking number is required.', 'err');
         return false;
     }
 
@@ -777,7 +781,7 @@ async function receiveByReference(){
     var ref = getRefValue();
 
     if(ref.length < 8){
-        showReceiveMsg('Please enter all 8 characters of the reference number.', 'err');
+        showReceiveMsg('Please enter all 8 characters of the tracking number.', 'err');
         var boxes = document.querySelectorAll('#refBoxes .ref-box');
         for(var i=0;i<boxes.length;i++){
             if(!boxes[i].value){ boxes[i].focus(); break; }
@@ -923,25 +927,41 @@ function renderDrawer(doc){
     var trackingNo = doc.tracking_number || '';
     document.getElementById('drTitle').textContent = doc.subject || '-';
     document.getElementById('drRef').textContent = 'TN · ' + ref;
-    document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Ref · ' + trackingNo) : '';
+    document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Document Control # ' + trackingNo) : '';
 
     var logs = Array.isArray(doc.routing_logs) ? doc.routing_logs : [];
     var tlHtml = '';
     if (!logs.length) {
         tlHtml = '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">No routing history yet.</div>';
     } else {
+        function groupKeyFor(log) {
+            return (log.action === 'submitted') ? '__pending__' :
+                   (log.action === 'forwarded' ? (log.from_office || 'Unknown') :
+                   (log.to_office || log.from_office || 'Unknown'));
+        }
+        var segDurations = [];
+        if (showTimePill) {
+            logs.forEach(function(log) {
+                if (log.office_duration_human != null) {
+                    segDurations.push({ key: groupKeyFor(log), dur: log.office_duration_human });
+                }
+            });
+        }
+        var segDurIdx = segDurations.length - 1;
         var prevGroupKey = null;
         logs.slice().reverse().forEach(function(log, idx) {
             var isLatest = idx === 0;
             var dc = isLatest ? 'c-latest' : dotClass(log.status_after);
             var dotIcon = isLatest ? 'fa-arrow-up' : 'fa-check';
-            var groupKey = (log.action === 'submitted') ? '__pending__' :
-                           (log.action === 'forwarded' ? (log.from_office || 'Unknown') :
-                           (log.to_office || log.from_office || 'Unknown'));
+            var groupKey = groupKeyFor(log);
             var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : groupKey;
             if (groupKey !== prevGroupKey) {
                 prevGroupKey = groupKey;
-                tlHtml += '<div class="tl-office-hdr"><div class="tl-dot ' + dc + '" style="margin-right:5px"><i class="fas ' + dotIcon + '" style="font-size:5px"></i></div><span>' + escapeHtml(groupLabel) + '</span></div>';
+                var dur = null;
+                if (showTimePill && segDurIdx >= 0 && segDurations[segDurIdx] && segDurations[segDurIdx].key === groupKey) {
+                    dur = segDurations[segDurIdx--].dur;
+                }
+                tlHtml += '<div class="tl-office-hdr"><div class="tl-dot ' + dc + '" style="margin-right:5px"><i class="fas ' + dotIcon + '" style="font-size:5px"></i></div><span>' + escapeHtml(groupLabel) + '</span>' + (dur ? '<span class="tl-dur"><i class="fas fa-hourglass-half" style="margin-right:4px;font-size:9px"></i>' + escapeHtml(dur) + '</span>' : '') + '</div>';
             }
             tlHtml += '<div class="tl-item">' +
                 (log.performed_by ? '<div class="tl-action">' + escapeHtml(log.performed_by) + '</div>' : '') +
@@ -953,7 +973,7 @@ function renderDrawer(doc){
     }
 
     var currentOfficeText = (doc.status === 'submitted')
-        ? ('Awaiting physical submission to ' + (doc.submitted_to_office || doc.current_office || 'Records Section'))
+        ? ('Awaiting physical submission to Records Section for routing to ' + (doc.submitted_to_office || doc.current_office || 'the selected destination office'))
         : (doc.current_office || doc.submitted_to_office || '-');
 
     var currentHandlerText = doc.current_handler || 'Unassigned';
@@ -969,7 +989,7 @@ document.addEventListener('keydown', function(e){
 
 // ─── Live stats + smart doc-table refresh (every 30s) ───
 (function(){
-    var prev = {in_review:null,completed:null};
+    var prev = {in_review:null,processed:null};
     var flashTimer = null;
 
     function flash(){
@@ -1026,16 +1046,16 @@ document.addEventListener('keydown', function(e){
             .then(function(d){
                 var compactCount = window.formatCompactCount || function(v) { return String(v); };
                 document.getElementById('stat-in-review').textContent = compactCount(d.in_review);
-                document.getElementById('stat-completed').textContent = compactCount(d.completed);
+                document.getElementById('stat-processed').textContent = compactCount(d.processed);
                 // Toggle Reports sidebar link in real-time
                 var rlink = document.getElementById('reports-nav-link');
                 if (rlink) rlink.style.display = d.has_reports_access ? '' : 'none';
                 // Only refresh table when counts have actually changed
                 if(prev.in_review !== null && (
                     d.in_review !== prev.in_review ||
-                    d.completed !== prev.completed
+                    d.processed !== prev.processed
                 )) refreshTable();
-                prev = {in_review:d.in_review, completed:d.completed};
+                prev = {in_review:d.in_review, processed:d.processed};
                 window.clearStatusNotice('office-dashboard-stats');
             })
             .catch(function(){
@@ -1079,7 +1099,7 @@ document.addEventListener('keydown', function(e){
                 <button class="scanner-close" onclick="closeScanner()">&#10005;</button>
             </div>
             <div class="scanner-body">
-                <div class="scanner-hint">Point your camera at the document's QR code to review it before receiving.</div>
+                <div class="scanner-hint">Point your camera at the document's QR code to receive it directly on this dashboard.</div>
                 <div id="qr-reader"></div>
                 <p class="camera-status" id="cameraStatus">Initializing camera...</p>
             </div>
@@ -1198,7 +1218,14 @@ document.addEventListener('keydown', function(e){
             if (!lookup || lookup.length < 8) return;
 
             window.closeScanner();
-            window.location.assign('/receive/' + encodeURIComponent(lookup));
+            fillRefBoxes(lookup);
+
+            if (typeof window.submitReceiveLookup !== 'function') {
+                showStatus('Scanner receive handler is unavailable. Please refresh the page.');
+                return;
+            }
+
+            window.submitReceiveLookup(lookup, 'Receiving scanned document...');
         }
 
         window.openScanner = function() {

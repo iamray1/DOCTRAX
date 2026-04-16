@@ -124,6 +124,7 @@
             <a href="/dashboard"><i class="fas fa-tachometer-alt"></i> Admin Dashboard</a>
             <a href="/admin/users"><i class="fas fa-users"></i> Users</a>
             <a href="/admin/offices"><i class="fas fa-building"></i> Offices</a>
+            <a href="/admin/schools"><i class="fas fa-school"></i> Schools</a>
             <span class="nav-section">ICT Unit</span>
             <a href="/ict/documents"><i class="fas fa-network-wired"></i> ICT Documents</a>
         @endif
@@ -179,7 +180,7 @@
                             <div class="value" style="font-family:monospace">{{ $document->reference_number ?: 'N/A' }}</div>
                         </div>
                         <div class="info-item">
-                            <div class="label">Internal Reference</div>
+                            <div class="label">Document Control #</div>
                             <div class="value" style="font-family:monospace">{{ $document->tracking_number }}</div>
                         </div>
 
@@ -332,7 +333,7 @@
                                         <div class="tl-meta"><i class="fas fa-tasks" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->actionLabel() }}</div>
                                         @php
                                             $tlRemarks = $tlLog->action === 'submitted'
-                                                ? 'Document submitted online. Awaiting physical submission to Records Section.'
+                                                ? 'Document submitted online. Awaiting physical submission to Records Section for routing to ' . ($doc->submittedToOffice->name ?? 'the selected destination office') . '.'
                                                 : $tlLog->remarks;
                                         @endphp
                                         @if($tlRemarks)<div class="tl-remarks">{{ $tlRemarks }}</div>@endif

@@ -286,7 +286,7 @@
                                     <div class="tl-meta"><i class="fas fa-tasks" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->actionLabel() }}</div>
                                     @php
                                         $tlRemarks = $tlLog->action === 'submitted'
-                                            ? 'Document submitted online. Awaiting physical submission to Records Section.'
+                                            ? 'Document submitted online. Awaiting physical submission to Records Section for routing to ' . ($doc->submittedToOffice->name ?? 'the selected destination office') . '.'
                                             : $tlLog->remarks;
                                     @endphp
                                     @if($tlRemarks)<div class="tl-remarks">{{ $tlRemarks }}</div>@endif

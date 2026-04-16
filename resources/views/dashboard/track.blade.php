@@ -113,7 +113,7 @@
         .timeline::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--border);z-index:0;pointer-events:none}
         .tl-item{position:relative;z-index:1;margin-bottom:22px;padding-left:24px}
         .tl-item:last-child{margin-bottom:0}
-        .tl-dot{width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+        .tl-dot{width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;position:relative;z-index:2}
         .tl-dot.active{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.done{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.warn{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
@@ -125,6 +125,7 @@
         .tl-office-hdr{display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--text-dark);text-transform:none;letter-spacing:0;margin:18px 0 8px -7px;padding-left:7px;padding-bottom:6px;position:relative;z-index:1}
         .tl-office-hdr::after{content:'';position:absolute;left:21px;right:0;bottom:0;height:1.5px;background:var(--border)}
         .tl-office-hdr:first-child{margin-top:0}
+        .tl-dur{font-size:10px;font-weight:600;color:#6366f1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:20px;padding:1px 8px;text-transform:none;letter-spacing:0;white-space:nowrap;flex-shrink:0;margin-left:auto}
 
         /* ─── Not Found ─── */
         .msg-box{text-align:center;padding:40px 20px}
@@ -138,6 +139,7 @@
         /* ─── My Docs Card ─── */
         .my-docs-card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.07);overflow:hidden;margin-bottom:22px}
         .my-docs-head{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+        .my-docs-list{max-height:min(38vh,320px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
         .my-docs-head h3{font-size:14px;font-weight:700;color:var(--text-dark);display:flex;align-items:center;gap:8px}
         .my-docs-head span{font-size:11px;color:var(--text-muted)}
         .my-doc-row{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;text-decoration:none}
@@ -150,6 +152,10 @@
         .my-doc-badge{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;flex-shrink:0}
         .my-doc-arr{color:#cbd5e1;font-size:12px;flex-shrink:0}
         .my-docs-empty{padding:28px;text-align:center;color:var(--text-muted);font-size:13px}
+        .timeline-scroll{max-height:min(52vh,420px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:0 4px 0 10px}
+        .my-docs-list::-webkit-scrollbar,.timeline-scroll::-webkit-scrollbar{width:8px}
+        .my-docs-list::-webkit-scrollbar-thumb,.timeline-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+        .my-docs-list::-webkit-scrollbar-track,.timeline-scroll::-webkit-scrollbar-track{background:transparent}
 
         /* ─── Footer ─── */
         .dash-footer{width:100%;background:#fff;border-top:1px solid #e2e8f0;padding:20px 5%;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#94a3b8;margin-top:auto}
@@ -173,8 +179,10 @@
             .search-btn-wrap{margin-top:14px}
             .btn-track{height:48px;font-size:13px}
             .my-docs-head{padding:12px 14px}
+            .my-docs-list{max-height:260px}
             .my-doc-row{padding:10px 14px;gap:10px}
             .my-doc-badge{font-size:9px;padding:2px 8px}
+            .timeline-scroll{max-height:320px;padding:0 2px 0 10px}
         }
     </style>
     <script src="/js/spa.js" defer></script>
@@ -183,14 +191,22 @@
 </head>
 <body>
 @php
+    $isOfficeTrack = $user->isOfficeAccount();
     $isSelfRep = $user->isRepresentative() && !$user->office_id;
     $repName = $isSelfRep ? $user->representativeDisplayName() : '';
     $repOfficeName = $isSelfRep ? ($user->representativeOfficeName() ?? 'Representative') : '';
-    $sidebarNameSource = trim($repName ?: $user->name);
+    $officeRepName = $isOfficeTrack ? $user->representativeDisplayName() : '';
+    $officeName = $isOfficeTrack ? ($user->representativeOfficeName() ?? 'Office') : '';
+    $sidebarNameSource = trim($isOfficeTrack ? ($officeRepName ?: $user->name) : ($repName ?: $user->name));
     $initials = collect(explode(' ', $sidebarNameSource))->filter()->map(fn($w)=>strtoupper(substr($w,0,1)))->take(2)->implode('');
     $firstName = explode(' ', $sidebarNameSource)[0] ?? 'User';
-    $roleBadge = $isSelfRep ? ($repName ?: 'Representative') : ucfirst($user->role ?? 'User');
-    $sidebarName = $isSelfRep ? ($repOfficeName ?: 'Representative') : $firstName;
+    $roleBadge = $isOfficeTrack
+        ? ($officeName ?: 'Office')
+        : ($isSelfRep ? ($repName ?: 'Representative') : ucfirst($user->role ?? 'User'));
+    $sidebarName = $isOfficeTrack
+        ? ($officeRepName ?: $firstName)
+        : ($isSelfRep ? ($repOfficeName ?: 'Representative') : $firstName);
+    $backHref = $isOfficeTrack ? '/office/dashboard' : '/dashboard';
 @endphp
 
 <!-- Mobile top bar -->
@@ -212,6 +228,21 @@
         <small>DepEd Document Tracking System</small>
     </div>
     <nav class="sb-nav">
+        @if($isOfficeTrack)
+        <span class="nav-section">Office</span>
+        <a href="/office/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <a href="/office/search" id="reports-nav-link" style="{{ $user->hasReportsAccess() ? '' : 'display:none' }}"><i class="fas fa-chart-line"></i> Reports</a>
+        @if($user->isRecords())
+        <span class="nav-section">Records Section</span>
+        <a href="/records/documents"><i class="fas fa-folder-open"></i> All Documents</a>
+        @endif
+        <span class="nav-section">My Documents</span>
+        <a href="/submit"><i class="fas fa-paper-plane"></i> Submit Document</a>
+        <a href="/my-documents"><i class="fas fa-folder"></i> My Documents</a>
+        <a href="/track" class="active"><i class="fas fa-search"></i> Track Document</a>
+        <span class="nav-section">Account</span>
+        <a href="/profile"><i class="fas fa-user-circle"></i> My Profile</a>
+        @else
         <span class="nav-section">Overview</span>
         <a href="/dashboard"><i class="fas fa-th-large"></i> Dashboard</a>
         <span class="nav-section">Documents</span>
@@ -220,6 +251,7 @@
         <a href="/track" class="active"><i class="fas fa-search"></i> Track Document</a>
         <span class="nav-section">Account</span>
         <a href="/profile"><i class="fas fa-user-cog"></i> My Profile</a>
+        @endif
     </nav>
     <div class="sb-footer">
         <div class="sb-user">
@@ -238,7 +270,7 @@
 
 <div class="dash-wrapper">
 
-    <a href="/dashboard" class="back-link" aria-label="Back to Dashboard" title="Back to Dashboard" style="display:inline-flex;align-items:center;justify-content:center;gap:0;padding:0;border:none;background:transparent;border-radius:0;box-shadow:none;color:#0f172a;text-decoration:none;line-height:1.2;width:auto;"><span aria-hidden="true" style="width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;border-radius:999px;background:linear-gradient(135deg,#0f4fd6 0%,#1f8ef1 100%);color:#fff;box-shadow:none;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M5 12l14 0"></path><path d="M5 12l6 6"></path><path d="M5 12l6 -6"></path></svg></span></a>
+    <a href="{{ $backHref }}" class="back-link" aria-label="Back to Dashboard" title="Back to Dashboard" style="display:inline-flex;align-items:center;justify-content:center;gap:0;padding:0;border:none;background:transparent;border-radius:0;box-shadow:none;color:#0f172a;text-decoration:none;line-height:1.2;width:auto;"><span aria-hidden="true" style="width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;border-radius:999px;background:linear-gradient(135deg,#0f4fd6 0%,#1f8ef1 100%);color:#fff;box-shadow:none;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M5 12l14 0"></path><path d="M5 12l6 6"></path><path d="M5 12l6 -6"></path></svg></span></a>
 
     <!-- Search Card -->
     <div class="search-card">
@@ -278,17 +310,19 @@
         @if($myDocs->isEmpty())
             <div class="my-docs-empty"><i class="fas fa-inbox" style="font-size:24px;color:#cbd5e1;display:block;margin-bottom:8px"></i>You have no submitted documents yet.</div>
         @else
+            <div class="my-docs-list">
             @foreach($myDocs as $doc)
-            <a class="my-doc-row" href="#" data-tracking="{{ $doc->reference_number }}">
+            <a class="my-doc-row" href="#" data-tracking="{{ $doc->reference_number ?: $doc->tracking_number }}">
                 <div class="my-doc-icon"><i class="fas fa-file-alt"></i></div>
                 <div class="my-doc-info">
                     <div class="my-doc-subject">{{ $doc->subject }}</div>
-                    <div class="my-doc-ref">{{ $doc->reference_number }}</div>
+                    <div class="my-doc-ref">{{ $doc->reference_number ?: $doc->tracking_number }}</div>
                 </div>
                 <div class="my-doc-badge" style="background:{{ $doc->statusColor() }}1a;color:{{ $doc->statusColor() }};border:1.5px solid {{ $doc->statusColor() }}55">{{ $doc->statusLabel() }}</div>
                 <i class="fas fa-chevron-right my-doc-arr"></i>
             </a>
             @endforeach
+            </div>
         @endif
     </div>
     @endif
@@ -313,7 +347,9 @@
         </div>
         <div class="timeline-section">
             <div class="timeline-title"><i class="fas fa-history"></i> Routing History</div>
-            <div class="timeline" id="rTimeline"></div>
+            <div class="timeline-scroll">
+                <div class="timeline" id="rTimeline"></div>
+            </div>
         </div>
     </div>
 
@@ -333,6 +369,7 @@
 <script>
 (function(){
     var csrf=document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    var showTimePill = {!! json_encode($user->hasReportsAccess()) !!};
     var boxes=document.querySelectorAll('.ref-box');
     var alertEl=document.getElementById('searchAlert');
     var stateCard=document.getElementById('notFoundCard');
@@ -478,20 +515,36 @@
         var logs=doc.routing_logs||[];
         if(!logs.length){tl.innerHTML='<div style="color:var(--text-muted);font-size:13px">No routing history yet.</div>';}
         else{
+            function groupKeyFor(log){
+                return (log.action === 'submitted') ? '__pending__' :
+                       (log.action === 'forwarded' ? (log.from_office || 'Unknown') :
+                       (log.to_office || log.from_office || 'Unknown'));
+            }
+            var segDurations = [];
+            if (showTimePill) {
+                logs.forEach(function(log){
+                    if(log.office_duration_human != null){
+                        segDurations.push({ key: groupKeyFor(log), dur: log.office_duration_human });
+                    }
+                });
+            }
+            var segDurIdx = segDurations.length - 1;
             var prevGroupKey = null;
             Array.from(logs).reverse().forEach(function(log, idx){
                 var isLatest = idx === 0;
                 var dc = isLatest ? 'latest' : dotClass(log.status_after);
                 var dotIcon = isLatest ? 'fa-arrow-up' : 'fa-check';
-                var groupKey = (log.action === 'submitted') ? '__pending__' :
-                               (log.action === 'forwarded' ? (log.from_office || 'Unknown') :
-                               (log.to_office || log.from_office || 'Unknown'));
+                var groupKey = groupKeyFor(log);
                 var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : groupKey;
                 if (groupKey !== prevGroupKey) {
                     prevGroupKey = groupKey;
                     var hdr = document.createElement('div');
                     hdr.className = 'tl-office-hdr';
-                    hdr.innerHTML = '<div class="tl-dot '+dc+'" style="margin-right:5px"><i class="fas '+dotIcon+'" style="font-size:5px"></i></div><span>' + esc(groupLabel) + '</span>';
+                    var dur = null;
+                    if (showTimePill && segDurIdx >= 0 && segDurations[segDurIdx] && segDurations[segDurIdx].key === groupKey) {
+                        dur = segDurations[segDurIdx--].dur;
+                    }
+                    hdr.innerHTML = '<div class="tl-dot '+dc+'" style="margin-right:5px"><i class="fas '+dotIcon+'" style="font-size:7px;line-height:1;display:block"></i></div><span>' + esc(groupLabel) + '</span>' + (dur ? '<span class="tl-dur"><i class="fas fa-hourglass-half" style="margin-right:4px;font-size:9px"></i>' + esc(dur) + '</span>' : '');
                     tl.appendChild(hdr);
                 }
                 var item=document.createElement('div');item.className='tl-item';
@@ -524,7 +577,7 @@
     if(urlRef){setRef(urlRef);window.trackDoc();}
 
     window.logout = function() {
-        fetch('/logout', { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } })
+        fetch('/api/logout', { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } })
         .then(function() { window.location.href = '/login'; })
         .catch(function() { window.location.href = '/login'; });
     };

@@ -47,6 +47,14 @@ Route::get('/contact-us', function () {
     return view('contact');
 })->name('contact');
 
+Route::get('/help', function () {
+    $user = auth()->user();
+    if ($user) {
+        return view('dashboard.help', compact('user'));
+    }
+    return view('help');
+})->name('help');
+
 Route::get('/track', function () {
     $myDocs = null;
     $user = auth()->user();
@@ -56,11 +64,8 @@ Route::get('/track', function () {
         if ($user->isAdmin()) {
             return view('admin.track', compact('user', 'myDocs'));
         }
-        // Serve sidebar version for logged-in public-facing accounts,
-        // including self-registered representatives without an office assignment.
-        if (!$user->isOfficeAccount()) {
-            return view('dashboard.track', compact('user', 'myDocs'));
-        }
+        // Serve the shared logged-in tracker for public-facing users and office accounts.
+        return view('dashboard.track', compact('user', 'myDocs'));
     }
     return view('track.index', compact('myDocs'));
 })->name('track');
@@ -70,20 +75,30 @@ Route::get('/submit', function () {
         ->whereRaw('UPPER(code) = ?', ['RECORDS'])
         ->value('name') ?? 'Records Section';
 
+    $routingOfficeOptions = Office::query()
+        ->active()
+        ->where(function ($query) {
+            $query->where('is_school', false)
+                ->orWhereNull('is_school');
+        })
+        ->orderByRaw("CASE WHEN UPPER(code) = 'RECORDS' THEN 0 ELSE 1 END")
+        ->orderBy('name')
+        ->get(['id', 'code', 'name']);
+
     $user = auth()->user();
     if ($user && $user->isAdmin()) {
-        return view('admin.submit', compact('user', 'recordsOfficeName'));
+        return view('admin.submit', compact('user', 'recordsOfficeName', 'routingOfficeOptions'));
     }
 
     if ($user && $user->account_type === 'representative' && $user->office_id) {
-        return view('office.submit', compact('recordsOfficeName'));
+        return view('office.submit', compact('recordsOfficeName', 'routingOfficeOptions'));
     }
 
     if ($user) {
-        return view('dashboard.submit', compact('user', 'recordsOfficeName'));
+        return view('dashboard.submit', compact('user', 'recordsOfficeName', 'routingOfficeOptions'));
     }
 
-    return view('submit.index', compact('recordsOfficeName'));
+    return view('submit.index', compact('recordsOfficeName', 'routingOfficeOptions'));
 })->name('submit');
 
 Route::get('/login', function () {
@@ -91,7 +106,13 @@ Route::get('/login', function () {
 })->middleware('no-cache')->name('login');
 
 Route::get('/register', function () {
-    return view('auth.register');
+    $representativeSchools = Office::query()
+        ->schools()
+        ->active()
+        ->orderBy('name')
+        ->pluck('name');
+
+    return view('auth.register', compact('representativeSchools'));
 })->middleware('no-cache')->name('register');
 
 // Activation routes
@@ -147,7 +168,7 @@ Route::get('/receive/{tracking}', function ($tracking) {
 
 // Public API Routes
 Route::post('/api/submit-document', [DocumentController::class, 'submit'])
-    ->middleware('throttle:10,1');
+    ->middleware('submit-throttle');
 Route::match(['GET', 'POST'], '/api/track-document', [DocumentController::class, 'track'])
     ->middleware('throttle:30,1');
 Route::post('/api/check-email', [AuthController::class, 'checkEmail'])
@@ -174,11 +195,6 @@ Route::middleware(['auth', 'ensure-auth', 'no-cache'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile');
     Route::put('/api/profile', [ProfileController::class, 'update'])->middleware('throttle:10,1');
     Route::put('/api/profile/password', [ProfileController::class, 'changePassword'])->middleware('throttle:5,1');
-
-    // Help
-    Route::get('/help', function () {
-        return view('dashboard.help', ['user' => \Illuminate\Support\Facades\Auth::user()]);
-    })->name('help');
 
     // ─── Office account routes ───────────────────────────────────────────────
     Route::get('/office/dashboard', [RepresentativeController::class, 'dashboard'])
@@ -208,6 +224,9 @@ Route::middleware(['auth', 'ensure-auth', 'no-cache'])->group(function () {
         Route::delete('/api/admin/offices/{id}', [AdminController::class, 'deleteOfficeAccount'])->middleware('throttle:10,1');
         Route::put('/api/admin/offices/{id}/reports', [AdminController::class, 'toggleReportsAccess'])->middleware('throttle:20,1');
         Route::put('/api/admin/offices/{id}/transfer', [AdminController::class, 'transferOfficeAccount'])->middleware('throttle:10,1');
+        Route::get('/admin/schools', [AdminController::class, 'schools'])->name('admin.schools')->middleware('throttle:30,1');
+        Route::post('/api/admin/schools', [AdminController::class, 'createSchool'])->middleware('throttle:10,1');
+        Route::put('/api/admin/schools/{id}', [AdminController::class, 'updateSchool'])->middleware('throttle:10,1');
 
         // ─── ICT Unit (SuperAdmin only) ───────────────────────────────────────────
         Route::get('/ict/documents', [AdminController::class, 'ictDocuments'])->name('ict.documents')->middleware('throttle:60,1');

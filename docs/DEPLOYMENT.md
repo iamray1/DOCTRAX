@@ -17,13 +17,12 @@ Add these repository secrets in GitHub:
   Your Ubuntu VM public IP or domain
 - `SSH_PORT`
   Usually `22`
+- `SSH_USER`
+  Your Ubuntu VM deploy user (for example `depeddoctrax1`)
 - `SSH_PRIVATE_KEY`
   The private key GitHub Actions will use to SSH into the VM
-
-This repo now hardcodes the current production deploy target in the workflow:
-
-- deploy user: `depeddoctrax1`
-- app path: `/var/www/doctrax`
+- `DEPLOY_PATH`
+  Absolute path to the Laravel app on the VM (for example `/var/www/doctrax`)
 
 ## 2. Ubuntu VM Checklist
 
@@ -42,8 +41,8 @@ Make sure the app exists on the server:
 
 ```bash
 cd /var/www
-git clone <your-repo-url> DepedDocumentTrackingSystem
-cd DepedDocumentTrackingSystem
+git clone <your-repo-url> doctrax
+cd doctrax
 composer install --no-dev --prefer-dist --optimize-autoloader
 ```
 
@@ -112,7 +111,7 @@ git remote set-url origin git@github.com:OWNER/REPO.git
 Before relying on GitHub Actions, run the deploy steps once directly on Ubuntu:
 
 ```bash
-cd /var/www/DepedDocumentTrackingSystem
+cd /var/www/doctrax
 git pull --ff-only origin main
 composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 php artisan optimize:clear
@@ -143,9 +142,9 @@ php artisan migrate --force
 
 ## 6. How Deployment Works
 
-When CI succeeds on `main`, or when you manually trigger the workflow:
+When you push to `main`, or when you manually trigger the workflow:
 
-1. GitHub Actions SSHes into the Ubuntu VM
+1. GitHub Actions SSHes into the Ubuntu VM using `SSH_HOST`, `SSH_PORT`, and `SSH_USER`
 2. the VM runs `git pull --ff-only origin main`
 3. Composer installs production dependencies
 4. Laravel clears caches
@@ -165,15 +164,20 @@ When CI succeeds on `main`, or when you manually trigger the workflow:
 You can deploy in two ways:
 
 - push to `main`
-- open GitHub Actions and run `Deploy Production` manually with `workflow_dispatch`
+- open GitHub Actions and run `Deploy Production` manually with `workflow_dispatch` (you can choose branch and migration behavior)
 
 ## 9. Troubleshooting
 
 If the workflow cannot SSH into the server:
 
-- verify `SSH_HOST`, `SSH_PORT`, `SSH_USER`, and `SSH_PRIVATE_KEY`
+- verify `SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_PRIVATE_KEY`, and `DEPLOY_PATH`
 - confirm the public key is in the server user `authorized_keys`
 - confirm SSH is allowed through the VM firewall
+
+If your Hyper-V/VMware Ubuntu VM is private (no public IP):
+
+- either expose SSH safely with port forwarding and firewall allow-list
+- or use a self-hosted GitHub Actions runner inside the same VM/network
 
 If the workflow SSHes in but `git pull` fails:
 

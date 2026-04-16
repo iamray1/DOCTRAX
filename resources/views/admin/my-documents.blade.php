@@ -558,6 +558,9 @@
         <span class="nav-section">Management</span>
         <a href="/admin/users"><i class="fas fa-users"></i> Users</a>
         <a href="/admin/offices"><i class="fas fa-building"></i> Offices</a>
+        @if($user->isSuperAdmin())
+        <a href="/admin/schools"><i class="fas fa-school"></i> Schools</a>
+        @endif
         @unless($user->isSuperAdmin())
         <a href="/admin/documents"><i class="fas fa-folder-open"></i> Documents</a>
         @endunless
@@ -599,7 +602,7 @@
 
         <!-- Filters -->
         <form class="filters anim" method="GET" action="/my-documents" id="searchForm" data-live-search>
-            <input type="text" name="search" class="filter-input" placeholder="Search tracking/reference no. or subject..." value="{{ $search }}" data-clearable data-no-capitalize>
+            <input type="text" name="search" class="filter-input" placeholder="Search tracking/document control no. or subject..." value="{{ $search }}" data-clearable data-no-capitalize>
             <select name="status" class="filter-select">
                 <option value="">All Status</option>
                 @foreach(\App\Models\Document::FILTER_STATUSES as $key => $label)
@@ -624,7 +627,7 @@
             <table class="dtable">
                 <thead>
                     <tr>
-                        <th>Reference / Tracking</th>
+                        <th>Tracking / Document Control</th>
                         <th>Subject</th>
                         <th>Type</th>
                         <th>Status</th>
@@ -760,7 +763,7 @@
 
             document.getElementById('drTitle').textContent = doc.subject || '-';
             document.getElementById('drRef').textContent = 'TN · ' + ref;
-            document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Ref · ' + trackingNo) : '';
+            document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Document Control # ' + trackingNo) : '';
 
             var logs = Array.isArray(doc.routing_logs) ? doc.routing_logs : [];
             var tlHtml = '';

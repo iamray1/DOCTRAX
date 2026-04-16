@@ -295,6 +295,7 @@
         <span class="nav-section">Management</span>
         <a href="/admin/users"><i class="fas fa-users"></i> Users</a>
         <a href="/admin/offices"><i class="fas fa-building"></i> Offices</a>
+        <a href="/admin/schools"><i class="fas fa-school"></i> Schools</a>
         <a href="/records/documents" class="active"><i class="fas fa-folder-open"></i> All Documents</a>
         <span class="nav-section">ICT Unit</span>
         <a href="/ict/documents"><i class="fas fa-network-wired"></i> ICT Documents</a>
@@ -399,14 +400,14 @@
                         id="documentsSearch"
                         name="search"
                         value="{{ $search }}"
-                        placeholder="Search reference, subject, sender..."
+                        placeholder="Search tracking, document control, subject, sender..."
                         data-clearable
                         data-no-capitalize
                     >
                 </div>
                 <select name="status" id="documentsStatus">
                     <option value="">All Statuses</option>
-                    @foreach(\App\Models\Document::FILTER_STATUSES as $key => $label)
+                    @foreach(($statusOptions ?? []) as $key => $label)
                         <option value="{{ $key }}" {{ $status === $key ? 'selected' : '' }}>{{ $label }}</option>
                     @endforeach
                 </select>
@@ -425,7 +426,7 @@
                     <thead>
                         <tr>
                             <th>Tracking #</th>
-                            <th>Reference #</th>
+                            <th>Document Control #</th>
                             <th>Subject</th>
                             <th>Type</th>
                             <th>Sender</th>
@@ -441,8 +442,8 @@
                             $docLookup = $doc->tracking_number ?: $doc->reference_number;
                         @endphp
                         <tr class="doc-row" onclick='openDocDetail(@json($docLookup))'>
-                            <td style="font-family:monospace;font-size:12px;font-weight:600;color:var(--primary);white-space:nowrap">{{ $doc->tracking_number }}</td>
-                            <td style="font-family:monospace;font-size:12px;font-weight:600;white-space:nowrap">{{ $doc->reference_number ?: 'N/A' }}</td>
+                            <td style="font-family:monospace;font-size:12px;font-weight:600;color:var(--primary);white-space:nowrap">{{ $doc->reference_number ?: 'N/A' }}</td>
+                            <td style="font-family:monospace;font-size:12px;font-weight:600;white-space:nowrap">{{ $doc->tracking_number }}</td>
                             <td style="max-width:200px">
                                 <div class="cell-ellipsis" style="font-weight:600" title="{{ $doc->subject }}">{{ $doc->subject }}</div>
                             </td>
@@ -497,8 +498,8 @@
                     <div class="mob-card" onclick='openDocDetail(@json($docLookup))'>
                         <div class="mob-card-top">
                             <div class="mob-card-ids">
-                                <div class="mob-card-ref">{{ $doc->tracking_number }}</div>
-                                <div class="mob-card-track">Ref: {{ $doc->reference_number ?: 'N/A' }}</div>
+                                <div class="mob-card-ref">{{ $doc->reference_number ?: 'N/A' }}</div>
+                                <div class="mob-card-track">Document Control #: {{ $doc->tracking_number }}</div>
                             </div>
                             <span class="mob-card-arrow"><i class="fas fa-chevron-right"></i></span>
                         </div>
@@ -672,7 +673,7 @@ function renderDrawer(doc){
     var trackingNo = doc.tracking_number || '';
     document.getElementById('drTitle').textContent = doc.subject || '-';
     document.getElementById('drRef').textContent = 'TN · ' + ref;
-    document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Ref · ' + trackingNo) : '';
+    document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Document Control # ' + trackingNo) : '';
 
     var logs = Array.isArray(doc.routing_logs) ? doc.routing_logs : [];
     var tlHtml = '';
@@ -717,7 +718,7 @@ function renderDrawer(doc){
     }
 
     var currentOfficeText = (doc.status === 'submitted')
-        ? ('Awaiting physical submission to ' + (doc.submitted_to_office || doc.current_office || 'Records Section'))
+        ? ('Awaiting physical submission to Records Section for routing to ' + (doc.submitted_to_office || doc.current_office || 'the selected destination office'))
         : (doc.status === 'archived' ? 'Unprocessed (Archived)' : (doc.current_office || doc.submitted_to_office || '-'));
 
     document.getElementById('drawerBody').innerHTML =

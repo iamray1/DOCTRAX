@@ -14,8 +14,5 @@ Schedule::command('documents:archive-unprocessed')
     ->timezone('Asia/Manila')
     ->withoutOverlapping();
 
-// Auto-complete for_pickup documents after 3 days (recipient didn't confirm)
-Schedule::command('documents:auto-complete-pickup')
-    ->daily()
-    ->timezone('Asia/Manila')
-    ->withoutOverlapping();
+// Automatic pickup completion is intentionally disabled.
+// Documents must remain in for_pickup until the actual claim is confirmed.

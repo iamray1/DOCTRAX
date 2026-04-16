@@ -131,6 +131,7 @@
             <a href="/" class="nav-link"><i class="fas fa-home"></i> Home</a>
             <a href="/about-us" class="nav-link"><i class="fas fa-info-circle"></i> About Us</a>
             <a href="/contact-us" class="nav-link"><i class="fas fa-envelope"></i> Contact Us</a>
+            <a href="/help" class="nav-link"><i class="fas fa-circle-question"></i> Help &amp; Guide</a>
         </div>
     </nav>
 
@@ -192,7 +193,7 @@
                             <label class="form-label">Office / School Name</label>
                             <select class="form-control" id="officeName">
                                 <option value="">Select Office / School Name</option>
-                                @foreach (config('representative_offices', []) as $officeOption)
+                                @foreach (($representativeSchools ?? collect()) as $officeOption)
                                     <option value="{{ $officeOption }}">{{ $officeOption }}</option>
                                 @endforeach
                             </select>

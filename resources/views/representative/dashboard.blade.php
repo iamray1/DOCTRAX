@@ -250,7 +250,7 @@
             <div class="filters">
                 <div class="search-wrap">
                     <i class="fas fa-search"></i>
-                    <input type="text" id="searchInput" placeholder="Search subject or sender..." data-clearable data-no-capitalize oninput="filterTable()">
+                    <input type="text" id="searchInput" placeholder="Search doc no., subject, or sender..." data-clearable data-no-capitalize oninput="filterTable()">
                 </div>
                 <select id="statusFilter" onchange="filterTable()">
                     <option value="">All Statuses</option>
@@ -275,7 +275,7 @@
             <table id="docsTable">
                 <thead>
                     <tr>
-                        <th>Tracking No.</th>
+                        <th>Tracking #</th>
                         <th>Subject</th>
                         <th>Type</th>
                         <th>Sender</th>
@@ -286,7 +286,7 @@
                 </thead>
                 <tbody>
                 @foreach($documents as $doc)
-                    <tr data-status="{{ $doc->status }}" data-search="{{ strtolower($doc->subject . ' ' . $doc->sender_name) }}">
+                    <tr data-status="{{ $doc->status }}" data-search="{{ strtolower(trim(($doc->reference_number ?? '') . ' ' . ($doc->tracking_number ?? '') . ' ' . ($doc->subject ?? '') . ' ' . ($doc->sender_name ?? ''))) }}">
                         <td style="font-family:monospace;font-size:12px;font-weight:600;color:var(--primary)">
                             {{ $doc->reference_number }}
                         </td>

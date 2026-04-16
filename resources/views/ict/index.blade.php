@@ -371,7 +371,7 @@
     <script src="/js/auth-guard.js"></script>
     <script src="/js/spa.js" defer></script>
     <script src="/js/form-utils.js" defer></script>
-    <script src="/js/request-utils.js" defer></script>
+    <script src="/js/request-utils.js"></script>
 </head>
 <body>
 
@@ -399,6 +399,7 @@
         <span class="nav-section">Management</span>
         <a href="/admin/users"><i class="fas fa-users"></i> Users</a>
         <a href="/admin/offices"><i class="fas fa-building"></i> Offices</a>
+        <a href="/admin/schools"><i class="fas fa-school"></i> Schools</a>
         @unless($user->isSuperAdmin())
         <a href="/admin/documents"><i class="fas fa-folder-open"></i> Documents</a>
         @endunless
@@ -453,7 +454,7 @@
 
     <div class="receive-strip">
         <h2>Receive Document</h2>
-        <p class="rs-sub">Enter the 8-character reference number</p>
+        <p class="rs-sub">Enter the 8-character tracking number</p>
         <div class="rs-center">
             <div class="rs-main">
                 <div class="ref-boxes-row" id="refBoxes">
@@ -507,7 +508,7 @@
                 <div class="filter-row">
                     <div class="search-wrap">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="tblSearch" placeholder="Search reference, subject, sender, type…" data-clearable data-no-capitalize oninput="filterTable()">
+                        <input type="text" id="tblSearch" placeholder="Search tracking, document control, subject, sender, type…" data-clearable data-no-capitalize oninput="filterTable()">
                     </div>
                 </div>
                 <div class="filter-row">
@@ -536,8 +537,8 @@
             </colgroup>
             <thead>
                 <tr>
-                    <th>Reference #</th>
                     <th>Tracking #</th>
+                    <th>Document Control #</th>
                     <th>Subject</th>
                     <th>Submitted</th>
                     <th>Status</th>
@@ -548,7 +549,7 @@
             <tbody>
                 @foreach($documents as $doc)
                 @php $sender = $doc->user ? $doc->user->name : ($doc->sender_name ?? 'Guest'); @endphp
-                <tr class="doc-row" data-search="{{ strtolower(($doc->reference_number ?: $doc->tracking_number).' '.$doc->subject.' '.$sender.' '.($doc->type ?? '')) }}" data-status="{{ $doc->status }}" onclick='openDocDetail("{{ $doc->reference_number ?: $doc->tracking_number }}")'>
+                <tr class="doc-row" data-search="{{ strtolower(trim(($doc->reference_number ?? '').' '.($doc->tracking_number ?? '').' '.$doc->subject.' '.$sender.' '.($doc->type ?? ''))) }}" data-status="{{ $doc->status }}" onclick='openDocDetail("{{ $doc->reference_number ?: $doc->tracking_number }}")'>
                     <td class="t-ref"><div class="cell-ellipsis" title="{{ $doc->reference_number ?: 'N/A' }}">{{ $doc->reference_number ?: 'N/A' }}</div></td>
                     <td class="t-track"><div class="cell-ellipsis" title="{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}">{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div></td>
                     <td class="t-subject" style="max-width:200px"><div class="cell-ellipsis" style="font-weight:600" title="{{ $doc->subject }}">{{ $doc->subject }}</div></td>
@@ -573,11 +574,11 @@
         <div class="mob-cards">
             @foreach($documents as $doc)
             @php $sender = $doc->user ? $doc->user->name : ($doc->sender_name ?? 'Guest'); @endphp
-            <div class="mob-card" data-search="{{ strtolower(($doc->reference_number ?: $doc->tracking_number).' '.$doc->subject.' '.$sender.' '.($doc->type ?? '')) }}" data-status="{{ $doc->status }}" onclick='openDocDetail("{{ $doc->reference_number ?: $doc->tracking_number }}")'>
+            <div class="mob-card" data-search="{{ strtolower(trim(($doc->reference_number ?? '').' '.($doc->tracking_number ?? '').' '.$doc->subject.' '.$sender.' '.($doc->type ?? ''))) }}" data-status="{{ $doc->status }}" onclick='openDocDetail("{{ $doc->reference_number ?: $doc->tracking_number }}")'>
                 <div class="mob-card-top">
                     <div class="mob-card-ids">
                         <div class="mob-card-ref">{{ $doc->reference_number ?: 'N/A' }}</div>
-                        <div class="mob-card-track">Tracking: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
+                        <div class="mob-card-track">Document Control #: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
                     </div>
                     <span class="mob-card-arrow"><i class="fas fa-chevron-right"></i></span>
                 </div>
@@ -768,7 +769,7 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
         var lookup = String(lookupValue || '').trim().toUpperCase();
 
         if(!lookup){
-            showReceiveMsg('Reference number is required.', 'err');
+            showReceiveMsg('Tracking number is required.', 'err');
             return false;
         }
 
@@ -807,7 +808,7 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
         var ref = getRefValue();
 
         if(ref.length < 8){
-            showReceiveMsg('Please enter all 8 characters of the reference number.', 'err');
+            showReceiveMsg('Please enter all 8 characters of the tracking number.', 'err');
             var boxes = document.querySelectorAll('#refBoxes .ref-box');
             for(var i=0;i<boxes.length;i++){
                 if(!boxes[i].value){ boxes[i].focus(); break; }
@@ -919,8 +920,8 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
         var ref = doc.reference_number || doc.tracking_number || '-';
         var trackingNo = doc.tracking_number || '';
         document.getElementById('drTitle').textContent = doc.subject || '-';
-        document.getElementById('drRef').textContent = 'Ref # ' + ref;
-        document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Tracking # ' + trackingNo) : '';
+        document.getElementById('drRef').textContent = 'Tracking # ' + ref;
+        document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Document Control # ' + trackingNo) : '';
 
         var logs = Array.isArray(doc.routing_logs) ? doc.routing_logs : [];
         var tlHtml = '';
@@ -1016,7 +1017,7 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
                 <button class="scanner-close" onclick="closeScanner()">&#10005;</button>
             </div>
             <div class="scanner-body">
-                <div class="scanner-hint">Point your camera at the document's QR code to review it before receiving.</div>
+                <div class="scanner-hint">Point your camera at the document's QR code to receive it directly on this dashboard.</div>
                 <div id="qr-reader"></div>
                 <p class="camera-status" id="cameraStatus">Initializing camera...</p>
             </div>
@@ -1130,7 +1131,14 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
             if (!lookup || lookup.length < 8) return;
 
             window.closeScanner();
-            window.location.assign('/receive/' + encodeURIComponent(lookup));
+            fillRefBoxes(lookup);
+
+            if (typeof window.submitReceiveLookup !== 'function') {
+                showStatus('Scanner receive handler is unavailable. Please refresh the page.');
+                return;
+            }
+
+            window.submitReceiveLookup(lookup, 'Receiving scanned document...');
         }
 
         window.openScanner = function() {

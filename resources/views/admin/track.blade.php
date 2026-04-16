@@ -111,7 +111,7 @@
         .timeline::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--border);z-index:0;pointer-events:none}
         .tl-item{position:relative;z-index:1;margin-bottom:22px;padding-left:24px}
         .tl-item:last-child{margin-bottom:0}
-        .tl-dot{width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+        .tl-dot{width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;position:relative;z-index:2}
         .tl-dot.active{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.done{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.warn{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
@@ -135,6 +135,25 @@
         .spinner{width:15px;height:15px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 
         /* ─── Footer ─── */
+        .my-docs-card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.07);overflow:hidden;margin-bottom:22px}
+        .my-docs-head{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+        .my-docs-list{max-height:min(38vh,320px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+        .my-docs-head h3{font-size:14px;font-weight:700;color:var(--text-dark);display:flex;align-items:center;gap:8px}
+        .my-docs-head span{font-size:11px;color:var(--text-muted)}
+        .my-doc-row{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;text-decoration:none}
+        .my-doc-row:last-child{border-bottom:none}
+        .my-doc-row:hover{background:#f8fafc}
+        .my-doc-icon{width:34px;height:34px;border-radius:8px;background:#eff6ff;color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+        .my-doc-info{flex:1;min-width:0}
+        .my-doc-subject{font-size:13px;font-weight:600;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .my-doc-ref{font-size:11px;color:var(--text-muted);font-family:monospace;letter-spacing:.3px;margin-top:1px}
+        .my-doc-badge{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;flex-shrink:0}
+        .my-doc-arr{color:#cbd5e1;font-size:12px;flex-shrink:0}
+        .my-docs-empty{padding:28px;text-align:center;color:var(--text-muted);font-size:13px}
+        .timeline-scroll{max-height:min(52vh,420px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:0 4px 0 10px}
+        .my-docs-list::-webkit-scrollbar,.timeline-scroll::-webkit-scrollbar{width:8px}
+        .my-docs-list::-webkit-scrollbar-thumb,.timeline-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+        .my-docs-list::-webkit-scrollbar-track,.timeline-scroll::-webkit-scrollbar-track{background:transparent}
         .site-footer{background:#fff;border-top:1px solid var(--border);padding:20px 5%;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#94a3b8;margin-top:auto}
         .footer-right{font-size:11px;color:#b0b8c4}
 
@@ -158,6 +177,11 @@
             .btn-clear-x{width:30px;height:30px;font-size:12px}
             .search-btn-wrap{margin-top:14px}
             .btn-track{height:48px;font-size:13px}
+            .my-docs-head{padding:12px 14px}
+            .my-docs-list{max-height:260px}
+            .my-doc-row{padding:10px 14px;gap:10px}
+            .my-doc-badge{font-size:9px;padding:2px 8px}
+            .timeline-scroll{max-height:320px;padding:0 2px 0 10px}
         }
     </style>
     <script src="/js/spa.js" defer></script>
@@ -194,6 +218,9 @@
         <span class="nav-section">Management</span>
         <a href="/admin/users"><i class="fas fa-users"></i> Users</a>
         <a href="/admin/offices"><i class="fas fa-building"></i> Offices</a>
+        @if($user->isSuperAdmin())
+        <a href="/admin/schools"><i class="fas fa-school"></i> Schools</a>
+        @endif
         @unless($user->isSuperAdmin())
         <a href="/admin/documents"><i class="fas fa-folder-open"></i> Documents</a>
         @endunless
@@ -257,6 +284,32 @@
         </div>
     </div>
 
+    @if(!is_null($myDocs))
+    <div class="my-docs-card">
+        <div class="my-docs-head">
+            <h3><i class="fas fa-folder-open" style="color:var(--primary)"></i> My Submitted Documents</h3>
+            <span>Click a row to track it</span>
+        </div>
+        @if($myDocs->isEmpty())
+            <div class="my-docs-empty"><i class="fas fa-inbox" style="font-size:24px;color:#cbd5e1;display:block;margin-bottom:8px"></i>You have no submitted documents yet.</div>
+        @else
+            <div class="my-docs-list">
+            @foreach($myDocs as $doc)
+            <a class="my-doc-row" href="#" data-tracking="{{ $doc->reference_number }}">
+                <div class="my-doc-icon"><i class="fas fa-file-alt"></i></div>
+                <div class="my-doc-info">
+                    <div class="my-doc-subject">{{ $doc->subject }}</div>
+                    <div class="my-doc-ref">{{ $doc->reference_number }}</div>
+                </div>
+                <div class="my-doc-badge" style="background:{{ $doc->statusColor() }}1a;color:{{ $doc->statusColor() }};border:1.5px solid {{ $doc->statusColor() }}55">{{ $doc->statusLabel() }}</div>
+                <i class="fas fa-chevron-right my-doc-arr"></i>
+            </a>
+            @endforeach
+            </div>
+        @endif
+    </div>
+    @endif
+
     <!-- Not Found Card -->
     <div class="result-card" id="notFoundCard">
         <div class="msg-box">
@@ -277,7 +330,9 @@
         </div>
         <div class="timeline-section">
             <div class="timeline-title"><i class="fas fa-history"></i> Routing History</div>
-            <div class="timeline" id="rTimeline"></div>
+            <div class="timeline-scroll">
+                <div class="timeline" id="rTimeline"></div>
+            </div>
         </div>
     </div>
 
@@ -358,6 +413,8 @@
         boxes.forEach(function(b){b.value='';b.classList.remove('filled');});
         boxes[0].focus();
         alertEl.classList.remove('show');
+        if (stateCard) stateCard.classList.remove('show');
+        document.getElementById('resultCard').classList.remove('show');
     };
 
     function showAlert(msg){
@@ -395,11 +452,13 @@
             .replace(/"/g,'&quot;')
             .replace(/'/g,'&#39;');
     }
-    window.trackDoc=async function(){
+    window.trackDoc=async function(prefilledLookup){
         clearTimeout(_trackLookupTimer);
         alertEl.classList.remove('show');
-        var ref=getRef();
-        if(ref.length<8){showAlert('Please enter the full 8-character tracking number.');return;}
+        var hasPrefilled = typeof prefilledLookup === 'string' && prefilledLookup.trim() !== '';
+        var ref = hasPrefilled ? prefilledLookup.trim().toUpperCase() : getRef();
+        if(!hasPrefilled && ref.length<8){showAlert('Please enter the full 8-character tracking number.');return;}
+        if(ref === ''){showAlert('Please enter a tracking or document control number.');return;}
         var now = Date.now();
         if (_trackLookupInFlight && ref === _lastTrackedLookup) return;
         if (ref === _lastTrackedLookup && (now - _lastTrackedAt) < TRACK_LOOKUP_COOLDOWN_MS) return;
@@ -469,7 +528,7 @@
                     if (segDurIdx >= 0 && segDurations[segDurIdx] && segDurations[segDurIdx].key === groupKey) {
                         dur = segDurations[segDurIdx--].dur;
                     }
-                    hdr.innerHTML = '<div class="tl-dot '+dc+'" style="margin-right:5px"><i class="fas '+dotIcon+'" style="font-size:5px"></i></div><span>' + esc(groupLabel) + '</span>' + (dur ? '<span class="tl-dur"><i class="fas fa-hourglass-half" style="margin-right:4px;font-size:9px"></i>' + esc(dur) + '</span>' : '');
+                    hdr.innerHTML = '<div class="tl-dot '+dc+'" style="margin-right:5px"><i class="fas '+dotIcon+'" style="font-size:7px;line-height:1;display:block"></i></div><span>' + esc(groupLabel) + '</span>' + (dur ? '<span class="tl-dur"><i class="fas fa-hourglass-half" style="margin-right:4px;font-size:9px"></i>' + esc(dur) + '</span>' : '');
                     tl.appendChild(hdr);
                 }
                 var item=document.createElement('div');item.className='tl-item';
@@ -484,8 +543,28 @@
         document.getElementById('resultCard').classList.add('show');
     }
 
+    window.quickTrack=function(ref){
+        setRef(ref);
+        document.getElementById('refBoxes').scrollIntoView({behavior:'smooth',block:'center'});
+        queueTrackLookup();
+    };
+
+    document.querySelectorAll('.my-doc-row[data-tracking]').forEach(function(row){
+        row.addEventListener('click', function(e){
+            e.preventDefault();
+            var tn = row.getAttribute('data-tracking');
+            if(tn) quickTrack(tn);
+        });
+    });
+
     var urlRef=new URLSearchParams(window.location.search).get('ref');
-    if(urlRef){setRef(urlRef);window.trackDoc();}
+    if(urlRef){
+        var lookup = urlRef.trim().toUpperCase();
+        if (/^[A-Z0-9]{8}$/.test(lookup)) {
+            setRef(lookup);
+        }
+        window.trackDoc(lookup);
+    }
 
     // ─── Logout ───
     window.logout = function() {

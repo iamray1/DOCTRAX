@@ -780,7 +780,7 @@
     </style>
     <script src="/js/spa.js" defer></script>
     <script src="/js/form-utils.js" defer></script>
-    <script src="/js/request-utils.js" defer></script>
+    <script src="/js/request-utils.js"></script>
 </head>
 <body>
 
@@ -808,6 +808,9 @@
         <span class="nav-section">Management</span>
         <a href="/admin/users"><i class="fas fa-users"></i> Users</a>
         <a href="/admin/offices"><i class="fas fa-building"></i> Offices</a>
+        @if($user->isSuperAdmin())
+        <a href="/admin/schools"><i class="fas fa-school"></i> Schools</a>
+        @endif
         @unless($user->isSuperAdmin())
         <a href="/admin/documents"><i class="fas fa-folder-open"></i> Documents</a>
         @endunless
@@ -921,8 +924,8 @@
                 <div class="dtable-wrap panel-scroll-body">
                 <table class="dtable">
                     <colgroup>
-                        <col class="col-track">
                         <col class="col-ref">
+                        <col class="col-track">
                         <col class="col-subject">
                         <col class="col-submitted">
                         <col class="col-status">
@@ -930,8 +933,8 @@
                     </colgroup>
                     <thead>
                         <tr>
-                            <th>Reference #</th>
                             <th>Tracking #</th>
+                            <th>Document Control #</th>
                             <th>Subject</th>
                             <th>Submitted</th>
                             <th>Status</th>
@@ -944,8 +947,8 @@
                             $docLookup = $doc->tracking_number ?: $doc->reference_number;
                         @endphp
                         <tr class="doc-row" style="cursor:pointer;" onclick='openDocDetail(@json($docLookup))'>
-                            <td class="t-track"><div class="cell-ellipsis" title="{{ $doc->reference_number ?: 'N/A' }}">{{ $doc->reference_number ?: 'N/A' }}</div></td>
-                            <td class="t-ref"><div class="cell-ellipsis" title="{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}">{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div></td>
+                            <td class="t-ref"><div class="cell-ellipsis" title="{{ $doc->reference_number ?: 'N/A' }}">{{ $doc->reference_number ?: 'N/A' }}</div></td>
+                            <td class="t-track"><div class="cell-ellipsis" title="{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}">{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div></td>
                             <td class="t-subject"><div class="cell-ellipsis" style="font-weight:600" title="{{ $doc->subject }}">{{ $doc->subject }}</div></td>
                             <td class="t-user">
                                 <div class="cell-ellipsis submission-person" style="max-width:170px" title="{{ $doc->user ? $doc->user->name : ($doc->sender_name ?? 'Guest') }}">{{ $doc->user ? $doc->user->name : ($doc->sender_name ?? 'Guest') }}</div>
@@ -982,7 +985,7 @@
                         <div class="mob-card-top">
                             <div>
                                 <div class="mob-card-ref">{{ $doc->reference_number ?: 'N/A' }}</div>
-                                <div class="mob-card-track">Tracking: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
+                                <div class="mob-card-track">Document Control #: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
                             </div>
                             <span class="mob-card-arrow"><i class="fas fa-chevron-right"></i></span>
                         </div>
@@ -1376,7 +1379,7 @@
             var lookup = String(lookupValue || '').trim().toUpperCase();
 
             if(!lookup){
-                showReceiveMsg('Reference number is required.', 'err');
+                showReceiveMsg('Tracking number is required.', 'err');
                 return false;
             }
 
@@ -1414,7 +1417,7 @@
         async function receiveByReference(){
             var ref = getRefValue();
             if(ref.length < 8){
-                showReceiveMsg('Please enter all 8 characters of the reference number.', 'err');
+                showReceiveMsg('Please enter all 8 characters of the tracking number.', 'err');
                 var boxes = document.querySelectorAll('#refBoxes .ref-box');
                 for(var i=0;i<boxes.length;i++){
                     if(!boxes[i].value){ boxes[i].focus(); break; }
@@ -1502,9 +1505,7 @@
             var trackingNo = doc.tracking_number || '';
             document.getElementById('drTitle').textContent = doc.subject || '-';
             document.getElementById('drRef').textContent = 'TN · ' + ref;
-            document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Ref · ' + trackingNo) : '';
-            document.getElementById('drRef').textContent = 'Ref · ' + ref;
-            document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('TN · ' + trackingNo) : '';
+            document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Document Control # ' + trackingNo) : '';
             var logs = Array.isArray(doc.routing_logs) ? doc.routing_logs : [];
             var tlHtml = '';
             if (!logs.length) {
@@ -1546,7 +1547,7 @@
                 });
             }
             var currentOfficeText = (doc.status === 'submitted')
-                ? ('Awaiting physical submission to ' + (doc.submitted_to_office || doc.current_office || 'Records Section'))
+                ? ('Awaiting physical submission to Records Section for routing to ' + (doc.submitted_to_office || doc.current_office || 'the selected destination office'))
                 : (doc.current_office || doc.submitted_to_office || '-');
             var currentHandlerText = doc.current_handler || 'Unassigned';
             document.getElementById('drawerBody').innerHTML =
@@ -1571,7 +1572,7 @@
                 <button class="scanner-close" onclick="closeScanner()">&#10005;</button>
             </div>
             <div class="scanner-body">
-                <div class="scanner-hint">Point your camera at the document's QR code to review it before receiving.</div>
+                <div class="scanner-hint">Point your camera at the document's QR code to receive it directly on this dashboard.</div>
                 <div id="qr-reader"></div>
                 <p class="camera-status" id="cameraStatus">Initializing camera...</p>
             </div>
@@ -1690,7 +1691,14 @@
             if (!lookup || lookup.length < 8) return;
 
             window.closeScanner();
-            window.location.assign('/receive/' + encodeURIComponent(lookup));
+            fillRefBoxes(lookup);
+
+            if (typeof window.submitReceiveLookup !== 'function') {
+                showStatus('Scanner receive handler is unavailable. Please refresh the page.');
+                return;
+            }
+
+            window.submitReceiveLookup(lookup, 'Receiving scanned document...');
         }
 
         window.openScanner = function() {

@@ -31,6 +31,7 @@ class DocumentController extends Controller
             'type' => 'required|string|max:255',
             'subject' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
+            'routing_office_id' => 'required|integer',
         ];
 
         if (!$isAuth) {
@@ -83,6 +84,22 @@ class DocumentController extends Controller
         }
 
         try {
+            $destinationOffice = Office::query()
+                ->active()
+                ->where(function ($query) {
+                    $query->where('is_school', false)
+                        ->orWhereNull('is_school');
+                })
+                ->whereKey((int) $request->routing_office_id)
+                ->first();
+
+            if (!$destinationOffice) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The selected destination office is invalid or inactive.',
+                ], 422);
+            }
+
             $normalizedSubject = strtolower(trim((string) $request->subject));
             $normalizedType = strtolower(trim((string) $request->type));
             $normalizedDescription = strtolower(trim((string) ($request->description ?? '')));
@@ -90,6 +107,7 @@ class DocumentController extends Controller
             $recentDuplicateQuery = Document::query()
                 ->whereRaw('LOWER(TRIM(subject)) = ?', [$normalizedSubject])
                 ->whereRaw('LOWER(TRIM(type)) = ?', [$normalizedType])
+                ->where('submitted_to_office_id', $destinationOffice->id)
                 ->where('created_at', '>=', now()->subMinutes(10))
                 ->whereIn('status', ['submitted', 'received', 'in_review', 'on_hold', 'for_pickup']);
 
@@ -112,25 +130,6 @@ class DocumentController extends Controller
 
             $recentDuplicate = $recentDuplicateQuery->latest('created_at')->first();
 
-            $recordsOffice = Office::query()
-                ->whereRaw('UPPER(code) = ?', ['RECORDS'])
-                ->where('is_active', true)
-                ->first();
-
-            if (!$recordsOffice) {
-                $recordsOffice = Office::query()
-                    ->whereRaw('LOWER(name) = ?', ['records section'])
-                    ->where('is_active', true)
-                    ->first();
-            }
-
-            if (!$recordsOffice) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Records Section office is not configured. Please contact the administrator.',
-                ], 500);
-            }
-
             if ($recentDuplicate) {
                 return response()->json([
                     'success' => true,
@@ -143,7 +142,7 @@ class DocumentController extends Controller
                         'type'         => $recentDuplicate->type,
                         'subject'      => $recentDuplicate->subject,
                         'description'  => $recentDuplicate->description ?: 'No remarks provided',
-                        'submitted_to' => $recordsOffice->name,
+                        'submitted_to' => $destinationOffice->name,
                         'date'         => $recentDuplicate->created_at->setTimezone('Asia/Manila')->format('M d, Y â€” h:i A'),
                     ],
                 ]);
@@ -153,7 +152,7 @@ class DocumentController extends Controller
             $referenceNumber = $this->referenceNumberService->generateUnique();
 
             $document = new Document([
-                'submitted_to_office_id' => $recordsOffice->id,
+                'submitted_to_office_id' => $destinationOffice->id,
                 'subject' => $request->subject,
                 'type' => $request->type,
                 'sender_name' => $senderName,
@@ -170,6 +169,8 @@ class DocumentController extends Controller
             $document->last_action_at = now();
             $document->save();
 
+            $recordsOfficeName = $this->getPhysicalSubmissionOfficeName();
+
             RoutingLog::create([
                 'document_id' => $document->id,
                 'performed_by' => auth()->id(),
@@ -177,7 +178,7 @@ class DocumentController extends Controller
                 'to_office_id' => null,
                 'action' => 'submitted',
                 'status_after' => 'submitted',
-                'remarks' => 'Document submitted online. Awaiting physical submission to Records Section.',
+                'remarks' => 'Document submitted online. Awaiting physical submission to ' . $recordsOfficeName . ' for routing to ' . $destinationOffice->name . '.',
             ]);
 
             return response()->json([
@@ -190,7 +191,7 @@ class DocumentController extends Controller
                     'type'         => $document->type,
                     'subject'      => $document->subject,
                     'description'  => $document->description ?: 'No remarks provided',
-                    'submitted_to' => $recordsOffice->name,
+                    'submitted_to' => $destinationOffice->name,
                     'date'         => $document->created_at->setTimezone('Asia/Manila')->format('M d, Y — h:i A'),
                 ],
             ], 201);
@@ -348,7 +349,9 @@ class DocumentController extends Controller
                 : $performer->name;
         };
 
-        $logs = $timelineLogs->map(function ($log, $index) use ($submittedOfficeName, $arrivalMetaByLogIndex, $formatPerformerName) {
+        $physicalSubmissionOfficeName = $this->getPhysicalSubmissionOfficeName();
+
+        $logs = $timelineLogs->map(function ($log, $index) use ($submittedOfficeName, $arrivalMetaByLogIndex, $formatPerformerName, $physicalSubmissionOfficeName) {
             $isSubmissionPending = $log->action === 'submitted' && $log->status_after === 'submitted';
             $arrivalMeta = $arrivalMetaByLogIndex[$index] ?? null;
             $officeDurationSeconds = $arrivalMeta['office_duration_seconds'] ?? null;
@@ -357,7 +360,8 @@ class DocumentController extends Controller
             $remarks = $log->remarks;
             $displayToOffice = $isSubmissionPending ? ($log->toOffice?->name ?: $submittedOfficeName) : $log->toOffice?->name;
             if ($isSubmissionPending) {
-                $remarks = 'Document submitted online. Awaiting physical submission to ' . $displayToOffice . '.';
+                $destinationOfficeName = $displayToOffice ?: 'the selected destination office';
+                $remarks = 'Document submitted online. Awaiting physical submission to ' . $physicalSubmissionOfficeName . ' for routing to ' . $destinationOfficeName . '.';
             }
 
             $remarks = $this->normalizeTrackingRemarks($log, $remarks, $displayToOffice);
@@ -417,6 +421,32 @@ class DocumentController extends Controller
             ? null
             : ($formatPerformerName($latestHandlerLog?->performer) ?: $formatPerformerName($document->currentHandler));
 
+        if ($logs->isEmpty()) {
+            $legacyTimestamp = $document->created_at->copy()->setTimezone('Asia/Manila')->format('M d, Y h:i A');
+            $legacyOfficeName = $document->submittedToOffice?->name ?: $currentOfficeName;
+            $legacyAction = $document->status === 'submitted' ? 'submitted' : 'processing';
+
+            $logs = collect([[
+                'id' => null,
+                'action' => $legacyAction,
+                'action_label' => 'Legacy Record',
+                'status_after' => $document->status,
+                'from_office' => null,
+                'to_office' => $legacyOfficeName,
+                'performed_by' => $currentHandlerName,
+                'remarks' => 'Routing history is unavailable for this legacy document. Timeline logs were enabled after this record was created.',
+                'timestamp' => $legacyTimestamp,
+                'office_name' => $legacyOfficeName,
+                'office_time_in' => $legacyTimestamp,
+                'office_time_out' => null,
+                'office_duration_human' => null,
+                'office_duration_secs' => null,
+                'between_offices_human' => null,
+                'between_offices_secs' => null,
+                'next_office' => null,
+            ]]);
+        }
+
         return response()->json([
             'success' => true,
             'found' => true,
@@ -440,6 +470,19 @@ class DocumentController extends Controller
                 'routing_logs' => $logs,
             ],
         ]);
+    }
+
+    private function getPhysicalSubmissionOfficeName(): string
+    {
+        $recordsOfficeName = Office::query()
+            ->whereRaw('UPPER(code) = ?', ['RECORDS'])
+            ->value('name');
+
+        if (is_string($recordsOfficeName) && trim($recordsOfficeName) !== '') {
+            return trim($recordsOfficeName);
+        }
+
+        return 'Records Section';
     }
 
     private function normalizeTrackingRemarks(RoutingLog $log, ?string $remarks, ?string $displayToOffice): ?string

@@ -43,6 +43,8 @@
             min-height: 100vh;
         }
 
+        button, input, select, textarea { font-family: inherit; }
+
         /* ─── Sidebar ─── */
         .sidebar{position:fixed;top:0;left:0;width:240px;height:100vh;background:#0056b3;display:flex;flex-direction:column;z-index:200;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
         .sidebar.open{transform:translateX(0)}
@@ -358,6 +360,9 @@
         .btn-sm.suspend { color: var(--slate-dark); border-color: var(--slate-soft-2); }
         .btn-sm.suspend:hover { background: var(--slate-soft); }
 
+        .btn-sm.school { color: #0f766e; border-color: #99f6e4; }
+        .btn-sm.school:hover { background: #f0fdfa; }
+
         .btn-sm.delete { color: #991b1b; border-color: #fecaca; }
         .btn-sm.delete:hover { background: #fef2f2; }
 
@@ -475,6 +480,7 @@
         .modal-input:focus { border-color: var(--primary); background: #fff; }
         .modal-err { font-size: 12px; color: #dc2626; margin-top: 4px; display: none; }
         .modal-err.show { display: block; }
+        .modal-note { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-top: 6px; }
         .btn-sm.edit { color: #1d4ed8; border-color: #bfdbfe; }
         .btn-sm.edit:hover { background: #eff6ff; }
 
@@ -491,6 +497,8 @@
         }
         .type-badge.individual { background: var(--blue-soft); color: var(--primary); }
         .type-badge.representative { background: var(--slate-soft); color: var(--slate-dark); }
+        .type-badge.school { background: #ecfeff; color: #0f766e; }
+        .type-badge.office { background: #eef2ff; color: #4338ca; }
 
         /* ─── Rep name cell ─── */
         .name-cell { display: flex; flex-direction: column; gap: 2px; }
@@ -623,6 +631,9 @@
         <span class="nav-section">Management</span>
         <a href="/admin/users" class="active"><i class="fas fa-users"></i> Users</a>
         <a href="/admin/offices"><i class="fas fa-building"></i> Offices</a>
+        @if($user->isSuperAdmin())
+        <a href="/admin/schools"><i class="fas fa-school"></i> Schools</a>
+        @endif
         @unless($user->isSuperAdmin())
         <a href="/admin/documents"><i class="fas fa-folder-open"></i> Documents</a>
         @endunless
@@ -711,6 +722,8 @@
                         $isRep = $u->account_type === 'representative';
                         $officeName = $isRep ? ($u->representativeOfficeName() ?? 'No office assigned') : $u->name;
                         $repName = $isRep ? $u->representativeDisplayName() : '';
+                        $typeLabel = $u->accountTypeLabel();
+                        $typeBadgeClass = $u->accountTypeBadgeClass();
                     @endphp
                     <tr id="user-row-{{ $u->id }}">
                         <td>
@@ -722,8 +735,8 @@
                             </div>
                         </td>
                         <td>
-                            <span class="type-badge {{ $u->account_type ?? 'individual' }}">
-                                {{ ($isRep && $u->office_id) ? 'Office' : ($isRep ? 'Representative' : 'Individual') }}
+                            <span class="type-badge {{ $typeBadgeClass }}">
+                                {{ $typeLabel }}
                             </span>
                         </td>
                         <td><!--email_off-->{{ $u->email }}<!--/email_off--></td>
@@ -745,7 +758,12 @@
                                         <i class="fas fa-ban"></i>
                                     </button>
                                 @endif
-                                <button class="btn-sm edit" onclick="openEditModal({{ $u->id }}, '{{ addslashes($officeName) }}', '{{ addslashes($repName) }}', '{{ $u->email }}', '{{ $u->mobile ?? '' }}', '{{ $u->account_type ?? 'individual' }}')" title="Edit">
+                                @if($isRep)
+                                <button class="btn-sm school" onclick="openSchoolModal({{ $u->id }}, '{{ addslashes($repName ?: $u->name) }}', {{ $u->office_id ?? 'null' }}, '{{ addslashes($officeName) }}')" title="{{ $u->office_id ? 'Transfer School' : 'Assign School' }}">
+                                    <i class="fas fa-building"></i>
+                                </button>
+                                @endif
+                                <button class="btn-sm edit" onclick="openEditModal({{ $u->id }}, '{{ addslashes($officeName) }}', '{{ addslashes($repName) }}', '{{ $u->email }}', '{{ $u->mobile ?? '' }}', '{{ $u->account_type ?? 'individual' }}', {{ $u->office_id ?? 'null' }})" title="Edit">
                                     <i class="fas fa-pencil-alt"></i>
                                 </button>
                                 @if(!$user->isSuperAdmin())
@@ -768,6 +786,8 @@
                     $isRep = $u->account_type === 'representative';
                     $officeName = $isRep ? ($u->representativeOfficeName() ?? 'No office assigned') : $u->name;
                     $repName = $isRep ? $u->representativeDisplayName() : '';
+                    $typeLabel = $u->accountTypeLabel();
+                    $typeBadgeClass = $u->accountTypeBadgeClass();
                 @endphp
                 <div class="mob-card" id="mob-user-row-{{ $u->id }}">
                     <div class="mob-card-head">
@@ -782,8 +802,8 @@
                     <div class="mob-card-row">
                         <span class="label">Type</span>
                         <span class="value">
-                            <span class="type-badge {{ $u->account_type ?? 'individual' }}">
-                                {{ ($isRep && $u->office_id) ? 'Office' : ($isRep ? 'Representative' : 'Individual') }}
+                            <span class="type-badge {{ $typeBadgeClass }}">
+                                {{ $typeLabel }}
                             </span>
                         </span>
                     </div>
@@ -814,7 +834,12 @@
                                 <i class="fas fa-ban"></i> Suspend
                             </button>
                         @endif
-                        <button class="btn-sm edit" onclick="openEditModal({{ $u->id }}, '{{ addslashes($officeName) }}', '{{ addslashes($repName) }}', '{{ $u->email }}', '{{ $u->mobile ?? '' }}', '{{ $u->account_type ?? 'individual' }}')" title="Edit">
+                        @if($isRep)
+                        <button class="btn-sm school" onclick="openSchoolModal({{ $u->id }}, '{{ addslashes($repName ?: $u->name) }}', {{ $u->office_id ?? 'null' }}, '{{ addslashes($officeName) }}')" title="{{ $u->office_id ? 'Transfer School' : 'Assign School' }}">
+                            <i class="fas fa-building"></i> {{ $u->office_id ? 'Transfer School' : 'Assign School' }}
+                        </button>
+                        @endif
+                        <button class="btn-sm edit" onclick="openEditModal({{ $u->id }}, '{{ addslashes($officeName) }}', '{{ addslashes($repName) }}', '{{ $u->email }}', '{{ $u->mobile ?? '' }}', '{{ $u->account_type ?? 'individual' }}', {{ $u->office_id ?? 'null' }})" title="Edit">
                             <i class="fas fa-pencil-alt"></i> Edit
                         </button>
                         @if(!$user->isSuperAdmin())
@@ -860,6 +885,7 @@
                     <div class="modal-field">
                         <label class="modal-label">Office / Institution Name</label>
                         <input type="text" class="modal-input" id="editOfficeName" placeholder="e.g. City Hall Office" maxlength="255">
+                        <div class="modal-note" id="editOfficeLockNote" style="display:none;">Assigned schools are managed through the separate Assign/Transfer School action.</div>
                     </div>
                     <div class="modal-field">
                         <label class="modal-label">Contact Person</label>
@@ -881,6 +907,41 @@
             <div class="modal-foot">
                 <button class="modal-btn" onclick="closeEditModal()">Cancel</button>
                 <button class="modal-btn primary" id="saveEditBtn"><i class="fas fa-save"></i> Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign / Transfer School Modal -->
+    <div class="modal-overlay" id="schoolModal">
+        <div class="modal">
+            <div class="modal-head">
+                <h3 id="schoolModalTitle"><i class="fas fa-building" style="color:var(--primary);margin-right:6px;"></i> Assign School</h3>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:14px;color:var(--text-muted);line-height:1.6;">
+                    Update the school link for <strong id="schoolUserName" style="color:var(--text-dark);"></strong>.
+                </p>
+                <div class="modal-field">
+                    <label class="modal-label">Current School</label>
+                    <input type="text" class="modal-input" id="schoolCurrentName" readonly>
+                </div>
+                <div class="modal-field">
+                    <label class="modal-label">New School</label>
+                    <select class="modal-input" id="schoolOfficeId">
+                        <option value="">Select a school</option>
+                        @foreach($offices as $office)
+                            <option value="{{ $office->id }}">{{ $office->name }}</option>
+                        @endforeach
+                    </select>
+                    <div class="modal-err" id="schoolOfficeErr">Please select a school.</div>
+                </div>
+                <div class="modal-note" id="schoolModalHelp">
+                    Assigning a school here links the representative to that school dashboard.
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="modal-btn" onclick="closeSchoolModal()">Cancel</button>
+                <button class="modal-btn primary" id="saveSchoolBtn"><i class="fas fa-save"></i> Save School</button>
             </div>
         </div>
     </div>
@@ -1067,19 +1128,27 @@
         // ─── Edit User ───
         var editId = null;
         var editAccountType = 'individual';
+        var editOfficeId = null;
         var editOriginal = {};
 
-        window.openEditModal = function(id, officeName, repName, email, mobile, accountType) {
+        window.openEditModal = function(id, officeName, repName, email, mobile, accountType, officeId) {
             editId = id;
             editAccountType = accountType || 'individual';
+            editOfficeId = officeId ? parseInt(officeId, 10) : null;
             editOriginal = { officeName: officeName, repName: repName, email: email, mobile: mobile };
 
             var isRep = editAccountType === 'representative';
+            var isAssignedRep = isRep && !!editOfficeId;
             document.getElementById('editFieldIndividual').style.display = isRep ? 'none' : 'block';
             document.getElementById('editFieldRep').style.display      = isRep ? 'block' : 'none';
 
             if (isRep) {
-                document.getElementById('editOfficeName').value = officeName;
+                var officeInput = document.getElementById('editOfficeName');
+                officeInput.value = officeName;
+                officeInput.readOnly = isAssignedRep;
+                officeInput.disabled = isAssignedRep;
+                officeInput.style.opacity = isAssignedRep ? '0.7' : '1';
+                document.getElementById('editOfficeLockNote').style.display = isAssignedRep ? 'block' : 'none';
                 document.getElementById('editRepName').value   = repName;
             } else {
                 document.getElementById('editName').value = officeName;
@@ -1092,6 +1161,7 @@
         window.closeEditModal = function() {
             document.getElementById('editModal').classList.remove('show');
             editId = null;
+            editOfficeId = null;
         };
 
         document.getElementById('saveEditBtn').addEventListener('click', function() {
@@ -1099,13 +1169,18 @@
             var email  = document.getElementById('editEmail').value.trim();
             var mobile = document.getElementById('editMobile').value.trim();
             var name   = '';
+            var payload = { email: email, mobile: mobile };
 
             if (editAccountType === 'representative') {
-                var office = document.getElementById('editOfficeName').value.trim();
                 var rep    = document.getElementById('editRepName').value.trim();
-                if (!office) { showToast('Office name is required.', 'error'); return; }
                 if (!rep)    { showToast('Contact person name is required.', 'error'); return; }
-                name = office + ' - ' + rep;
+                name = rep;
+
+                if (!editOfficeId) {
+                    var office = document.getElementById('editOfficeName').value.trim();
+                    if (!office) { showToast('Office name is required.', 'error'); return; }
+                    payload.representative_office_name = office;
+                }
             } else {
                 name = document.getElementById('editName').value.trim();
                 if (!name) { showToast('Name is required.', 'error'); return; }
@@ -1118,10 +1193,12 @@
                 if (!mobile.startsWith('09')) { showToast('Mobile number must start with 09.', 'error'); return; }
             }
             // Check if anything actually changed
-            var origName = editAccountType === 'representative'
-                ? (editOriginal.officeName + ' - ' + editOriginal.repName)
-                : editOriginal.officeName;
-            if (name === origName && email === editOriginal.email && mobile === editOriginal.mobile) {
+            var repUnchanged = editAccountType !== 'representative' || name === editOriginal.repName;
+            var officeUnchanged = editAccountType !== 'representative'
+                || editOfficeId
+                || payload.representative_office_name === editOriginal.officeName;
+            var origName = editAccountType === 'representative' ? editOriginal.repName : editOriginal.officeName;
+            if (name === origName && officeUnchanged && email === editOriginal.email && mobile === editOriginal.mobile && repUnchanged) {
                 showToast('No changes were made.', 'error');
                 return;
             }
@@ -1129,7 +1206,7 @@
             var btn = document.getElementById('saveEditBtn');
             btn.disabled = true;
 
-            var payload = { name: name, email: email, mobile: mobile };
+            payload.name = name;
 
             fetch('/api/admin/users/' + editId, {
                 method: 'PUT',
@@ -1155,6 +1232,93 @@
 
         document.getElementById('editModal').addEventListener('click', function(e) {
             if (e.target === this) closeEditModal();
+        });
+
+        // ─── Assign / Transfer School ───
+        var schoolTargetId = null;
+        var schoolCurrentOfficeId = null;
+
+        window.openSchoolModal = function(id, repName, currentOfficeId, currentOfficeName) {
+            schoolTargetId = id;
+            schoolCurrentOfficeId = currentOfficeId ? parseInt(currentOfficeId, 10) : null;
+
+            var assigned = !!schoolCurrentOfficeId;
+            var hasListedSchool = !!(currentOfficeName && currentOfficeName !== 'No office assigned');
+            document.getElementById('schoolModalTitle').innerHTML = assigned
+                ? '<i class="fas fa-building" style="color:var(--primary);margin-right:6px;"></i> Transfer School'
+                : '<i class="fas fa-building" style="color:var(--primary);margin-right:6px;"></i> Assign School';
+            document.getElementById('schoolUserName').textContent = repName || 'Representative';
+            document.getElementById('schoolCurrentName').value = hasListedSchool
+                ? currentOfficeName
+                : 'No school selected yet';
+            document.getElementById('schoolModalHelp').textContent = assigned
+                ? 'If this representative is currently handling in-progress documents at the old school, those items will be returned to that school queue before the transfer completes.'
+                : (hasListedSchool
+                    ? 'This representative already selected a school during signup. Saving here will link that school selection to the school dashboard flow.'
+                    : 'This links the representative to the selected school and enables the school dashboard flow.');
+            document.getElementById('schoolOfficeId').value = '';
+            document.getElementById('schoolOfficeErr').classList.remove('show');
+            document.getElementById('schoolModal').classList.add('show');
+        };
+
+        window.closeSchoolModal = function() {
+            document.getElementById('schoolModal').classList.remove('show');
+            schoolTargetId = null;
+            schoolCurrentOfficeId = null;
+        };
+
+        document.getElementById('saveSchoolBtn').addEventListener('click', function() {
+            if (!schoolTargetId) return;
+
+            var officeId = document.getElementById('schoolOfficeId').value;
+            var err = document.getElementById('schoolOfficeErr');
+            err.classList.remove('show');
+
+            if (!officeId) {
+                err.textContent = 'Please select a school.';
+                err.classList.add('show');
+                return;
+            }
+
+            if (schoolCurrentOfficeId && parseInt(officeId, 10) === schoolCurrentOfficeId) {
+                err.textContent = 'Representative is already assigned to this school.';
+                err.classList.add('show');
+                return;
+            }
+
+            var btn = document.getElementById('saveSchoolBtn');
+            btn.disabled = true;
+
+            var endpoint = schoolCurrentOfficeId
+                ? '/api/admin/offices/' + schoolTargetId + '/transfer'
+                : '/api/admin/users/' + schoolTargetId;
+
+            fetch(endpoint, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                body: JSON.stringify({ office_id: officeId })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                btn.disabled = false;
+                if (data.success) {
+                    closeSchoolModal();
+                    showToast(data.message, 'success');
+                    setTimeout(function() { window.location.reload(); }, 900);
+                } else {
+                    err.textContent = data.message || 'Failed to update school.';
+                    err.classList.add('show');
+                }
+            })
+            .catch(function() {
+                btn.disabled = false;
+                err.textContent = 'Something went wrong.';
+                err.classList.add('show');
+            });
+        });
+
+        document.getElementById('schoolModal').addEventListener('click', function(e) {
+            if (e.target === this) closeSchoolModal();
         });
 
         // ─── Sidebar ───

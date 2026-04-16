@@ -127,6 +127,153 @@ class AdminController extends Controller
         }
     }
 
+    private function authorizeSuperAdmin()
+    {
+        if (!Auth::user() || !Auth::user()->isSuperAdmin()) {
+            abort(403, 'Unauthorized');
+        }
+    }
+
+    private function schoolOfficesQuery()
+    {
+        return Office::query()->schools();
+    }
+
+    private function normalizeSchoolName(string $name): string
+    {
+        return preg_replace('/\s+/', ' ', trim($name));
+    }
+
+    private function generateSchoolCode(string $schoolName): string
+    {
+        $normalized = preg_replace('/\s+/', '_', $schoolName);
+        $normalized = str_replace('-', '_', (string) $normalized);
+        $normalized = preg_replace('/[^A-Z0-9_]/i', '', (string) $normalized);
+        $base = strtoupper(trim((string) $normalized));
+        $base = $base !== '' ? substr($base, 0, 16) : 'SCHOOL';
+        $candidate = 'SCH_' . $base;
+        $candidate = substr($candidate, 0, 20);
+        $suffix = 1;
+
+        while (Office::where('code', $candidate)->exists()) {
+            $suffixText = (string) $suffix;
+            $maxBaseLength = max(1, 20 - 4 - strlen($suffixText) - 1);
+            $candidate = 'SCH_' . substr($base, 0, $maxBaseLength) . '_' . $suffixText;
+            $suffix++;
+
+            if ($suffix > 999) {
+                throw new \RuntimeException('Unable to generate a unique school code.');
+            }
+        }
+
+        return $candidate;
+    }
+
+    private function schoolDependencyCounts(Office $school): array
+    {
+        $schoolName = strtolower(trim((string) $school->name));
+
+        return [
+            'assigned_users' => User::where('office_id', $school->id)->count(),
+            'legacy_users' => User::where('account_type', 'representative')
+                ->whereNull('office_id')
+                ->whereRaw("LOWER(TRIM(COALESCE(representative_office_name, ''))) = ?", [$schoolName])
+                ->count(),
+            'submitted_documents' => Document::where('submitted_to_office_id', $school->id)->count(),
+            'current_documents' => Document::where('current_office_id', $school->id)->count(),
+            'routing_logs' => RoutingLog::where(function ($query) use ($school) {
+                $query->where('from_office_id', $school->id)
+                    ->orWhere('to_office_id', $school->id);
+            })->count(),
+        ];
+    }
+
+    private function schoolHasDependencies(array $counts): bool
+    {
+        return array_sum($counts) > 0;
+    }
+
+    private function schoolDeleteBlockedMessage(Office $school, array $counts): string
+    {
+        $parts = [];
+
+        if ($counts['assigned_users'] > 0) {
+            $parts[] = $counts['assigned_users'] . ' assigned user(s)';
+        }
+        if ($counts['legacy_users'] > 0) {
+            $parts[] = $counts['legacy_users'] . ' legacy representative signup(s)';
+        }
+        if ($counts['submitted_documents'] > 0) {
+            $parts[] = $counts['submitted_documents'] . ' submitted document record(s)';
+        }
+        if ($counts['current_documents'] > 0) {
+            $parts[] = $counts['current_documents'] . ' in-queue document record(s)';
+        }
+        if ($counts['routing_logs'] > 0) {
+            $parts[] = $counts['routing_logs'] . ' routing log record(s)';
+        }
+
+        if (!$parts) {
+            return "School {$school->name} cannot be deleted right now.";
+        }
+
+        return "School {$school->name} cannot be deleted because it still has " . implode(', ', $parts) . ' attached.';
+    }
+
+    private function applyRepresentativeOfficeAssignment(User $target, int $newOfficeId): array
+    {
+        if ($target->account_type !== 'representative') {
+            throw new \InvalidArgumentException('Only representative users can be assigned to a school.');
+        }
+
+        $oldOffice = $target->office_id
+            ? ($target->office ?: Office::find($target->office_id))
+            : null;
+        $newOffice = Office::findOrFail($newOfficeId);
+
+        if ($oldOffice && (int) $oldOffice->id === $newOfficeId) {
+            return [
+                'changed' => false,
+                'old_office' => $oldOffice,
+                'new_office' => $newOffice,
+                'untagged' => 0,
+            ];
+        }
+
+        $untagged = 0;
+        if ($oldOffice) {
+            // Return any in-progress items at the old school to its queue before reassignment.
+            $untagged = Document::where('current_handler_id', $target->id)
+                ->where('current_office_id', $oldOffice->id)
+                ->whereNotIn('status', ['completed', 'returned', 'cancelled', 'archived'])
+                ->update(['current_handler_id' => null]);
+        }
+
+        $target->office_id = $newOfficeId;
+        $target->representative_office_name = null;
+        $target->setRelation('office', $newOffice);
+
+        return [
+            'changed' => true,
+            'old_office' => $oldOffice,
+            'new_office' => $newOffice,
+            'untagged' => $untagged,
+        ];
+    }
+
+    private function representativeOfficeAssignmentMessage(User $target, ?Office $oldOffice, Office $newOffice, int $untagged): string
+    {
+        if (!$oldOffice) {
+            return "{$target->name} is now assigned to {$newOffice->name}.";
+        }
+
+        $extra = $untagged > 0
+            ? " {$untagged} in-progress document(s) were untagged and returned to the {$oldOffice->name} queue."
+            : '';
+
+        return "{$target->name} transferred from {$oldOffice->name} to {$newOffice->name}.{$extra}";
+    }
+
     // ─── USER MANAGEMENT ───
 
     /**
@@ -158,7 +305,11 @@ class AdminController extends Controller
 
         $users = $query->withCount('documents')->latest()->paginate(15)->withQueryString();
 
-        $offices = Office::where('is_active', true)->orderBy('name')->get();
+        $offices = Office::query()
+            ->schools()
+            ->active()
+            ->orderBy('name')
+            ->get();
 
         return view('admin.users', [
             'user'    => Auth::user(),
@@ -231,15 +382,42 @@ class AdminController extends Controller
                 }
             }
 
+            if ($target->account_type === 'representative' && $target->office_id && str_contains($newName, ' - ')) {
+                [, $newName] = explode(' - ', $newName, 2);
+                $newName = trim($newName);
+            }
+
             $target->name = $newName;
         }
         if ($request->has('email'))     $target->email     = $request->email;
         if ($request->has('mobile'))    $target->mobile    = $request->mobile ?: null;
+        $officeMessage = null;
         if ($request->has('office_id')) {
-            $target->office_id = $request->office_id ?: null;
+            if ($target->account_type !== 'representative') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only representative users can be assigned to a school.',
+                ], 422);
+            }
 
-            if ($target->office_id) {
-                $target->representative_office_name = null;
+            if ($request->filled('office_id')) {
+                $assignment = $this->applyRepresentativeOfficeAssignment($target, (int) $request->office_id);
+
+                if ($assignment['changed']) {
+                    $officeMessage = $this->representativeOfficeAssignmentMessage(
+                        $target,
+                        $assignment['old_office'],
+                        $assignment['new_office'],
+                        $assignment['untagged']
+                    );
+                }
+            } else {
+                $oldOfficeName = $target->representativeOfficeName();
+                $target->office_id = null;
+
+                if (!$target->representative_office_name && $oldOfficeName) {
+                    $target->representative_office_name = $oldOfficeName;
+                }
             }
         }
 
@@ -254,9 +432,143 @@ class AdminController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'User updated successfully.',
+            'message' => $officeMessage ?: 'User updated successfully.',
+            'office_id' => $target->office_id,
+            'office_name' => $target->representativeOfficeName(),
             'user'    => $target,
         ]);
+    }
+
+    public function schools(Request $request)
+    {
+        $this->authorizeSuperAdmin();
+
+        $query = $this->schoolOfficesQuery()->withCount([
+            'users',
+            'documentsHeld as current_documents_count',
+            'documentsSubmittedTo as submitted_documents_count',
+        ]);
+
+        $search = strip_tags(trim((string) $request->get('search', '')));
+        if ($search !== '') {
+            $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $search);
+            $query->where(function ($q) use ($escaped) {
+                $q->where('name', 'like', "%{$escaped}%")
+                    ->orWhere('code', 'like', "%{$escaped}%");
+            });
+        }
+
+        $status = trim((string) $request->get('status', ''));
+        if (!in_array($status, ['active', 'inactive'], true)) {
+            $status = '';
+        }
+        if ($status !== '') {
+            $query->where('is_active', $status === 'active');
+        }
+
+        $schools = $query->orderBy('name')->paginate(15)->withQueryString();
+
+        $normalizedSchoolNames = $schools->getCollection()
+            ->map(fn (Office $school) => strtolower(trim((string) $school->name)))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $legacyCounts = collect();
+        if ($normalizedSchoolNames->isNotEmpty()) {
+            $bindings = $normalizedSchoolNames->all();
+            $placeholders = implode(',', array_fill(0, count($bindings), '?'));
+
+            $legacyCounts = User::query()
+                ->where('account_type', 'representative')
+                ->whereNull('office_id')
+                ->whereRaw("LOWER(TRIM(COALESCE(representative_office_name, ''))) IN ({$placeholders})", $bindings)
+                ->selectRaw("LOWER(TRIM(COALESCE(representative_office_name, ''))) as office_name_norm, COUNT(*) as total")
+                ->groupBy('office_name_norm')
+                ->pluck('total', 'office_name_norm');
+        }
+
+        $schools->getCollection()->transform(function (Office $school) use ($legacyCounts) {
+            $key = strtolower(trim((string) $school->name));
+            $school->legacy_users_count = (int) ($legacyCounts[$key] ?? 0);
+            return $school;
+        });
+
+        return view('admin.schools', [
+            'user' => Auth::user(),
+            'schools' => $schools,
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+            ],
+        ]);
+    }
+
+    public function createSchool(Request $request)
+    {
+        $this->authorizeSuperAdmin();
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $name = $this->normalizeSchoolName((string) $request->input('name'));
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'School name is required.'], 422);
+        }
+
+        if (Office::whereRaw('LOWER(name) = ?', [strtolower($name)])->exists()) {
+            return response()->json(['success' => false, 'message' => 'A school or office with that name already exists.'], 422);
+        }
+
+        $school = Office::create([
+            'code' => $this->generateSchoolCode($name),
+            'name' => $name,
+            'is_active' => true,
+            'is_school' => true,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$school->name} was added to the available school list.",
+            'school' => $school,
+        ]);
+    }
+
+    public function updateSchool(Request $request, $id)
+    {
+        $this->authorizeSuperAdmin();
+
+        $school = $this->schoolOfficesQuery()->findOrFail($id);
+
+        $request->validate([
+            'is_active' => 'required|boolean',
+        ]);
+
+        $newActiveState = (bool) $request->boolean('is_active');
+        if ($school->is_active === $newActiveState) {
+            return response()->json(['success' => false, 'message' => 'No changes were made.']);
+        }
+
+        $school->is_active = $newActiveState;
+
+        $school->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$school->name} " . ($newActiveState ? 'reactivated.' : 'deactivated.'),
+            'school' => $school,
+        ]);
+    }
+
+    public function deleteSchool($id)
+    {
+        $this->authorizeSuperAdmin();
+
+        return response()->json([
+            'success' => false,
+            'message' => 'School deletion is disabled. Use deactivate instead.',
+        ], 403);
     }
 
     /**
@@ -580,28 +892,19 @@ class AdminController extends Controller
             return response()->json(['success' => false, 'message' => 'User is already assigned to this office.'], 422);
         }
 
-        $oldOffice = $target->office;
-        $newOffice = Office::findOrFail($newOfficeId);
-
-        // Unassign this user from any in-progress documents at the old office.
-        // The documents stay at the old office so another staff member can pick them up.
-        $untagged = Document::where('current_handler_id', $target->id)
-            ->where('current_office_id', $oldOffice->id)
-            ->whereNotIn('status', ['completed', 'returned', 'cancelled', 'archived'])
-            ->update(['current_handler_id' => null]);
-
-        $target->office_id = $newOfficeId;
+        $assignment = $this->applyRepresentativeOfficeAssignment($target, $newOfficeId);
         $target->save();
-
-        $extra = $untagged > 0
-            ? " {$untagged} in-progress document(s) were untagged and returned to the {$oldOffice->name} queue."
-            : '';
 
         return response()->json([
             'success' => true,
-            'message' => "{$target->name} transferred from {$oldOffice->name} to {$newOffice->name}.{$extra}",
-            'new_office_id' => $newOfficeId,
-            'new_office_name' => $newOffice->name,
+            'message' => $this->representativeOfficeAssignmentMessage(
+                $target,
+                $assignment['old_office'],
+                $assignment['new_office'],
+                $assignment['untagged']
+            ),
+            'new_office_id' => $assignment['new_office']->id,
+            'new_office_name' => $assignment['new_office']->name,
         ]);
     }
 
@@ -679,7 +982,7 @@ class AdminController extends Controller
         }
 
         return DB::transaction(function () use ($lookupInput, $user, $office, $request) {
-            $document = Document::with('currentHandler')->where(function ($q) use ($lookupInput) {
+            $document = Document::with(['currentHandler', 'user'])->where(function ($q) use ($lookupInput) {
                 $q->whereRaw('UPPER(reference_number) = ?', [$lookupInput])
                   ->orWhereRaw('UPPER(tracking_number) = ?', [$lookupInput]);
             })->lockForUpdate()->first();
@@ -737,6 +1040,17 @@ class AdminController extends Controller
                 'tracking_number' => $document->tracking_number,
                 'current_handler' => $user->name,
             ]);
+        }
+
+        $submittedByOfficeAccount = (bool) optional($document->user)->isOfficeAccount();
+        $isInitialOfficeIntake = is_null($document->current_office_id);
+        $isRecordsReceiver = $this->isRecordsOffice($office);
+
+        if ($isInitialOfficeIntake && !$submittedByOfficeAccount && !$isRecordsReceiver) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This document must be received by Records Section first. ICT can receive it by scan after Records has accepted it.',
+            ], 403);
         }
 
         $fromOfficeId = $document->current_office_id;

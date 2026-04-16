@@ -337,23 +337,27 @@
         .mob-doc-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: box-shadow .15s; }
         .mob-doc-card:active { box-shadow: 0 0 0 2px var(--primary); }
         .mob-doc-ref { font-family: Poppins, sans-serif; font-size: 12px; color: var(--primary); font-weight: 600; letter-spacing: .2px; }
-        .mob-doc-subject { font-size: 13px; font-weight: 600; color: var(--text-dark); margin: 4px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .mob-doc-subject { font-size: 13px; font-weight: 600; color: var(--text-dark); margin: 6px 0; line-height: 1.4; word-break: break-word; }
         .mob-doc-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
         .mob-doc-meta .badge { font-size: 9px; }
         .mob-doc-date { font-size: 10px; color: var(--text-muted); }
         .mob-doc-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
         .mob-doc-sender { font-size: 11px; color: var(--text-muted); }
         .mob-doc-arrow { color: #94a3b8; font-size: 12px; }
+        .mob-doc-kv { display: grid; grid-template-columns: 1fr; gap: 6px; margin-top: 8px; }
+        .mob-doc-kv-item { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; border-top: 1px dashed #e2e8f0; padding-top: 6px; }
+        .mob-doc-kv-label { font-size: 10px; text-transform: uppercase; letter-spacing: .35px; color: #94a3b8; font-weight: 700; }
+        .mob-doc-kv-value { font-size: 11px; color: var(--text-dark); font-weight: 600; text-align: right; max-width: 62%; word-break: break-word; overflow-wrap: anywhere; }
 
         .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 400; opacity: 0; pointer-events: none; transition: opacity .25s; }
         .drawer-overlay.open { opacity: 1; pointer-events: all; }
-        .drawer { position: fixed; top: 0; right: 0; height: 100vh; width: 460px; max-width: 100vw; background: #fff; z-index: 401; box-shadow: -4px 0 24px rgba(0,0,0,.12); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); }
+        .drawer { position: fixed; top: 0; right: 0; height: 100vh; height: 100dvh; width: 460px; max-width: 100vw; background: #fff; z-index: 401; box-shadow: -4px 0 24px rgba(0,0,0,.12); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); }
         .drawer.open { transform: translateX(0); }
         .drawer-head { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 12px; }
         .drawer-head-info { flex: 1; min-width: 0; }
         .drawer-head h3 { font-size: 16px; font-weight: 700; color: var(--text-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
-        .drawer-ref { font-size: 13px; color: var(--text-muted); font-family: Poppins, sans-serif; font-weight: 600; letter-spacing: .2px; margin-bottom: 2px; }
-        .drawer-track { font-size: 11px; color: var(--text-muted); font-family: Poppins, sans-serif; font-weight: 500; letter-spacing: .2px; margin-bottom: 4px; }
+        .drawer-ref { font-size: 13px; color: var(--text-muted); font-family: monospace; letter-spacing: .4px; margin-bottom: 2px; }
+        .drawer-track { font-size: 11px; color: var(--text-muted); font-family: monospace; letter-spacing: .4px; margin-bottom: 4px; }
         .drawer-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: #f8fafc; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 14px; flex-shrink: 0; transition: all .15s; }
         .drawer-close:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
         .drawer-body { flex: 1; overflow-y: auto; }
@@ -380,6 +384,7 @@
         .tl-office-hdr{display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--text-dark);text-transform:none;letter-spacing:0;margin:18px 0 8px -7px;padding-left:7px;padding-bottom:6px;position:relative}
         .tl-office-hdr::after{content:'';position:absolute;left:21px;right:0;bottom:0;height:1.5px;background:var(--border)}
         .tl-office-hdr:first-child{margin-top:0}
+        .tl-dur{font-size:10px;font-weight:600;color:#6366f1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:20px;padding:1px 8px;text-transform:none;letter-spacing:0;white-space:nowrap;flex-shrink:0;margin-left:auto}
         .drawer-loader { display: flex; align-items: center; justify-content: center; padding: 48px; flex-direction: column; gap: 12px; color: var(--text-muted); font-size: 13px; text-align: center; }
         .spin { width: 22px; height: 22px; border: 3px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -531,10 +536,10 @@
             .table-head > div:last-child { width: 100%; display: flex; gap: 6px; }
             .table-head > div:last-child > a,
             .table-head > div:last-child > button { flex: 1; justify-content: center; font-size: 11px; padding: 8px 10px; }
-            .table-card.report-table-card.has-list { max-height:min(68vh,560px); }
+            .table-card.report-table-card.has-list { max-height: none; overflow: visible; }
             /* Hide desktop table, show mobile cards */
             .table-scroll { display: none; }
-            .mob-doc-cards { display: block; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+            .mob-doc-cards { display: block; overflow: visible; max-height: none; }
             /* Drawer */
             .drawer { width: 100%; max-width: 100%; }
             .drawer-meta { grid-template-columns: 1fr; }
@@ -624,6 +629,7 @@
         <span class="nav-section">Management</span>
         <a href="/admin/users"><i class="fas fa-users"></i> Users</a>
         <a href="/admin/offices"><i class="fas fa-building"></i> Offices</a>
+        <a href="/admin/schools"><i class="fas fa-school"></i> Schools</a>
         @unless($user->isSuperAdmin())
         <a href="/admin/documents"><i class="fas fa-folder-open"></i> Documents</a>
         @endunless
@@ -710,7 +716,7 @@
 
             <div class="filters-row">
                 <div class="field-search" style="position:relative">
-                    <input class="field" style="padding-left:34px" type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search reference, subject, sender..." data-clearable data-no-capitalize>
+                    <input class="field" style="padding-left:34px" type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search tracking/document control, subject, sender, type, tagged to..." data-clearable data-no-capitalize>
                     <i class="fas fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:12px;pointer-events:none"></i>
                 </div>
 
@@ -792,9 +798,9 @@
             <div class="stat-sub">Being processed</div>
         </div>
         <div class="stat-card c-emerald">
-            <div class="stat-label">Completed / Returned</div>
-            <div class="stat-num">{{ \App\Support\UiNumber::compact($reportStats['completed']) }}</div>
-            <div class="stat-sub">Completed and closed</div>
+            <div class="stat-label">Processed</div>
+            <div class="stat-num">{{ \App\Support\UiNumber::compact($reportStats['processed']) }}</div>
+            <div class="stat-sub">For pickup, returned, or claimed</div>
         </div>
     </div>
 
@@ -821,7 +827,7 @@
                 <thead>
                 <tr>
                     <th>Tracking #</th>
-                    <th>Reference #</th>
+                    <th>Document Control #</th>
                     <th>Subject</th>
                     <th>Type</th>
                     <th>Submitted By</th>
@@ -841,11 +847,9 @@
                         tabindex="0"
                         role="button"
                         aria-label="View routing details"
-                        onclick="openDocDetail(@json($doc->reference_number ?: $doc->tracking_number), @json($doc->tracking_number))"
-                        onkeydown="if(event.key==='Enter'||event.key===' '){ event.preventDefault(); openDocDetail(@json($doc->reference_number ?: $doc->tracking_number), @json($doc->tracking_number)); }"
                     >
-                        <td><div class="mono track">{{ $doc->tracking_number }}</div></td>
-                        <td><div class="mono ref">{{ $doc->reference_number ?: 'N/A' }}</div></td>
+                        <td><div class="mono ref">{{ $doc->reference_number ?: ($doc->tracking_number ?: 'N/A') }}</div></td>
+                        <td><div class="mono track">{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div></td>
                         <td style="max-width:200px"><div class="cell-ellipsis" title="{{ $doc->subject }}">{{ $doc->subject }}</div></td>
                         <td><div class="cell-ellipsis" style="max-width:160px" title="{{ $doc->type }}">{{ $doc->type }}</div></td>
                         <td><div class="cell-ellipsis" style="max-width:170px" title="{{ $doc->sender_name }}">{{ $doc->sender_name }}</div></td>
@@ -865,13 +869,25 @@
             {{-- Mobile document cards (visible < 900px) --}}
             <div class="mob-doc-cards">
                 @foreach($documents as $doc)
-                    <div class="mob-doc-card" onclick="openDocDetail(@json($doc->reference_number ?: $doc->tracking_number), @json($doc->tracking_number))">
-                        <div class="mob-doc-ref">{{ $doc->tracking_number }}</div>
-                        <div style="font-size:11px;color:var(--text-muted);font-family:Poppins,sans-serif;font-weight:500;margin-top:2px">Ref: {{ $doc->reference_number ?: 'N/A' }}</div>
+                    <div
+                        class="mob-doc-card"
+                        data-ref="{{ $doc->reference_number ?: $doc->tracking_number }}"
+                        data-tracking="{{ $doc->tracking_number }}"
+                        tabindex="0"
+                        role="button"
+                        aria-label="View routing details"
+                    >
+                        <div class="mob-doc-ref">{{ $doc->reference_number ?: ($doc->tracking_number ?: 'N/A') }}</div>
+                        <div style="font-size:11px;color:var(--text-muted);font-family:Poppins,sans-serif;font-weight:500;margin-top:2px">Document Control #: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
                         <div class="mob-doc-subject">{{ $doc->subject }}</div>
                         <div class="mob-doc-meta">
                             <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabel() }}</span>
                             <span class="mob-doc-date">{{ $doc->last_action_at ? $doc->last_action_at->copy()->setTimezone('Asia/Manila')->format('M d, Y h:i A') : '-' }}</span>
+                        </div>
+                        <div class="mob-doc-kv">
+                            <div class="mob-doc-kv-item"><span class="mob-doc-kv-label">Type</span><span class="mob-doc-kv-value">{{ $doc->type ?: 'N/A' }}</span></div>
+                            <div class="mob-doc-kv-item"><span class="mob-doc-kv-label">Tagged To</span><span class="mob-doc-kv-value">{{ $doc->currentHandler?->name ?? 'Unassigned' }}</span></div>
+                            <div class="mob-doc-kv-item"><span class="mob-doc-kv-label">Submitted At</span><span class="mob-doc-kv-value">{{ $doc->created_at?->copy()->setTimezone('Asia/Manila')->format('M d, Y h:i A') }}</span></div>
                         </div>
                         <div class="mob-doc-row">
                             <span class="mob-doc-sender"><i class="fas fa-user" style="margin-right:4px;opacity:.5"></i>{{ $doc->sender_name }}</span>
@@ -958,6 +974,7 @@
             ])
         </div>
         @endif
+    @endif
 </div>
 
 <div class="drawer-overlay" id="uaDrawerOverlay" onclick="closeUserActivity()"></div>
@@ -974,7 +991,7 @@
     <div class="ua-filter-bar" id="uaFilterBar">
         <div class="ua-filter-search">
             <i class="fas fa-search"></i>
-            <input id="uaFSearch" type="text" placeholder="Search subject, reference..." class="ua-field" data-no-capitalize data-no-clearable oninput="toggleUaClear()" />
+            <input id="uaFSearch" type="text" placeholder="Search subject, tracking/document control, status..." class="ua-field" data-no-capitalize data-no-clearable oninput="toggleUaClear()" />
             <button type="button" class="ua-clear-btn" id="uaClearSearch" onclick="clearUaSearch()" title="Clear search"><i class="fas fa-times"></i></button>
         </div>
         <div style="position:relative">
@@ -1106,6 +1123,7 @@
 <script>
 var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 var docsData = JSON.parse(document.getElementById('docsData').textContent || '{}');
+var showTimePill = {!! json_encode($user->hasReportsAccess()) !!};
 
 // ─── User Activity Drawer ───
 var currentUaUid = null;
@@ -1303,6 +1321,29 @@ function openActivityDocDetail(ref, tracking) {
     openDocDetail(ref, tracking || ref);
 }
 
+function bindUaDocRows() {
+    document.querySelectorAll('#uaBody tr.ua-doc-row').forEach(function(row) {
+        row.setAttribute('tabindex', '0');
+        row.setAttribute('role', 'button');
+        row.setAttribute('aria-label', 'Open document drawer');
+
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('a,button,input,select,textarea,label')) return;
+            var ref = row.getAttribute('data-ref') || '';
+            var tracking = row.getAttribute('data-tracking') || ref;
+            openActivityDocDetail(ref, tracking);
+        });
+
+        row.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            var ref = row.getAttribute('data-ref') || '';
+            var tracking = row.getAttribute('data-tracking') || ref;
+            openActivityDocDetail(ref, tracking);
+        });
+    });
+}
+
 function renderUserActivity(data) {
     var u = data.user, stats = data.stats, docs = data.documents;
 
@@ -1333,10 +1374,10 @@ function renderUserActivity(data) {
             + '<th style="text-align:left;padding:9px 14px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border);background:#f8fafc;white-space:nowrap">Last Action</th>'
             + '</tr></thead><tbody>';
         docs.forEach(function(doc) {
-            var refValue = JSON.stringify(doc.reference || '');
-            var trackingValue = JSON.stringify(doc.tracking || doc.reference || '');
-            bodyHtml += '<tr style="border-bottom:1px solid #f1f5f9;cursor:pointer" onclick="openActivityDocDetail(' + refValue + ',' + trackingValue + ')" title="Open document drawer">'
-                + '<td style="padding:9px 14px;font-size:12px;font-family:Poppins,sans-serif;font-weight:600;color:var(--primary)">' + escapeHtml(doc.reference) + '</td>'
+            var refValue = doc.reference || '';
+            var trackingValue = doc.tracking || doc.reference || '';
+            bodyHtml += '<tr class="ua-doc-row" style="border-bottom:1px solid #f1f5f9;cursor:pointer" data-ref="' + escapeHtml(refValue) + '" data-tracking="' + escapeHtml(trackingValue) + '" title="Open document drawer">'
+                + '<td style="padding:9px 14px;font-size:12px;font-family:Poppins,sans-serif;font-weight:600;color:var(--primary)">' + escapeHtml(doc.reference || '-') + '</td>'
                 + '<td style="padding:9px 14px;font-size:12px;color:var(--text-dark);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + escapeHtml(doc.subject) + '">' + escapeHtml(doc.subject) + '</td>'
                 + '<td style="padding:9px 14px"><span class="badge badge-' + escapeHtml(doc.status) + '">' + escapeHtml(doc.status_label) + '</span></td>'
                 + '<td style="padding:9px 14px;font-size:11px;color:var(--text-muted);white-space:nowrap">' + escapeHtml(doc.last_action) + '</td>'
@@ -1345,6 +1386,7 @@ function renderUserActivity(data) {
         bodyHtml += '</tbody></table></div>';
     }
     document.getElementById('uaBody').innerHTML = bodyHtml;
+    bindUaDocRows();
 }
 
 // ─── Date Range Modal ───
@@ -1422,10 +1464,13 @@ function dotClass(status) {
 }
 
 function bindDocRows() {
-    document.querySelectorAll('tr.doc-row').forEach(function(row) {
-        row.setAttribute('tabindex', '0');
-        row.setAttribute('role', 'button');
-        row.setAttribute('aria-label', 'View routing details');
+    document.querySelectorAll('tr.doc-row, .mob-doc-card').forEach(function(row) {
+        if (row.dataset.drawerBound === '1') return;
+        row.dataset.drawerBound = '1';
+
+        row.setAttribute('tabindex', row.getAttribute('tabindex') || '0');
+        row.setAttribute('role', row.getAttribute('role') || 'button');
+        row.setAttribute('aria-label', row.getAttribute('aria-label') || 'View routing details');
 
         row.addEventListener('click', function(e) {
             if (e.target.closest('a,button,input,select,textarea,label')) return;
@@ -1512,7 +1557,7 @@ function renderDrawer(doc) {
 
     document.getElementById('drTitle').textContent = doc.subject || '-';
     document.getElementById('drRef').textContent = 'TN · ' + ref;
-    document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Ref · ' + trackingNo) : '';
+    document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Document Control # ' + trackingNo) : '';
 
     var logs = doc.routing_logs || [];
     var tlHtml = '';
@@ -1520,18 +1565,34 @@ function renderDrawer(doc) {
     if (!logs.length) {
         tlHtml = '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">No routing history yet.</div>';
     } else {
+        function groupKeyFor(log) {
+            return (log.action === 'submitted') ? '__pending__' :
+                   (log.action === 'forwarded' ? (log.from_office || 'Unknown') :
+                   (log.to_office || log.from_office || 'Unknown'));
+        }
+        var segDurations = [];
+        if (showTimePill) {
+            logs.forEach(function(log) {
+                if (log.office_duration_human != null) {
+                    segDurations.push({ key: groupKeyFor(log), dur: log.office_duration_human });
+                }
+            });
+        }
+        var segDurIdx = segDurations.length - 1;
         Array.from(logs).reverse().forEach(function(log, idx) {
             var isLatest = idx === 0;
             var dc = isLatest ? 'c-latest' : dotClass(log.status_after);
             var dotIcon = isLatest ? 'fa-arrow-up' : 'fa-check';
             var fromTo = (log.from_office && log.to_office && log.from_office !== log.to_office) ? (log.from_office + ' -> ' + log.to_office) : '';
-            var groupKey = (log.action === 'submitted') ? '__pending__' :
-                           (log.action === 'forwarded' ? (log.from_office || 'Unknown') :
-                           (log.to_office || log.from_office || 'Unknown'));
+            var groupKey = groupKeyFor(log);
             var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : groupKey;
             if (groupKey !== prevGroupKey) {
                 prevGroupKey = groupKey;
-                tlHtml += '<div class="tl-office-hdr"><div class="tl-dot ' + dc + '" style="margin-right:5px"><i class="fas ' + dotIcon + '" style="font-size:5px"></i></div><span>' + escapeHtml(groupLabel) + '</span></div>';
+                var dur = null;
+                if (showTimePill && segDurIdx >= 0 && segDurations[segDurIdx] && segDurations[segDurIdx].key === groupKey) {
+                    dur = segDurations[segDurIdx--].dur;
+                }
+                tlHtml += '<div class="tl-office-hdr"><div class="tl-dot ' + dc + '" style="margin-right:5px"><i class="fas ' + dotIcon + '" style="font-size:5px"></i></div><span>' + escapeHtml(groupLabel) + '</span>' + (dur ? '<span class="tl-dur"><i class="fas fa-hourglass-half" style="margin-right:4px;font-size:9px"></i>' + escapeHtml(dur) + '</span>' : '') + '</div>';
             }
             tlHtml += '<div class="tl-item">' +
                 (log.performed_by ? '<div class="tl-action">' + escapeHtml(log.performed_by) + '</div>' : '') +
@@ -1547,9 +1608,17 @@ function renderDrawer(doc) {
         '<div class="drawer-timeline"><div class="tl">' + tlHtml + '</div></div>';
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+function initDocDrawerBindings() {
     bindDocRows();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDocDrawerBindings);
+} else {
+    initDocDrawerBindings();
+}
+
+window.addEventListener('spa:reinit', initDocDrawerBindings);
 </script>
 </body>
 </html>

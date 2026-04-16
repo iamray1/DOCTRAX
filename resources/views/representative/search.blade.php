@@ -147,7 +147,7 @@
     <div class="search-bar-card">
         <form method="GET" action="/representative/search" class="search-form" data-live-search>
             <input type="text" name="search" value="{{ request('search') }}" data-clearable data-no-capitalize
-                   placeholder="Tracking number, subject, sender name...">
+                   placeholder="Tracking/document control number, subject, sender name...">
             <select name="status">
                 <option value="">All Statuses</option>
                 @foreach(['submitted','in_review','forwarded','completed','for_pickup','returned'] as $s)
@@ -184,7 +184,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Tracking No.</th>
+                        <th>Tracking #</th>
                         <th>Subject</th>
                         <th>Type</th>
                         <th>Sender</th>

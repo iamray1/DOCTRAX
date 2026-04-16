@@ -88,8 +88,8 @@
             </div>
             <!-- Doc info + confirm -->
             <div class="doc-info" id="docInfo">
-                <div class="doc-info-row"><span class="label">Tracking No.</span><span class="value" id="dTrack">—</span></div>
-                <div class="doc-info-row"><span class="label">Reference No.</span><span class="value" id="dRef">—</span></div>
+                <div class="doc-info-row"><span class="label">Tracking #</span><span class="value" id="dTrack">—</span></div>
+                <div class="doc-info-row"><span class="label">Document Control #</span><span class="value" id="dRef">—</span></div>
                 <div class="doc-info-row"><span class="label">Subject</span><span class="value" id="dSubject">—</span></div>
                 <div class="doc-info-row"><span class="label">Type</span><span class="value" id="dType">—</span></div>
                 <div class="doc-info-row"><span class="label">Sender</span><span class="value" id="dSender">—</span></div>
@@ -153,8 +153,8 @@
             return;
         }
         var doc = data.document;
-        document.getElementById('dTrack').textContent = doc.tracking_number || '—';
-        document.getElementById('dRef').textContent = doc.reference_number || '—';
+        document.getElementById('dTrack').textContent = doc.reference_number || '—';
+        document.getElementById('dRef').textContent = doc.tracking_number || '—';
         document.getElementById('dSubject').textContent = doc.subject || '—';
         document.getElementById('dType').textContent = doc.type || '—';
         document.getElementById('dSender').textContent = doc.sender_name || '—';

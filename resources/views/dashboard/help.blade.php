@@ -341,6 +341,7 @@
         <span class="nav-section">Management</span>
         <a href="/admin/users"><i class="fas fa-users"></i> Users</a>
         <a href="/admin/offices"><i class="fas fa-building"></i> Offices</a>
+        <a href="/admin/schools"><i class="fas fa-school"></i> Schools</a>
         @unless($isSuperAdminUser)
         <a href="/admin/documents"><i class="fas fa-folder-open"></i> Documents</a>
         @endunless
@@ -737,19 +738,11 @@
                         </div>
                     </div>
                     <div class="contact-card">
-                        <div class="contact-icon"><i class="fas fa-phone"></i></div>
-                        <div>
-                            <div class="contact-label">Phone</div>
-                            <div class="contact-value">Contact number available at the Division Office</div>
-                            <div class="contact-sub">Mon – Fri, 8:00 AM – 4:00 PM</div>
-                        </div>
-                    </div>
-                    <div class="contact-card">
                         <div class="contact-icon"><i class="fas fa-envelope"></i></div>
                         <div>
                             <div class="contact-label">Email</div>
                             <div class="contact-value">arthur.francisco@deped.gov.ph</div>
-                            <div class="contact-sub">For document-related concerns</div>
+                            <div class="contact-sub">For DOCTRAX concerns</div>
                         </div>
                     </div>
                     <div class="contact-card">

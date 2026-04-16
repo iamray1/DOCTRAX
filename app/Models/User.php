@@ -224,6 +224,46 @@ class User extends Authenticatable
     }
 
     /**
+     * Determine how this account should be labeled in admin user lists.
+     */
+    public function accountTypeLabel(): string
+    {
+        if (!$this->isRepresentative()) {
+            return 'Individual';
+        }
+
+        if (is_null($this->office_id)) {
+            return 'Representative';
+        }
+
+        $office = $this->office;
+        if (!$office && $this->office_id) {
+            $office = Office::query()
+                ->select(['id', 'is_school'])
+                ->find($this->office_id);
+
+            if ($office) {
+                $this->setRelation('office', $office);
+            }
+        }
+
+        return $office?->is_school ? 'School' : 'Office';
+    }
+
+    /**
+     * Badge class that matches the display label in admin user lists.
+     */
+    public function accountTypeBadgeClass(): string
+    {
+        return match ($this->accountTypeLabel()) {
+            'School' => 'school',
+            'Office' => 'office',
+            'Representative' => 'representative',
+            default => 'individual',
+        };
+    }
+
+    /**
      * Check if the user has access to the Reports dashboard.
      * SuperAdmins always have access; everyone else is controlled by the toggle.
      */

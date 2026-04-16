@@ -229,6 +229,7 @@
         .tl-office-hdr{display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--text-dark);text-transform:none;letter-spacing:0;margin:18px 0 8px -7px;padding-left:7px;padding-bottom:6px;position:relative}
         .tl-office-hdr::after{content:'';position:absolute;left:21px;right:0;bottom:0;height:1.5px;background:var(--border)}
         .tl-office-hdr:first-child{margin-top:0}
+        .tl-dur{font-size:10px;font-weight:600;color:#6366f1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:20px;padding:1px 8px;text-transform:none;letter-spacing:0;white-space:nowrap;flex-shrink:0;margin-left:auto}
         .drawer-loader{display:flex;align-items:center;justify-content:center;padding:48px;flex-direction:column;gap:12px;color:var(--text-muted);font-size:13px}
         .spin{width:22px;height:22px;border:3px solid #e2e8f0;border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
         @keyframes spin{to{transform:rotate(360deg)}}
@@ -309,6 +310,7 @@
         <span class="nav-section">My Documents</span>
         <a href="/submit"><i class="fas fa-paper-plane"></i> Submit Document</a>
         <a href="/my-documents" class="active"><i class="fas fa-folder"></i> My Documents</a>
+        <a href="/track"><i class="fas fa-search"></i> Track Document</a>
         <span class="nav-section">Account</span>
         <a href="/profile"><i class="fas fa-user-circle"></i> My Profile</a>
     </nav>
@@ -351,7 +353,7 @@
     <div class="search-card">
         <div class="search-wrap">
             <i class="fas fa-search"></i>
-            <input type="text" id="searchInput" placeholder="Search by reference no., subject, or type..." data-clearable data-no-capitalize
+            <input type="text" id="searchInput" placeholder="Search by tracking #, document control #, subject, or type..." data-clearable data-no-capitalize
                    value="{{ $search }}" oninput="filterDocs()">
         </div>
         <select class="status-select" id="statusFilter" onchange="filterDocs(true)">
@@ -392,8 +394,8 @@
                 </colgroup>
                 <thead>
                     <tr>
-                        <th>Reference #</th>
                         <th>Tracking #</th>
+                        <th>Document Control #</th>
                         <th>Subject</th>
                         <th>Current Office</th>
                         <th>Submitted</th>
@@ -407,7 +409,7 @@
                         $docRef = $doc->reference_number ?: $doc->tracking_number;
                         $docTracking = $doc->tracking_number ?: $doc->reference_number;
                         $docOffice = $doc->status === 'submitted'
-                            ? 'Awaiting physical submission to ' . ($doc->submittedToOffice->name ?? 'Records Section')
+                            ? 'Awaiting physical submission to Records Section for routing to ' . ($doc->submittedToOffice->name ?? 'the selected destination office')
                             : ($doc->currentOffice->name ?? $doc->submittedToOffice->name ?? 'No office assigned');
                     @endphp
                     <tr class="doc-row"
@@ -457,7 +459,7 @@
                         $docRef = $doc->reference_number ?: $doc->tracking_number;
                         $docTracking = $doc->tracking_number ?: $doc->reference_number;
                         $docOffice = $doc->status === 'submitted'
-                            ? 'Awaiting physical submission to ' . ($doc->submittedToOffice->name ?? 'Records Section')
+                            ? 'Awaiting physical submission to Records Section for routing to ' . ($doc->submittedToOffice->name ?? 'the selected destination office')
                             : ($doc->currentOffice->name ?? $doc->submittedToOffice->name ?? 'No office assigned');
                     @endphp
                     <div
@@ -470,7 +472,7 @@
                         <div class="mob-card-top">
                             <div class="mob-card-ids">
                                 <div class="mob-card-ref">{{ $docRef }}</div>
-                                <div class="mob-card-track">Tracking: {{ $docTracking }}</div>
+                                <div class="mob-card-track">Document Control #: {{ $docTracking }}</div>
                             </div>
                             <span class="mob-card-arrow"><i class="fas fa-chevron-right"></i></span>
                         </div>
@@ -730,6 +732,7 @@ function bindDocRows() {
 var _csrfNode = document.querySelector('meta[name="csrf-token"]');
 var _csrf = _csrfNode ? _csrfNode.getAttribute('content') : '';
 var docsData = JSON.parse(document.getElementById('docsData').textContent || '{}');
+var showTimePill = {!! json_encode($user->hasReportsAccess()) !!};
 
 function openDocDetail(ref, tracking) {
     ref = (ref || '').toString().trim();
@@ -811,7 +814,7 @@ function renderDrawer(doc) {
     var ref = doc.reference_number || doc.tracking_number || '-';
     var trackingNo = doc.tracking_number || '';
     document.getElementById('drRef').textContent = 'TN · ' + ref;
-    document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Ref · ' + trackingNo) : '';
+    document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Document Control # ' + trackingNo) : '';
 
     // Show/hide pickup action bar
     var actionBar = document.getElementById('drawerActionBar');
@@ -831,18 +834,34 @@ function renderDrawer(doc) {
     if (!logs.length) {
         tlHtml = '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">No routing history yet.</div>';
     } else {
+        function groupKeyFor(log) {
+            return (log.action === 'submitted') ? '__pending__' :
+                   (log.action === 'forwarded' ? (log.from_office || 'Unknown') :
+                   (log.to_office || log.from_office || 'Unknown'));
+        }
+        var segDurations = [];
+        if (showTimePill) {
+            logs.forEach(function(log) {
+                if (log.office_duration_human != null) {
+                    segDurations.push({ key: groupKeyFor(log), dur: log.office_duration_human });
+                }
+            });
+        }
+        var segDurIdx = segDurations.length - 1;
         var prevGroupKey = null;
         Array.from(logs).reverse().forEach(function(log, idx) {
             var isLatest = idx === 0;
             var dc = isLatest ? 'c-latest' : dotClass(log.status_after);
             var dotIcon = isLatest ? 'fa-arrow-up' : 'fa-check';
-            var groupKey = (log.action === 'submitted') ? '__pending__' :
-                           (log.action === 'forwarded' ? (log.from_office || 'Unknown') :
-                           (log.to_office || log.from_office || 'Unknown'));
+            var groupKey = groupKeyFor(log);
             var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : groupKey;
             if (groupKey !== prevGroupKey) {
                 prevGroupKey = groupKey;
-                tlHtml += '<div class="tl-office-hdr"><div class="tl-dot ' + dc + '" style="margin-right:5px"><i class="fas ' + dotIcon + '" style="font-size:5px"></i></div><span>' + escapeHtml(groupLabel) + '</span></div>';
+                var dur = null;
+                if (showTimePill && segDurIdx >= 0 && segDurations[segDurIdx] && segDurations[segDurIdx].key === groupKey) {
+                    dur = segDurations[segDurIdx--].dur;
+                }
+                tlHtml += '<div class="tl-office-hdr"><div class="tl-dot ' + dc + '" style="margin-right:5px"><i class="fas ' + dotIcon + '" style="font-size:5px"></i></div><span>' + escapeHtml(groupLabel) + '</span>' + (dur ? '<span class="tl-dur"><i class="fas fa-hourglass-half" style="margin-right:4px;font-size:9px"></i>' + escapeHtml(dur) + '</span>' : '') + '</div>';
             }
             tlHtml += '<div class="tl-item">' +
                 (log.performed_by ? '<div class="tl-action">' + escapeHtml(log.performed_by) + '</div>' : '') +

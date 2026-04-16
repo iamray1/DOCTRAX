@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\ActivationMail;
 use App\Mail\PasswordResetMail;
+use App\Models\Office;
 use App\Models\User;
 use App\Services\ActivationService;
 use Illuminate\Http\Request;
@@ -34,6 +35,7 @@ class AuthController extends Controller
         $accountType = $request->input('account_type') ?? 'individual';
         $name = trim((string) $request->input('name'));
         $representativeOfficeName = null;
+        $representativeOfficeId = null;
 
         if ($accountType === 'representative') {
             $representativeOfficeName = trim((string) $request->input('office_name'));
@@ -54,6 +56,13 @@ class AuthController extends Controller
             'name' => $name,
         ]);
 
+        $availableSchoolNames = Office::query()
+            ->schools()
+            ->active()
+            ->orderBy('name')
+            ->pluck('name')
+            ->all();
+
         $request->validate([
             'name'  => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -64,19 +73,26 @@ class AuthController extends Controller
                 'nullable',
                 'string',
                 'max:255',
-                Rule::in(config('representative_offices', [])),
+                Rule::in($availableSchoolNames),
             ],
         ]);
 
         try {
             // Create the user in a transaction — email is sent outside so a
             // mail failure never prevents account creation.
-            $user = DB::transaction(function () use ($request, $representativeOfficeName) {
+            $user = DB::transaction(function () use ($request, $representativeOfficeName, $accountType, &$representativeOfficeId) {
+                if ($accountType === 'representative' && $representativeOfficeName) {
+                    $representativeOfficeId = Office::query()
+                        ->whereRaw('LOWER(name) = ?', [strtolower($representativeOfficeName)])
+                        ->value('id');
+                }
+
                 $user = new User([
                     'name'         => $request->name,
                     'email'        => $request->email,
                     'mobile'       => $request->mobile,
                     'account_type' => $request->account_type ?? 'individual',
+                    'office_id'    => $representativeOfficeId,
                     'representative_office_name' => $representativeOfficeName,
                     'password'     => Hash::make(Str::random(64)), // placeholder — never usable
                 ]);

@@ -786,6 +786,9 @@
         <span class="nav-section">Management</span>
         <a href="/admin/users"><i class="fas fa-users"></i> Users</a>
         <a href="/admin/offices"><i class="fas fa-building"></i> Offices</a>
+        @if($user->isSuperAdmin())
+        <a href="/admin/schools"><i class="fas fa-school"></i> Schools</a>
+        @endif
         <a href="/admin/documents" class="active"><i class="fas fa-folder-open"></i> Documents</a>
         @if($user->isSuperAdmin())
         <a href="/records/documents"><i class="fas fa-folder-open"></i> All Documents</a>
@@ -851,7 +854,7 @@
 
         <!-- Filters -->
         <form class="filters anim" method="GET" action="/admin/documents" id="searchForm" data-live-search>
-            <input type="text" name="search" class="filter-input" placeholder="Search tracking/reference no., subject, or sender..." value="{{ $filters['search'] }}" data-clearable data-no-capitalize>
+            <input type="text" name="search" class="filter-input" placeholder="Search tracking/document control no., subject, or sender..." value="{{ $filters['search'] }}" data-clearable data-no-capitalize>
             <select name="status" class="filter-select">
                 <option value="">All Status</option>
                 @foreach(\App\Models\Document::FILTER_STATUSES as $key => $label)
@@ -877,7 +880,7 @@
                 <thead>
                     <tr>
                         <th>Tracking #</th>
-                        <th>Reference #</th>
+                        <th>Document Control #</th>
                         <th>Subject</th>
                         <th>Submitted By</th>
                         <th>Status</th>
@@ -888,8 +891,8 @@
                 <tbody>
                     @foreach($documents as $doc)
                     <tr class="doc-row" id="doc-row-{{ $doc->id }}" onclick='viewDoc(@json($doc->tracking_number))'>
-                        <td><span class="t-num">{{ $doc->tracking_number }}</span></td>
-                        <td><span class="t-num" style="color:var(--text-dark)">{{ $doc->reference_number ?: 'N/A' }}</span></td>
+                        <td><span class="t-num" style="color:var(--text-dark)">{{ $doc->reference_number ?: ($doc->tracking_number ?: 'N/A') }}</span></td>
+                        <td><span class="t-num">{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</span></td>
                         <td style="max-width:200px"><div class="cell-ellipsis" title="{{ $doc->subject }}">{{ $doc->subject }}</div></td>
                         <td class="t-user"><div class="cell-ellipsis" style="max-width:170px" title="{{ $doc->user ? $doc->user->name : ($doc->sender_name ?? 'Guest') }}">{{ $doc->user ? $doc->user->name : ($doc->sender_name ?? 'Guest') }}</div></td>
                         <td>
@@ -918,8 +921,8 @@
                 <div class="mob-card" onclick='viewDoc(@json($doc->tracking_number))'>
                     <div class="mob-card-top">
                         <div>
-                            <div class="mob-card-ref">{{ $doc->tracking_number }}</div>
-                        <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-top:1px">Ref: {{ $doc->reference_number ?: 'N/A' }}</div>
+                            <div class="mob-card-ref">{{ $doc->reference_number ?: ($doc->tracking_number ?: 'N/A') }}</div>
+                        <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-top:1px">Document Control #: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
                         </div>
                         <span class="mob-card-arrow"><i class="fas fa-chevron-right"></i></span>
                     </div>
@@ -1043,7 +1046,7 @@
 
             document.getElementById('drTitle').textContent = doc.subject || '-';
             document.getElementById('drRef').textContent = 'TN · ' + ref;
-            document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Ref · ' + trackingNo) : '';
+            document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Document Control # ' + trackingNo) : '';
 
             var logs = Array.isArray(doc.routing_logs) ? doc.routing_logs : [];
             var tlHtml = '';
@@ -1090,7 +1093,7 @@
             }
 
             var currentOfficeText = (doc.status === 'submitted')
-                ? ('Awaiting physical submission to ' + (doc.submitted_to_office || doc.current_office || 'Records Section'))
+                ? ('Awaiting physical submission to Records Section for routing to ' + (doc.submitted_to_office || doc.current_office || 'the selected destination office'))
                 : (doc.current_office || doc.submitted_to_office || '-');
             var currentHandlerText = doc.current_handler || 'Unassigned';
 

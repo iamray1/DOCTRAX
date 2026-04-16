@@ -88,6 +88,7 @@
             <a href="/" class="nav-link"><i class="fas fa-home"></i> Home</a>
             <a href="/about-us" class="nav-link"><i class="fas fa-info-circle"></i> About Us</a>
             <a href="/contact-us" class="nav-link"><i class="fas fa-envelope"></i> Contact Us</a>
+            <a href="/help" class="nav-link"><i class="fas fa-circle-question"></i> Help &amp; Guide</a>
         </div>
     </nav>
 

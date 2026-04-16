@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'no-cache' => \App\Http\Middleware\NoCacheHeaders::class,
             'ensure-auth' => \App\Http\Middleware\EnsureAuthenticated::class,
+            'submit-throttle' => \App\Http\Middleware\SubmitDocumentThrottle::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

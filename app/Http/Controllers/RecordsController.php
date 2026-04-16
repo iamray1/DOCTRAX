@@ -11,6 +11,13 @@ use Illuminate\Support\Facades\Cache;
 
 class RecordsController extends Controller
 {
+    private const STATUS_FILTER_OPTIONS = [
+        'submitted'  => 'Awaiting Receipt',
+        'processing' => 'Processing',
+        'completed'  => 'Completed',
+        'archived'   => 'Archived',
+    ];
+
     /**
      * Ensure user is either a Records Section representative or a SuperAdmin.
      */
@@ -54,8 +61,8 @@ class RecordsController extends Controller
 
         // Status filter
         $status = trim((string) $request->get('status', ''));
-        if ($status !== '' && array_key_exists($status, Document::FILTER_STATUSES)) {
-            $query->where('status', $status);
+        if ($status !== '' && array_key_exists($status, self::STATUS_FILTER_OPTIONS)) {
+            $this->applyStatusFilter($query, $status);
         }
 
         $documents = $query->latest()->paginate(20)->withQueryString();
@@ -68,7 +75,9 @@ class RecordsController extends Controller
             'archived'    => Document::where('status', 'archived')->count(),
         ];
 
-        return view('records.index', compact('user', 'documents', 'stats', 'search', 'status'));
+        $statusOptions = self::STATUS_FILTER_OPTIONS;
+
+        return view('records.index', compact('user', 'documents', 'stats', 'search', 'status', 'statusOptions'));
     }
 
     /**
@@ -113,5 +122,16 @@ class RecordsController extends Controller
         $stats['has_reports_access'] = auth()->user()->hasReportsAccess();
 
         return response()->json($stats);
+    }
+
+    private function applyStatusFilter($query, string $status): void
+    {
+        match ($status) {
+            'submitted' => $query->where('status', 'submitted'),
+            'processing' => $query->whereIn('status', ['received', 'in_review', 'on_hold']),
+            'completed' => $query->whereIn('status', ['completed', 'for_pickup', 'returned']),
+            'archived' => $query->where('status', 'archived'),
+            default => null,
+        };
     }
 }

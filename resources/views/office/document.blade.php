@@ -175,6 +175,7 @@
         <span class="nav-section">Management</span>
         <a href="/admin/users"><i class="fas fa-users"></i> Users</a>
         <a href="/admin/offices"><i class="fas fa-building"></i> Offices</a>
+        <a href="/admin/schools"><i class="fas fa-school"></i> Schools</a>
         @unless($user->isSuperAdmin())
         <a href="/admin/documents"><i class="fas fa-folder-open"></i> Documents</a>
         @endunless
@@ -440,7 +441,7 @@
                                     <div class="tl-meta"><i class="fas fa-tasks" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->actionLabel() }}</div>
                                     @php
                                         $tlRemarks = $tlLog->action === 'submitted'
-                                            ? 'Document submitted online. Awaiting physical submission to Records Section.'
+                                            ? 'Document submitted online. Awaiting physical submission to Records Section for routing to ' . ($doc->submittedToOffice->name ?? 'the selected destination office') . '.'
                                             : $tlLog->remarks;
                                     @endphp
                                     @if($tlRemarks)<div class="tl-remarks">{{ $tlRemarks }}</div>@endif

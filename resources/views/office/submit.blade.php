@@ -144,6 +144,7 @@
             margin-top:2px
         }
         .tracking-box small{font-size:clamp(18px, 2.6vw, 22px);text-transform:uppercase;letter-spacing:6px;color:#334155;font-weight:700;margin:0;line-height:1}
+        .tracking-subtitle{font-size:clamp(18px, 3vw, 28px);text-transform:uppercase;letter-spacing:1.6px;color:#334155;font-weight:700;word-break:break-word;margin:0;line-height:1.05}
         .tracking-number{font-size:clamp(56px, 9vw, 82px);font-weight:700;color:var(--primary);font-family:monospace;letter-spacing:5px;line-height:.95;margin:0;word-break:break-word;text-shadow:none}
         .qr-img{grid-area:qr;display:block;width:100%!important;max-width:320px;height:auto!important;aspect-ratio:1 / 1;object-fit:contain;border:none;border-radius:0;padding:0;background:transparent}
         .qr-caption{grid-area:caption;display:flex;align-items:center;justify-content:center;gap:4px;font-size:11px;color:#64748b;font-weight:500;text-align:center}
@@ -251,6 +252,19 @@
         .toast-icon{font-size:16px}
         .toast.success .toast-icon{color:#16a34a}
         .toast.error .toast-icon{color:#dc2626}
+
+        /* Records reminder modal */
+        .records-reminder-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;padding:14px;z-index:405}
+        .records-reminder-overlay.show{display:flex}
+        .records-reminder-modal{width:100%;max-width:460px;background:#fff;border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 20px 50px rgba(2,6,23,.22);overflow:hidden;font-family:'Poppins',sans-serif}
+        .records-reminder-head{padding:16px 18px;background:#eff6ff;border-bottom:1px solid #dbeafe;display:flex;align-items:center;gap:10px}
+        .records-reminder-head i{color:#1d4ed8;font-size:18px}
+        .records-reminder-head h3{font-size:15px;color:#1e3a8a;font-weight:700}
+        .records-reminder-body{padding:16px 18px}
+        .records-reminder-body p{font-size:13px;color:#334155;line-height:1.6;margin-bottom:8px}
+        .records-reminder-actions{display:flex;justify-content:flex-end;padding-top:8px}
+        .records-reminder-btn{font-family:'Poppins',sans-serif;font-size:12px;font-weight:600;border-radius:9px;padding:9px 14px;cursor:pointer;background:#0056b3;border:1.5px solid #0056b3;color:#fff}
+        .records-reminder-btn:hover{background:#004494;border-color:#004494}
     </style>
     <script src="/js/spa.js" defer></script>
     <script src="/js/form-utils.js" defer></script>
@@ -295,6 +309,7 @@
         <span class="nav-section">My Documents</span>
         <a href="/submit" class="active"><i class="fas fa-paper-plane"></i> Submit Document</a>
         <a href="/my-documents"><i class="fas fa-folder"></i> My Documents</a>
+        <a href="/track"><i class="fas fa-search"></i> Track Document</a>
         <span class="nav-section">Account</span>
         <a href="/profile"><i class="fas fa-user-circle"></i> My Profile</a>
     </nav>
@@ -356,11 +371,16 @@
                         <div class="err-text" id="errDocType"><i class="fas fa-exclamation-circle"></i> Please select a document type</div>
                     </div>
                     <div class="form-group">
-                        <label>Submit To</label>
-                        <div class="fixed-office">
-                            {{ $recordsOfficeName ?? 'Records Section' }}
-                            <small>All submissions are automatically routed to Records Section first.</small>
-                        </div>
+                        <label>To:</label>
+                        <select id="routingOffice">
+                            <option value="" selected disabled>Select destination office</option>
+                            @forelse(($routingOfficeOptions ?? []) as $office)
+                                <option value="{{ $office->id }}">{{ $office->name }}</option>
+                            @empty
+                                <option value="" disabled>No destination offices available</option>
+                            @endforelse
+                        </select>
+                        <div class="err-text" id="errRoutingOffice"><i class="fas fa-exclamation-circle"></i> Please select a destination office</div>
                     </div>
                 </div>
 
@@ -396,12 +416,13 @@
             <div class="success-card">
                 <div class="success-icon"><i class="fas fa-check-circle"></i></div>
                 <h2>Document Submitted Successfully!</h2>
-                <p>Your document has been logged and is now awaiting acceptance by the Records Section.</p>
+                <p>Your document has been logged successfully.</p>
 
                 <div class="receipt-layout">
                     <div class="receipt-top">
                     <div class="tracking-box">
                         <small>Tracking Number</small>
+                        <div class="tracking-subtitle" id="generatedDocControl">-</div>
                         <div class="tracking-number" id="generatedCode"></div>
                     </div>
                     <div id="qrBox" class="receipt-qr-panel" style="display:none">
@@ -463,6 +484,21 @@
     <span id="toastMsg"></span>
 </div>
 
+<div class="records-reminder-overlay" id="recordsReminderModal" aria-hidden="true">
+    <div class="records-reminder-modal" role="dialog" aria-modal="true" aria-labelledby="recordsReminderTitle">
+        <div class="records-reminder-head">
+            <i class="fas fa-clipboard-check"></i>
+            <h3 id="recordsReminderTitle">Submission Reminder</h3>
+        </div>
+        <div class="records-reminder-body">
+            <p>Please bring the physical document to Records Section for routing to the selected destination office.</p>
+            <div class="records-reminder-actions">
+                <button type="button" class="records-reminder-btn" id="recordsReminderOkBtn">I Understand</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <footer class="site-footer">
     <div class="footer-left">
         <span>&copy; {{ date('Y') }} DepEd Document Tracking System</span>
@@ -475,6 +511,55 @@
 <script>
 (function () {
     const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const recordsReminderModal = document.getElementById('recordsReminderModal');
+    const recordsReminderOkBtn = document.getElementById('recordsReminderOkBtn');
+
+    function openRecordsReminderModal() {
+        if (!recordsReminderModal) return;
+        recordsReminderModal.classList.add('show');
+        recordsReminderModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeRecordsReminderModal() {
+        if (!recordsReminderModal) return;
+        recordsReminderModal.classList.remove('show');
+        recordsReminderModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function applySuccessData(data) {
+        const trackingNo = data.reference_number || data.tracking_number || '-';
+        const documentControlNo = data.tracking_number || data.reference_number || '-';
+        const qrLookup = data.reference_number || data.tracking_number || '';
+        const routingOfficeEl = document.getElementById('routingOffice');
+        let selectedOfficeName = '-';
+        if (routingOfficeEl && routingOfficeEl.selectedIndex >= 0 && routingOfficeEl.options[routingOfficeEl.selectedIndex]) {
+            selectedOfficeName = routingOfficeEl.options[routingOfficeEl.selectedIndex].text;
+        }
+        let submittedToOffice = selectedOfficeName;
+        if (data.details && data.details.submitted_to) {
+            submittedToOffice = data.details.submitted_to;
+        }
+        var docControlEl = document.getElementById('generatedDocControl');
+
+        if (docControlEl) docControlEl.textContent = documentControlNo;
+        document.getElementById('generatedCode').textContent = trackingNo;
+    document.getElementById('dOffice').textContent = submittedToOffice || '-';
+
+        if (qrLookup) {
+            document.getElementById('qrImg').src = '/qr/' + encodeURIComponent(qrLookup);
+            document.getElementById('qrBox').style.display = '';
+        } else {
+            document.getElementById('qrBox').style.display = 'none';
+        }
+
+        if (data.details) {
+            document.getElementById('dSender').textContent = data.details.sender_name || '-';
+            document.getElementById('dType').textContent = data.details.type || '-';
+            document.getElementById('dSubject').textContent = data.details.subject || '-';
+            document.getElementById('dRemarks').textContent = data.details.description || 'No remarks provided';
+            document.getElementById('dDate').textContent = data.details.date || '-';
+        }
+    }
 
     function showToast(msg, type) {
         var toast = document.getElementById('toast');
@@ -509,10 +594,16 @@
         const othersVal   = document.getElementById('othersSpecify').value.trim();
         const subject     = document.getElementById('subject').value.trim();
         const description = document.getElementById('description').value.trim();
+        const routingOfficeEl = document.getElementById('routingOffice');
+        const routingOfficeId = routingOfficeEl ? parseInt(routingOfficeEl.value, 10) : NaN;
 
         if (!docType)   { fieldErr('docType', 'errDocType'); valid = false; }
         if (docType === 'Others' && !othersVal) { fieldErr('othersSpecify', 'errOthers'); valid = false; }
         if (!subject)   { fieldErr('subject', 'errSubject'); valid = false; }
+        if (!Number.isInteger(routingOfficeId) || routingOfficeId <= 0) {
+            fieldErr('routingOffice', 'errRoutingOffice');
+            valid = false;
+        }
         if (!valid) return;
 
         const finalType = docType === 'Others' ? othersVal : docType;
@@ -523,6 +614,7 @@
             type: finalType,
             subject: subject,
             description: description || null,
+            routing_office_id: routingOfficeId,
         };
 
         try {
@@ -534,21 +626,8 @@
             const data = await res.json();
 
             if (data.success) {
-                document.getElementById('formState').style.display    = 'none';
-                document.getElementById('successState').style.display = 'block';
-                document.getElementById('generatedCode').textContent  = data.reference_number || '-';
-                if (data.reference_number) {
-                    document.getElementById('qrImg').src = '/qr/' + encodeURIComponent(data.reference_number);
-                    document.getElementById('qrBox').style.display = '';
-                }
-                if (data.details) {
-                    document.getElementById('dSender').textContent  = data.details.sender_name || '-';
-                    document.getElementById('dType').textContent    = data.details.type || '-';
-                    document.getElementById('dSubject').textContent = data.details.subject || '-';
-                    document.getElementById('dRemarks').textContent = data.details.description || 'No remarks provided';
-                    document.getElementById('dOffice').textContent  = data.details.submitted_to || '-';
-                    document.getElementById('dDate').textContent    = data.details.date || '-';
-                }
+                applySuccessData(data);
+                openRecordsReminderModal();
             } else {
                 showToast(data.message || 'Submission failed. Please try again.', 'error');
                 btn.disabled = false;
@@ -558,6 +637,14 @@
             btn.disabled = false;
         }
     };
+
+    if (recordsReminderOkBtn) {
+        recordsReminderOkBtn.addEventListener('click', function () {
+            closeRecordsReminderModal();
+            document.getElementById('formState').style.display = 'none';
+            document.getElementById('successState').style.display = 'block';
+        });
+    }
 })();
 
 function logout() {

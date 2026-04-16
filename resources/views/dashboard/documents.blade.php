@@ -315,7 +315,7 @@
     <div class="search-card">
         <div class="search-wrap">
             <i class="fas fa-search"></i>
-            <input type="text" id="searchInput" placeholder="Search by tracking no., subject, or type..." data-clearable data-no-capitalize
+                 <input type="text" id="searchInput" placeholder="Search by tracking #, document control #, subject, or type..." data-clearable data-no-capitalize
                    value="{{ $search }}" oninput="filterDocs()">
         </div>
         <select class="status-select" id="statusFilter" onchange="filterDocs(true)">
@@ -344,7 +344,7 @@
             <table id="docsTable">
                 <thead>
                     <tr>
-                        <th>Tracking No.</th>
+                        <th>Tracking #</th>
                         <th>Subject</th>
                         <th>Type</th>
                         <th>Status</th>
@@ -374,7 +374,7 @@
                         </td>
                         <td class="t-office">
                             @if($doc->status === 'submitted')
-                                <div class="cell-ellipsis" title="{{ 'Awaiting physical submission to ' . ($doc->submittedToOffice->name ?? 'Records Section') }}">{{ 'Awaiting physical submission to ' . ($doc->submittedToOffice->name ?? 'Records Section') }}</div>
+                                <div class="cell-ellipsis" title="{{ 'Awaiting physical submission to Records Section for routing to ' . ($doc->submittedToOffice->name ?? 'the selected destination office') }}">{{ 'Awaiting physical submission to Records Section for routing to ' . ($doc->submittedToOffice->name ?? 'the selected destination office') }}</div>
                             @else
                                 <div class="cell-ellipsis" title="{{ $doc->currentOffice->name ?? $doc->submittedToOffice->name ?? 'No office assigned' }}">{{ $doc->currentOffice->name ?? $doc->submittedToOffice->name ?? 'No office assigned' }}</div>
                             @endif

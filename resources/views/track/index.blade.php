@@ -70,7 +70,7 @@
         .tl::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--border);z-index:0;pointer-events:none}
         .tl-item{position:relative;z-index:1;margin-bottom:22px;padding-left:24px}
         .tl-item:last-child{margin-bottom:0}
-        .tl-dot{width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+        .tl-dot{width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;position:relative;z-index:2}
         .tl-dot.active{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.done{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.warn{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
@@ -132,6 +132,7 @@
         /* my docs section */
         .my-docs-card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.07);overflow:hidden;margin-bottom:22px}
         .my-docs-head{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+        .my-docs-list{max-height:min(38vh,320px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
         .my-docs-head h3{font-size:14px;font-weight:700;color:var(--text-dark);display:flex;align-items:center;gap:8px}
         .my-docs-head span{font-size:11px;color:var(--text-muted)}
         .my-doc-row{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;text-decoration:none}
@@ -144,10 +145,18 @@
         .my-doc-badge{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;flex-shrink:0}
         .my-doc-arr{color:#cbd5e1;font-size:12px;flex-shrink:0}
         .my-docs-empty{padding:28px;text-align:center;color:var(--text-muted);font-size:13px}
+        .timeline-scroll{max-height:min(52vh,420px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:0 4px 0 10px}
+        .my-docs-list::-webkit-scrollbar,.timeline-scroll::-webkit-scrollbar{width:8px}
+        .my-docs-list::-webkit-scrollbar-thumb,.timeline-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+        .my-docs-list::-webkit-scrollbar-track,.timeline-scroll::-webkit-scrollbar-track{background:transparent}
         .dash-footer{width:100%;background:#fff;border-top:1px solid #e2e8f0;padding:20px 5%;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#94a3b8;margin-top:40px}
         .footer-left{display:flex;align-items:center;gap:6px}
         .footer-right{font-size:11px;color:#b0b8c4}
         @media(max-width:768px){.dash-footer{flex-direction:column;gap:6px;text-align:center;padding:16px 5%}}
+        @media(max-width:480px){
+            .my-docs-list{max-height:260px}
+            .timeline-scroll{max-height:320px;padding:0 2px 0 10px}
+        }
     </style>
     <script src="/js/spa.js" defer></script>
     <script src="/js/form-utils.js" defer></script>
@@ -167,6 +176,7 @@
         <a href="/" class="nav-link"><i class="fas fa-home"></i> Home</a>
         <a href="/about-us" class="nav-link"><i class="fas fa-info-circle"></i> About Us</a>
         <a href="/contact-us" class="nav-link"><i class="fas fa-envelope"></i> Contact Us</a>
+        <a href="/help" class="nav-link"><i class="fas fa-circle-question"></i> Help &amp; Guide</a>
     </div>
 </nav>
 <div class="page">
@@ -205,17 +215,19 @@
         @if($myDocs->isEmpty())
             <div class="my-docs-empty"><i class="fas fa-inbox" style="font-size:24px;color:#cbd5e1;display:block;margin-bottom:8px"></i>You have no submitted documents yet.</div>
         @else
+            <div class="my-docs-list">
             @foreach($myDocs as $doc)
-            <a class="my-doc-row" href="#" data-tracking="{{ $doc->reference_number }}">
+            <a class="my-doc-row" href="#" data-tracking="{{ $doc->reference_number ?: $doc->tracking_number }}">
                 <div class="my-doc-icon"><i class="fas fa-file-alt"></i></div>
                 <div class="my-doc-info">
                     <div class="my-doc-subject">{{ $doc->subject }}</div>
-                    <div class="my-doc-ref">{{ $doc->reference_number }}</div>
+                    <div class="my-doc-ref">{{ $doc->reference_number ?: $doc->tracking_number }}</div>
                 </div>
                 <div class="my-doc-badge" style="background:{{ $doc->statusColor() }}1a;color:{{ $doc->statusColor() }};border:1.5px solid {{ $doc->statusColor() }}55">{{ $doc->statusLabel() }}</div>
                 <i class="fas fa-chevron-right my-doc-arr"></i>
             </a>
             @endforeach
+            </div>
         @endif
     </div>
     @endif
@@ -237,7 +249,9 @@
 
         <div class="timeline-section">
             <div class="timeline-title"><i class="fas fa-history"></i> Routing History</div>
-            <div class="tl" id="rTimeline"></div>
+            <div class="timeline-scroll">
+                <div class="tl" id="rTimeline"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -410,7 +424,7 @@
                     prevGroupKey = groupKey;
                     var hdr = document.createElement('div');
                     hdr.className = 'tl-office-hdr';
-                    hdr.innerHTML = '<div class="tl-dot '+dc+'" style="margin-right:5px"><i class="fas '+dotIcon+'" style="font-size:5px"></i></div><span>' + esc(groupLabel) + '</span>';
+                    hdr.innerHTML = '<div class="tl-dot '+dc+'" style="margin-right:5px"><i class="fas '+dotIcon+'" style="font-size:7px;line-height:1;display:block"></i></div><span>' + esc(groupLabel) + '</span>';
                     tl.appendChild(hdr);
                 }
                 var item=document.createElement('div');item.className='tl-item';

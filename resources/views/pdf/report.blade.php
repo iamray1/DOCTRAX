@@ -1,22 +1,3 @@
-@php
-    $activeFilters = [];
-
-    if ($searchLabel !== 'All') {
-        $activeFilters[] = 'Keyword: ' . $searchLabel;
-    }
-
-    if ($typeLabel !== 'All') {
-        $activeFilters[] = 'Type: ' . $typeLabel;
-    }
-
-    if ($statusLabel !== 'All') {
-        $activeFilters[] = 'Status: ' . $statusLabel;
-    }
-
-    if ($dateFromLabel !== 'N/A' || $dateToLabel !== 'N/A') {
-        $activeFilters[] = 'Date Range: ' . $dateFromLabel . ' to ' . $dateToLabel;
-    }
-@endphp
 <!DOCTYPE html>
 <html>
 <head>
@@ -95,18 +76,6 @@
         .meta-sep {
             color: #94a3b8;
             padding: 0 6px;
-        }
-        .filters-line {
-            margin-bottom: 7px;
-            padding: 5px 7px;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            background: #f8fafc;
-            font-size: 8px;
-            color: #475569;
-        }
-        .filters-line strong {
-            color: #0f172a;
         }
         .section-title {
             margin-bottom: 4px;
@@ -262,12 +231,6 @@
             @endif
         </div>
 
-        @if(!empty($activeFilters))
-            <div class="filters-line">
-                <strong>Applied Filters:</strong> {{ implode(' | ', $activeFilters) }}
-            </div>
-        @endif
-
         <div class="section-title">Document Listing</div>
 
         @if($rows->isEmpty())
@@ -277,7 +240,7 @@
                 <thead>
                     <tr>
                         <th style="width:4%">#</th>
-                        <th style="width:18%">Reference / Tracking</th>
+                        <th style="width:18%">Document Control Number / Tracking Number</th>
                         <th style="width:22%">Document</th>
                         <th style="width:12%">Submitted By</th>
                         <th style="width:10%">Status</th>

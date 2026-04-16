@@ -9,7 +9,22 @@ class Office extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['code', 'name', 'head', 'description', 'is_active'];
+    protected $fillable = ['code', 'name', 'head', 'description', 'is_active', 'is_school'];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+        'is_school' => 'boolean',
+    ];
+
+    public function scopeSchools($query)
+    {
+        return $query->where('is_school', true);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
 
     public function users()
     {
