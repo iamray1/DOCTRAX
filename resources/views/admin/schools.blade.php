@@ -35,14 +35,14 @@
         .toast{position:fixed;top:78px;right:20px;z-index:300;background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px 18px;box-shadow:0 8px 24px rgba(0,0,0,.1);font-size:13px;transform:translateX(calc(100% + 60px));transition:transform .3s ease}.toast.show{transform:translateX(0)}.toast.success{border-left:3px solid var(--primary)}.toast.error{border-left:3px solid var(--danger)}
         .dash-footer{width:100%;background:#fff;border-top:1px solid var(--border);padding:20px 5%;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#94a3b8;flex-shrink:0}.footer-right{font-size:11px;color:#b0b8c4}
         .mob-cards{display:none}
-        .mob-card{background:#fff;border-radius:12px;border:1px solid var(--border);padding:14px;margin-bottom:10px;display:flex;flex-direction:column;gap:2px}
+        .mob-card{background:#fff;border-radius:10px;border:1px solid var(--border);padding:12px;margin-bottom:8px;display:flex;flex-direction:column;gap:1px}
         .mob-card:last-child{margin-bottom:0}
-        .mob-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap}
-        .mob-card-name{font-size:14px;font-weight:700;color:var(--text);line-height:1.35;word-break:break-word;overflow-wrap:anywhere;flex:1 1 220px}
-        .mob-card-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;padding:4px 0;font-size:12px;color:var(--muted);gap:8px}
+        .mob-card-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:flex-start;gap:8px;margin-bottom:5px}
+        .mob-card-name{font-size:13px;font-weight:700;color:var(--text);line-height:1.28;word-break:break-word;overflow-wrap:anywhere}
+        .mob-card-row{display:grid;grid-template-columns:minmax(92px,1fr) auto;align-items:start;padding:2px 0;font-size:11.5px;color:var(--muted);gap:8px}
         .mob-card-row .label{font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.3px}
-        .mob-card-row .value{font-weight:600;color:var(--text);text-align:right;line-height:1.35;white-space:normal;word-break:break-word;overflow-wrap:anywhere;max-width:170px}
-        .mob-card-actions{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+        .mob-card-row .value{font-weight:600;color:var(--text);text-align:right;line-height:1.25;white-space:normal;word-break:break-word;overflow-wrap:anywhere;max-width:140px}
+        .mob-card-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border)}
         @media (max-width:900px){
             .dash-wrapper{padding:18px 14px 32px}
             .page-header h1{font-size:19px}
@@ -51,18 +51,20 @@
             .filters .field,.filters .btn-sm{flex:1 1 100%;width:100%}
             .panel-head{padding:14px 14px}
             .table-wrap{display:none}
-            .mob-cards{display:block;padding:12px}
-            .mob-card-actions .btn-sm{width:100%;justify-content:center;padding:8px 12px;font-size:12px}
+            .mob-cards{display:block;padding:10px}
+            .mob-card .pill{padding:3px 8px;font-size:10.5px;line-height:1.2}
+            .mob-card-actions .btn-sm{justify-content:center;padding:6px 9px;font-size:11.5px;line-height:1.2}
             .modal{max-width:95vw}
             .modal-body,.modal-head,.modal-foot{padding-left:16px;padding-right:16px}
             .dash-footer{flex-direction:column;gap:6px;text-align:center;padding:16px 5%}
             .toast{right:12px;left:12px;max-width:none}
         }
         @media (max-width:480px){
-            .mob-card-head{flex-direction:column;align-items:flex-start}
+            .mob-card{padding:10px}
+            .mob-card-head{grid-template-columns:minmax(0,1fr) auto}
             .mob-card-head .pill{margin-left:0}
-            .mob-card-row{grid-template-columns:1fr;gap:2px}
-            .mob-card-row .value{max-width:100%;text-align:left}
+            .mob-card-row{grid-template-columns:minmax(88px,1fr) auto;gap:6px}
+            .mob-card-row .value{max-width:120px;text-align:right}
         }
     </style>
     <script src="/js/spa.js" defer></script>

@@ -210,7 +210,7 @@ class User extends Authenticatable
      */
     public function isRepresentative(): bool
     {
-        return $this->account_type === 'representative';
+        return in_array($this->account_type, ['representative', 'office'], true);
     }
 
     /**
@@ -218,7 +218,7 @@ class User extends Authenticatable
      */
     public function isOfficeAccount(): bool
     {
-        return $this->isRepresentative()
+        return in_array($this->account_type, ['representative', 'office'], true)
             && !is_null($this->office_id)
             && !$this->isAdmin()
             && $this->office

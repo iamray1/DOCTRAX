@@ -142,7 +142,7 @@ Route::get('/submit', function () {
         return view('admin.submit', compact('user', 'recordsOfficeName', 'routingOfficeOptions', 'documentTypeOptionsByOffice'));
     }
 
-    if ($user && $user->account_type === 'representative' && $user->office_id) {
+    if ($user && $user->isOfficeAccount()) {
         return view('office.submit', compact('recordsOfficeName', 'routingOfficeOptions', 'documentTypeOptionsByOffice'));
     }
 
