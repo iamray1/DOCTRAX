@@ -65,7 +65,7 @@ class ArchiveUnprocessedDocuments extends Command
                     'to_office_id'   => null,
                     'action'         => 'archived',
                     'status_after'   => 'archived',
-                    'remarks'        => "Auto-archived: Document was not received within {$days} days of submission.",
+                    'remarks'        => "Auto-archived: Document was not received within {$days} days of submission. Please submit again for routing.",
                 ]);
 
                 $count++;

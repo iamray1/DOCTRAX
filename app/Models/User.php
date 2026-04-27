@@ -220,7 +220,9 @@ class User extends Authenticatable
     {
         return $this->isRepresentative()
             && !is_null($this->office_id)
-            && !$this->isAdmin();
+            && !$this->isAdmin()
+            && $this->office
+            && !$this->office->is_school;
     }
 
     /**

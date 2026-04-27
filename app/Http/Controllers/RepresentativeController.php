@@ -12,8 +12,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class RepresentativeController extends Controller
 {
-    private const PROCESSED_STATUSES = ['completed', 'for_pickup', 'returned'];
-
     private function rep()
     {
         return Auth::user();
@@ -38,39 +36,18 @@ class RepresentativeController extends Controller
     }
 
     /**
-     * Hide only the current user's untouched self-submissions from office queue views.
-     * Guest/public submissions (user_id null) must remain visible, and once a document
-     * is actually tagged to the current rep it should appear in the queue.
+     * Filter documents visible to the user in their queue.
+     * Show documents that are: tagged to user, or user has routing history with.
      */
     private function applyOfficeQueueVisibility($query, $user)
     {
         return $query->where(function ($q) use ($user) {
-                        // Queue should only show items available to this user:
-                        // unassigned documents OR documents currently tagged to this user.
-                        $q->whereNull('current_handler_id')
-                            ->orWhere('current_handler_id', $user->id);
-                })->where(function ($q) use ($user) {
-                        // Keep public submissions visible; hide untouched self-submissions.
-                        $q->whereNull('user_id')
-                            ->orWhere('user_id', '!=', $user->id)
-                            ->orWhere('current_handler_id', $user->id);
+            // Show documents where user is tagged OR user's office has routing history
+            $q->where('current_handler_id', $user->id)
+              ->orWhereHas('routingLogs', function ($rl) use ($user) {
+                  $rl->where('from_office_id', $user->office_id);
+              });
         });
-    }
-
-    /**
-     * Count documents an office user has finished processing.
-     *
-     * Once a user marks a document as ready for pickup, returned, or completed,
-     * their processing work is considered done and should stay credited to them.
-     */
-    private function countProcessedDocumentsByUser($user, $office = null): int
-    {
-        return RoutingLog::query()
-            ->where('performed_by', $user->id)
-            ->when($office, fn ($q) => $q->where('to_office_id', $office->id))
-            ->whereIn('action', self::PROCESSED_STATUSES)
-            ->distinct('document_id')
-            ->count('document_id');
     }
 
     public function dashboard()
@@ -83,67 +60,75 @@ class RepresentativeController extends Controller
             return redirect('/dashboard');
         }
 
+        // School representatives should use regular user dashboard (submit only, no receive)
+        if ($user->office && $user->office->is_school) {
+            return redirect('/dashboard');
+        }
+
         $office = $user->office;
 
-        $isRecordsOffice = $user->isRecords();
+        $queueStatuses = ['received', 'in_review', 'on_hold', 'for_pickup', 'completed', 'returned'];
 
-        // Records receives docs via tracking number — don't show unprocessed 'submitted' docs in their queue
-        $incoming = $this->applyOfficeQueueVisibility(
-            Document::with(['submittedToOffice', 'currentOffice']),
-            $user
-        )
-            ->where(function ($q) use ($office, $isRecordsOffice) {
-                if ($isRecordsOffice) {
-                    // Records: only docs already at their office (received via tracking #)
-                    $q->where('current_office_id', $office->id);
-                } else {
-                    $q->where('current_office_id', $office->id)
-                      ->orWhere(function ($sub) use ($office) {
-                          $sub->where('status', 'submitted')
-                              ->where('submitted_to_office_id', $office->id);
-                      });
-                }
+        // Queue shows documents this account personally received/handles, including processed rows
+        // so the dashboard status filter can show documents completed/returned by this user.
+        // Own submissions stay in My Documents, even after they are received by the office.
+        $incoming = Document::with(['submittedToOffice', 'currentOffice', 'routingLogs'])
+            ->where('current_office_id', $office->id)
+            ->where('current_handler_id', $user->id)
+            ->where(function ($q) use ($user) {
+                $q->whereNull('user_id')
+                  ->orWhere('user_id', '!=', $user->id);
             })
-            ->when($isRecordsOffice,
-                fn ($q) => $q->whereNotIn('status', ['submitted', 'completed', 'returned', 'cancelled', 'archived']),
-                fn ($q) => $q->whereNotIn('status', ['completed', 'returned', 'cancelled', 'archived'])
-            )
+            ->whereIn('status', $queueStatuses)
+            ->orderByRaw("CASE 
+                WHEN status = 'received' THEN 1
+                WHEN status = 'in_review' THEN 2
+                WHEN status = 'for_pickup' THEN 3
+                WHEN status = 'on_hold' THEN 4
+                WHEN status = 'completed' THEN 5
+                WHEN status = 'returned' THEN 6
+                ELSE 7
+            END")
             ->latest('last_action_at')
             ->paginate(20);
 
         $stats = [
-            'incoming' => $this->applyOfficeQueueVisibility(
-                    Document::query(),
-                    $user
-                )->where(function ($q) use ($office, $isRecordsOffice) {
-                    if ($isRecordsOffice) {
-                        $q->where('current_office_id', $office->id);
-                    } else {
-                        $q->where('current_office_id', $office->id)
-                          ->orWhere(function ($sub) use ($office) {
-                              $sub->where('status', 'submitted')
-                                  ->where('submitted_to_office_id', $office->id);
-                          });
-                    }
+            'incoming' => Document::query()
+                ->where('current_office_id', $office->id)
+                ->where('current_handler_id', $user->id)
+                ->where(function ($q) use ($user) {
+                    $q->whereNull('user_id')
+                      ->orWhere('user_id', '!=', $user->id);
                 })
-                ->when($isRecordsOffice,
-                    fn ($q) => $q->whereIn('status', ['received', 'in_review']),
-                    fn ($q) => $q->whereIn('status', ['submitted', 'received', 'in_review'])
-                )
+                ->whereIn('status', ['received', 'in_review'])
                 ->count(),
-            'received' => $this->applyOfficeQueueVisibility(
-                    Document::where('current_office_id', $office->id),
-                    $user
-                )->where('status', 'received')->count(),
-            'in_review' => $this->applyOfficeQueueVisibility(
-                    Document::where('current_office_id', $office->id),
-                    $user
-                )->where('status', 'in_review')->count(),
-            'processed' => $this->countProcessedDocumentsByUser($user, $office),
-            'for_pickup' => $this->applyOfficeQueueVisibility(
-                    Document::where('current_office_id', $office->id),
-                    $user
-                )->where('status', 'for_pickup')->count(),
+            'received' => Document::where('current_office_id', $office->id)
+                ->where('current_handler_id', $user->id)
+                ->where(function ($q) use ($user) {
+                    $q->whereNull('user_id')
+                      ->orWhere('user_id', '!=', $user->id);
+                })
+                ->where('status', 'received')->count(),
+            'in_review' => Document::where('current_office_id', $office->id)
+                ->where('current_handler_id', $user->id)
+                ->where(function ($q) use ($user) {
+                    $q->whereNull('user_id')
+                      ->orWhere('user_id', '!=', $user->id);
+                })
+                ->where('status', 'in_review')->count(),
+            // Count documents this specific office user finalized (completed/returned).
+            'processed' => RoutingLog::query()
+                ->where('performed_by', $user->id)
+                ->whereIn('action', ['completed', 'returned'])
+                ->distinct('document_id')
+                ->count('document_id'),
+            'for_pickup' => Document::where('current_office_id', $office->id)
+                ->where('current_handler_id', $user->id)
+                ->where(function ($q) use ($user) {
+                    $q->whereNull('user_id')
+                      ->orWhere('user_id', '!=', $user->id);
+                })
+                ->where('status', 'for_pickup')->count(),
         ];
 
         $documents = $incoming;
@@ -169,20 +154,17 @@ class RepresentativeController extends Controller
             'routingLogs.performer',
         ])->findOrFail($id);
 
-        // Scope check: rep can only view documents that are at their office,
-        // were submitted to their office, or have routing history through their office.
+        // Allow access if: SuperAdmin, currently tagged to user, at current office, or user has routing history
         if (!$user->isSuperAdmin()) {
-            $atOffice = (int) $document->current_office_id === (int) $office->id
-                || (int) $document->submitted_to_office_id === (int) $office->id;
-
-            if (!$atOffice) {
-                $inHistory = $document->routingLogs->contains(function ($log) use ($office) {
-                    return (int) $log->from_office_id === (int) $office->id
-                        || (int) $log->to_office_id === (int) $office->id;
+            $canAccess = (int) $document->current_handler_id === (int) $user->id
+                || (int) $document->current_office_id === (int) $office->id
+                || (int) $document->submitted_to_office_id === (int) $office->id
+                || $document->routingLogs->contains(function ($log) use ($user) {
+                    return (int) $log->from_office_id === (int) $user->office_id;
                 });
-                if (!$inHistory) {
-                    abort(403, 'This document is not associated with your office.');
-                }
+
+            if (!$canAccess) {
+                abort(403, 'You do not have access to this document.');
             }
         }
 
@@ -192,51 +174,11 @@ class RepresentativeController extends Controller
     public function accept(Request $request, $id)
     {
         $this->authorizeRep();
-        $user = $this->rep();
-        $office = $user->office;
-
-        $document = Document::findOrFail($id);
-
-        if ($document->status !== 'submitted') {
-            return response()->json(['success' => false, 'message' => 'Document cannot be accepted at its current status.'], 422);
-        }
-
-        if ((int) $document->submitted_to_office_id !== (int) $office->id) {
-            return response()->json(['success' => false, 'message' => 'This document is not addressed to your office.'], 403);
-        }
-
-        if ($document->current_handler_id && (int) $document->current_handler_id !== (int) $user->id) {
-            $handlerName = optional($document->currentHandler)->name ?: 'another office user';
-            return response()->json([
-                'success' => false,
-                'message' => "This document is currently tagged to {$handlerName}.",
-            ], 409);
-        }
-
-        $fromOfficeId = null;
-
-        $document->current_office_id = $office->id;
-        $document->current_handler_id = $user->id;
-        $document->status = 'in_review';
-        $document->last_action_at = now();
-        $document->save();
-
-        RoutingLog::create([
-            'document_id' => $document->id,
-            'performed_by' => $user->id,
-            'from_office_id' => $fromOfficeId,
-            'to_office_id' => $office->id,
-            'action' => 'processing',
-            'status_after' => 'in_review',
-            'remarks' => $request->input('remarks', 'Document is now being processed.'),
-        ]);
 
         return response()->json([
-            'success' => true,
-            'message' => 'Document accepted successfully.',
-            'status' => 'in_review',
-            'current_handler' => $user->name,
-        ]);
+            'success' => false,
+            'message' => 'Direct accept is disabled. Receive the document using its reference number, tracking number, or QR scan.',
+        ], 410);
     }
 
     public function receiveByReference(Request $request)
@@ -260,7 +202,7 @@ class RepresentativeController extends Controller
         }
 
         return DB::transaction(function () use ($lookupInput, $office, $user, $request) {
-            $document = Document::with(['currentHandler', 'user'])->where(function ($q) use ($lookupInput) {
+            $document = Document::with('currentHandler')->where(function ($q) use ($lookupInput) {
                 $q->whereRaw('UPPER(reference_number) = ?', [$lookupInput])
                   ->orWhereRaw('UPPER(tracking_number) = ?', [$lookupInput]);
             })->lockForUpdate()->first();
@@ -331,14 +273,20 @@ class RepresentativeController extends Controller
             ]);
         }
 
+        // Check if document needs to go through Records first (only for public submissions)
         $submittedByOfficeAccount = (bool) optional($document->user)->isOfficeAccount();
+        $submittedBySuperAdmin = (bool) optional($document->user)->isSuperAdmin();
         $isInitialOfficeIntake = is_null($document->current_office_id);
+        $isRecordsOffice = $user->isRecords();
 
-        // Restrict only the first office intake: external submissions must enter via Records first.
-        if ($isInitialOfficeIntake && !$submittedByOfficeAccount && !$user->isRecords()) {
+        // Allow any office to receive documents that are already in circulation (current_office_id is set)
+        // OR if submitted by office account/superadmin OR if this is Records office
+        if ($isInitialOfficeIntake && !$submittedByOfficeAccount && !$submittedBySuperAdmin && !$isRecordsOffice) {
+            // For public submissions on initial intake, only Records can receive
+            // But if document is already forwarded/in circulation, any office can receive
             return response()->json([
                 'success' => false,
-                'message' => 'This document must be received by Records Section first. Other offices can receive it by scan after Records has accepted it.',
+                'message' => 'This document must be received by Records Section first. Your office can receive it by scan after Records has accepted it.',
             ], 403);
         }
 
@@ -416,14 +364,6 @@ class RepresentativeController extends Controller
         }
 
         $newStatus = $request->status;
-
-        if ($newStatus === 'completed' && $document->status !== 'for_pickup') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Only documents marked For Pickup can be completed after the actual claim.',
-            ], 422);
-        }
-
         $document->status = $newStatus;
         $document->last_action_at = now();
         $document->save();
@@ -431,7 +371,7 @@ class RepresentativeController extends Controller
         RoutingLog::create([
             'document_id' => $document->id,
             'performed_by' => $user->id,
-            'from_office_id' => null,          // in-place update — no office transfer
+            'from_office_id' => null,
             'to_office_id' => $office->id,
             'action' => $newStatus,
             'status_after' => $newStatus,
@@ -463,31 +403,32 @@ class RepresentativeController extends Controller
         $query = Document::query()
             ->with(['user', 'submittedToOffice', 'currentOffice', 'currentHandler']);
 
-        // Scope to the user's office — only show documents that touched this office
+        // Scope to the user's office — only show documents that touched this office OR were handled by this user
         if ($office) {
             $officeId = $office->id;
-            $query->where(function ($q) use ($officeId) {
+            $query->where(function ($q) use ($officeId, $user) {
                 $q->where('current_office_id', $officeId)
                   ->orWhere('submitted_to_office_id', $officeId)
                   ->orWhereHas('routingLogs', function ($rl) use ($officeId) {
                       $rl->where('from_office_id', $officeId)
                         ->orWhere('to_office_id', $officeId);
-                  });
+                  })
+                  ->orWhere('current_handler_id', $user->id);
             });
-            // Exclude documents still in "submitted" status — only show received/handled docs
-            $query->whereNotIn('status', ['submitted', 'archived']);
         }
 
         // Filter by specific user (View Activity from Users panel)
         if ($userId > 0) {
             $selectedUser = \App\Models\User::find($userId);
-            $query->where(function ($q) use ($userId) {
+            $query->where(function ($q) use ($userId, $selectedUser) {
                 $q->where('current_handler_id', $userId)
-                  ->orWhere('user_id', $userId)
-                  ->orWhereHas('routingLogs', function ($rl) use ($userId) {
-                      $rl->where('performed_by', $userId);
-                  });
-            })->whereNotIn('status', ['submitted', 'archived']);
+                  ->orWhere('user_id', $userId);
+                if ($selectedUser && $selectedUser->office_id) {
+                    $q->orWhereHas('routingLogs', function ($rl) use ($selectedUser) {
+                        $rl->where('from_office_id', $selectedUser->office_id);
+                    });
+                }
+            });
         }
 
         $search = trim((string) $request->query('search', ''));
@@ -509,19 +450,35 @@ class RepresentativeController extends Controller
                     ->orWhereRaw("LOWER(COALESCE(tracking_number, '')) LIKE ?", [$needle])
                     ->orWhereRaw("LOWER(COALESCE(subject, '')) LIKE ?", [$needle])
                     ->orWhereRaw("LOWER(COALESCE(sender_name, '')) LIKE ?", [$needle])
+                    ->orWhereRaw("LOWER(COALESCE(sender_office, '')) LIKE ?", [$needle])
                     ->orWhereRaw("LOWER(COALESCE(type, '')) LIKE ?", [$needle])
-                    ->orWhereRaw("LOWER(COALESCE(status, '')) LIKE ?", [$needle])
                     // Search by current handler (tagged-to user) name
                     ->orWhereHas('currentHandler', function ($u) use ($needle) {
                         $u->whereRaw("LOWER(COALESCE(name, '')) LIKE ?", [$needle]);
+                    })
+                    // Search by submitter (account holder) name
+                    ->orWhereHas('user', function ($u) use ($needle) {
+                        $u->whereRaw("LOWER(COALESCE(name, '')) LIKE ?", [$needle]);
+                    })
+                    // Search by current office name
+                    ->orWhereHas('currentOffice', function ($o) use ($needle) {
+                        $o->whereRaw("LOWER(COALESCE(name, '')) LIKE ?", [$needle]);
+                    })
+                    // Search by submitted-to office name
+                    ->orWhereHas('submittedToOffice', function ($o) use ($needle) {
+                        $o->whereRaw("LOWER(COALESCE(name, '')) LIKE ?", [$needle]);
+                    })
+                    // Search by any user who performed an action (routing log)
+                    ->orWhereHas('routingLogs.performer', function ($u) use ($needle) {
+                        $u->whereRaw("LOWER(COALESCE(name, '')) LIKE ?", [$needle]);
                     });
-            })->whereNotIn('status', ['submitted', 'archived']);
+            });
         }
 
         if ($status !== '') {
             $statusGroups = [
                 'pending'   => ['received', 'in_review', 'on_hold'],
-                'processed' => self::PROCESSED_STATUSES,
+                'processed' => ['completed', 'for_pickup', 'returned'],
             ];
             if (isset($statusGroups[$status])) {
                 $query->whereIn('status', $statusGroups[$status]);
@@ -575,7 +532,7 @@ class RepresentativeController extends Controller
         $reportStats = [
             'total' => (clone $query)->count(),
             'processing' => (clone $query)->whereIn('status', ['received', 'in_review'])->count(),
-            'processed' => (clone $query)->whereIn('status', self::PROCESSED_STATUSES)->count(),
+            'processed' => (clone $query)->whereIn('status', ['completed', 'for_pickup', 'returned'])->count(),
         ];
 
         $typesQuery = Document::query()->whereNotNull('type');
@@ -588,7 +545,7 @@ class RepresentativeController extends Controller
                       $rl->where('from_office_id', $officeId)
                         ->orWhere('to_office_id', $officeId);
                   });
-            })->whereNotIn('status', ['submitted', 'archived']);
+            });
         }
         $availableTypes = $typesQuery
             ->select('type')
@@ -609,7 +566,7 @@ class RepresentativeController extends Controller
 
         $statusGroups = [
             'pending'   => ['submitted', 'received', 'in_review', 'on_hold'],
-            'processed' => self::PROCESSED_STATUSES,
+            'processed' => ['completed', 'for_pickup', 'returned'],
         ];
         $reportStatusOptions = [
             'pending'   => 'Pending',
@@ -629,22 +586,20 @@ class RepresentativeController extends Controller
 
         $usersQuery->withCount('routingLogs as actions_count')
             ->withCount('handledDocuments as handling_count')
+            ->withCount(['handledDocuments as handled_completed_count' => fn ($q) =>
+                $q->whereIn('status', ['completed'])
+            ])
             ->withCount(['handledDocuments as handled_received_count' => fn ($q) =>
                 $q->whereIn('status', ['in_review'])
             ])
             ->withCount(['handledDocuments as handled_pending_count' => fn ($q) =>
                 $q->whereIn('status', ['submitted', 'in_review', 'on_hold'])
             ])
-            ->addSelect([
-                'handled_processed_count' => RoutingLog::query()
-                    ->selectRaw('COUNT(DISTINCT routing_logs.document_id)')
-                    ->whereColumn('routing_logs.performed_by', 'users.id')
-                    ->when($office, fn ($q) => $q->where('routing_logs.to_office_id', $office->id))
-                    ->whereIn('routing_logs.action', self::PROCESSED_STATUSES),
+            ->withCount(['handledDocuments as handled_processed_count' => fn ($q) =>
+                $q->whereIn('status', ['completed', 'for_pickup', 'returned'])
             ]);
 
         $users = $usersQuery
-            ->orderByDesc('handled_processed_count')
             ->orderByDesc('handling_count')
             ->orderByDesc('actions_count')
             ->paginate(24, ['*'], 'users_page')->withQueryString();
@@ -694,9 +649,11 @@ class RepresentativeController extends Controller
         $query = Document::with(['submittedToOffice', 'currentOffice', 'currentHandler']);
 
         // Only show documents handled/processed by this staff member (not their own submissions)
-        $query->where(function ($q) use ($id) {
-            $q->where('current_handler_id', $id)
-              ->orWhereHas('routingLogs', fn ($rl) => $rl->where('performed_by', $id));
+        $query->where(function ($q) use ($id, $u) {
+            $q->where('current_handler_id', $id);
+            if ($u->office_id) {
+                $q->orWhereHas('routingLogs', fn ($rl) => $rl->where('from_office_id', $u->office_id));
+            }
         })->where('user_id', '!=', $id);
 
         if ($search !== '') {
@@ -706,14 +663,14 @@ class RepresentativeController extends Controller
                 $q->whereRaw("LOWER(COALESCE(reference_number,'')) LIKE ?", [$needle])
                   ->orWhereRaw("LOWER(COALESCE(tracking_number,'')) LIKE ?", [$needle])
                   ->orWhereRaw("LOWER(COALESCE(subject,'')) LIKE ?", [$needle])
-                  ->orWhereRaw("LOWER(COALESCE(status,'')) LIKE ?", [$needle]);
+                  ->orWhereRaw("LOWER(COALESCE(sender_name,'')) LIKE ?", [$needle]);
             });
         }
 
         if ($status !== '') {
             $statusGroups = [
                 'pending'   => ['submitted', 'received', 'in_review', 'on_hold'],
-                'processed' => self::PROCESSED_STATUSES,
+                'processed' => ['completed', 'for_pickup', 'returned'],
             ];
             if (isset($statusGroups[$status])) {
                 $query->whereIn('status', $statusGroups[$status]);
@@ -766,7 +723,7 @@ class RepresentativeController extends Controller
             'stats' => [
                 'total_docs'  => $docs->count(),
                 'pending'     => $docs->whereIn('status', ['submitted', 'received', 'in_review', 'on_hold'])->count(),
-                'processed'   => $docs->whereIn('status', self::PROCESSED_STATUSES)->count(),
+                'processed'   => $docs->whereIn('status', ['completed', 'for_pickup', 'returned'])->count(),
                 'actions'     => $actionsCount,
             ],
             'documents' => $docsData,
@@ -802,9 +759,11 @@ class RepresentativeController extends Controller
         $query = Document::with(['submittedToOffice', 'currentOffice', 'currentHandler']);
 
         // Only show documents handled/processed by this staff member
-        $query->where(function ($q) use ($id) {
-            $q->where('current_handler_id', $id)
-              ->orWhereHas('routingLogs', fn ($rl) => $rl->where('performed_by', $id));
+        $query->where(function ($q) use ($id, $u) {
+            $q->where('current_handler_id', $id);
+            if ($u->office_id) {
+                $q->orWhereHas('routingLogs', fn ($rl) => $rl->where('from_office_id', $u->office_id));
+            }
         })->where('user_id', '!=', $id);
 
         if ($search !== '') {
@@ -814,14 +773,14 @@ class RepresentativeController extends Controller
                 $q->whereRaw("LOWER(COALESCE(reference_number,'')) LIKE ?", [$needle])
                   ->orWhereRaw("LOWER(COALESCE(tracking_number,'')) LIKE ?", [$needle])
                   ->orWhereRaw("LOWER(COALESCE(subject,'')) LIKE ?", [$needle])
-                  ->orWhereRaw("LOWER(COALESCE(status,'')) LIKE ?", [$needle]);
+                  ->orWhereRaw("LOWER(COALESCE(sender_name,'')) LIKE ?", [$needle]);
             });
         }
 
         if ($status !== '') {
             $statusGroups = [
                 'pending'   => ['submitted', 'received', 'in_review', 'on_hold'],
-                'processed' => self::PROCESSED_STATUSES,
+                'processed' => ['completed', 'for_pickup', 'returned'],
             ];
             if (isset($statusGroups[$status])) {
                 $query->whereIn('status', $statusGroups[$status]);
@@ -914,34 +873,42 @@ class RepresentativeController extends Controller
 
         // Fresh stats every request — no cache, queries are lightweight and stats must be real-time
         $stats = [
-            'incoming' => $this->applyOfficeQueueVisibility(
-                    Document::query(),
-                    $user
-                )->where(function ($q) use ($office, $isRecordsOffice) {
-                    if ($isRecordsOffice) {
-                        $q->where('current_office_id', $office->id);
-                    } else {
-                        $q->where('current_office_id', $office->id)
-                          ->orWhere(function ($sub) use ($office) {
-                              $sub->where('status', 'submitted')
-                                  ->where('submitted_to_office_id', $office->id);
-                          });
-                    }
+            'incoming' => Document::query()
+                ->where('current_office_id', $office->id)
+                ->where('current_handler_id', $user->id)
+                ->where(function ($q) use ($user) {
+                    $q->whereNull('user_id')
+                      ->orWhere('user_id', '!=', $user->id);
                 })
-                ->when($isRecordsOffice,
-                    fn ($q) => $q->whereIn('status', ['received', 'in_review']),
-                    fn ($q) => $q->whereIn('status', ['submitted', 'received', 'in_review'])
-                )
+                ->whereIn('status', ['received', 'in_review'])
                 ->count(),
-            'in_review' => $this->applyOfficeQueueVisibility(
-                    Document::where('current_office_id', $office->id),
-                    $user
-                )->where('status', 'in_review')->count(),
-            'processed' => $this->countProcessedDocumentsByUser($user, $office),
-            'for_pickup' => $this->applyOfficeQueueVisibility(
-                    Document::where('current_office_id', $office->id),
-                    $user
-                )->where('status', 'for_pickup')->count(),
+            'in_review' => Document::where('current_office_id', $office->id)
+                ->where('current_handler_id', $user->id)
+                ->where(function ($q) use ($user) {
+                    $q->whereNull('user_id')
+                      ->orWhere('user_id', '!=', $user->id);
+                })
+                ->whereIn('status', ['received', 'in_review'])->count(),
+            'processed' => RoutingLog::query()
+                ->where('performed_by', $user->id)
+                ->whereIn('action', ['completed', 'returned'])
+                ->distinct('document_id')
+                ->count('document_id'),
+            'completed' => Document::where('current_office_id', $office->id)
+                ->where('current_handler_id', $user->id)
+                ->where(function ($q) use ($user) {
+                    $q->whereNull('user_id')
+                      ->orWhere('user_id', '!=', $user->id);
+                })
+                ->whereIn('status', ['completed', 'for_pickup'])
+                ->count(),
+            'for_pickup' => Document::where('current_office_id', $office->id)
+                ->where('current_handler_id', $user->id)
+                ->where(function ($q) use ($user) {
+                    $q->whereNull('user_id')
+                      ->orWhere('user_id', '!=', $user->id);
+                })
+                ->where('status', 'for_pickup')->count(),
         ];
 
         // User-specific flag (not cached by office)
@@ -950,3 +917,4 @@ class RepresentativeController extends Controller
         return response()->json($stats);
     }
 }
+

@@ -124,6 +124,45 @@ class RecordsController extends Controller
         return response()->json($stats);
     }
 
+    /**
+     * Update document status (for ending transactions).
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        $this->authorizeRecordsAccess();
+        $request->validate([
+            'status' => 'required|in:completed',
+            'remarks' => 'nullable|string|max:1000',
+        ]);
+
+        $user = Auth::user();
+        $document = Document::findOrFail($id);
+
+        if ($document->status !== 'for_pickup') {
+            return response()->json(['success' => false, 'message' => 'Only documents marked For Pickup can be ended.'], 422);
+        }
+
+        $document->status = 'completed';
+        $document->last_action_at = now();
+        $document->save();
+
+        RoutingLog::create([
+            'document_id' => $document->id,
+            'performed_by' => $user->id,
+            'from_office_id' => $document->current_office_id,
+            'to_office_id' => $document->current_office_id,
+            'action' => 'completed',
+            'status_after' => 'completed',
+            'remarks' => $request->remarks ?: 'Transaction ended by Records Section.',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaction ended. Document marked as Completed.',
+            'status' => 'completed',
+        ]);
+    }
+
     private function applyStatusFilter($query, string $status): void
     {
         match ($status) {

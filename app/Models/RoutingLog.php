@@ -75,4 +75,24 @@ class RoutingLog extends Model
             default      => ucfirst(str_replace('_', ' ', $action)),
         };
     }
+
+    /**
+     * Action label with office name for completed/returned transactions.
+     */
+    public function actionLabelWithOffice(): string
+    {
+        $action = strtolower(trim((string) $this->action));
+        
+        if (in_array($action, ['completed', 'returned'])) {
+            $officeName = $this->toOffice?->name ?? $this->fromOffice?->name ?? 'Office';
+            
+            if ($action === 'returned') {
+                return 'Returned to Sender - ' . $officeName;
+            }
+            
+            return 'Transaction Completed - ' . $officeName;
+        }
+        
+        return $this->actionLabel();
+    }
 }

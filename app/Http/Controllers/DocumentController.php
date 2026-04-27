@@ -11,6 +11,8 @@ use App\Services\TrackingNumberService;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 
 class DocumentController extends Controller
 {
@@ -86,10 +88,7 @@ class DocumentController extends Controller
         try {
             $destinationOffice = Office::query()
                 ->active()
-                ->where(function ($query) {
-                    $query->where('is_school', false)
-                        ->orWhereNull('is_school');
-                })
+                ->whereRaw('COALESCE(is_school, false) = false')
                 ->whereKey((int) $request->routing_office_id)
                 ->first();
 
@@ -98,54 +97,6 @@ class DocumentController extends Controller
                     'success' => false,
                     'message' => 'The selected destination office is invalid or inactive.',
                 ], 422);
-            }
-
-            $normalizedSubject = strtolower(trim((string) $request->subject));
-            $normalizedType = strtolower(trim((string) $request->type));
-            $normalizedDescription = strtolower(trim((string) ($request->description ?? '')));
-
-            $recentDuplicateQuery = Document::query()
-                ->whereRaw('LOWER(TRIM(subject)) = ?', [$normalizedSubject])
-                ->whereRaw('LOWER(TRIM(type)) = ?', [$normalizedType])
-                ->where('submitted_to_office_id', $destinationOffice->id)
-                ->where('created_at', '>=', now()->subMinutes(10))
-                ->whereIn('status', ['submitted', 'received', 'in_review', 'on_hold', 'for_pickup']);
-
-            if ($normalizedDescription !== '') {
-                $recentDuplicateQuery->whereRaw("LOWER(TRIM(COALESCE(description, ''))) = ?", [$normalizedDescription]);
-            } else {
-                $recentDuplicateQuery->where(function ($q) {
-                    $q->whereNull('description')
-                      ->orWhereRaw("TRIM(COALESCE(description, '')) = ''");
-                });
-            }
-
-            if ($isAuth && auth()->id()) {
-                $recentDuplicateQuery->where('user_id', auth()->id());
-            } else {
-                $recentDuplicateQuery
-                    ->whereRaw("LOWER(TRIM(COALESCE(sender_email, ''))) = ?", [strtolower(trim((string) $senderEmail))])
-                    ->whereRaw("LOWER(TRIM(COALESCE(sender_name, ''))) = ?", [strtolower(trim((string) $senderName))]);
-            }
-
-            $recentDuplicate = $recentDuplicateQuery->latest('created_at')->first();
-
-            if ($recentDuplicate) {
-                return response()->json([
-                    'success' => true,
-                    'duplicate' => true,
-                    'message' => 'A similar document was already submitted recently. Reusing the existing reference number.',
-                    'reference_number' => $recentDuplicate->reference_number,
-                    'tracking_number' => $recentDuplicate->tracking_number,
-                    'details' => [
-                        'sender_name'  => $recentDuplicate->sender_name,
-                        'type'         => $recentDuplicate->type,
-                        'subject'      => $recentDuplicate->subject,
-                        'description'  => $recentDuplicate->description ?: 'No remarks provided',
-                        'submitted_to' => $destinationOffice->name,
-                        'date'         => $recentDuplicate->created_at->setTimezone('Asia/Manila')->format('M d, Y â€” h:i A'),
-                    ],
-                ]);
             }
 
             $result = $this->trackingNumberService->generate();
@@ -170,6 +121,20 @@ class DocumentController extends Controller
             $document->save();
 
             $recordsOfficeName = $this->getPhysicalSubmissionOfficeName();
+            
+            // Determine if submitter is office account or SuperAdmin
+            $submitterIsOfficeAccount = false;
+            $submitterIsSuperAdmin = false;
+            if ($isAuth) {
+                $authUser = auth()->user();
+                $submitterIsOfficeAccount = $authUser->isOfficeAccount();
+                $submitterIsSuperAdmin = $authUser->isSuperAdmin();
+            }
+            
+            // Office-to-office submissions don't need Records routing
+            $remarksText = ($submitterIsOfficeAccount || $submitterIsSuperAdmin)
+                ? 'Document submitted for routing to ' . $destinationOffice->name . '.'
+                : 'Document submitted online. Awaiting physical submission to ' . $recordsOfficeName . ' for routing to ' . $destinationOffice->name . '.';
 
             RoutingLog::create([
                 'document_id' => $document->id,
@@ -178,14 +143,19 @@ class DocumentController extends Controller
                 'to_office_id' => null,
                 'action' => 'submitted',
                 'status_after' => 'submitted',
-                'remarks' => 'Document submitted online. Awaiting physical submission to ' . $recordsOfficeName . ' for routing to ' . $destinationOffice->name . '.',
+                'remarks' => $remarksText,
             ]);
+
+            // Determine if Records reminder should be shown based on submitter type and destination
+            $showRecordsReminder = !($submitterIsOfficeAccount || $submitterIsSuperAdmin);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Document submitted successfully!',
                 'reference_number' => $document->reference_number,
                 'tracking_number' => $document->tracking_number,
+                'show_records_reminder' => $showRecordsReminder,
+                'destination_office_name' => $destinationOffice->name,
                 'details' => [
                     'sender_name'  => $document->sender_name,
                     'type'         => $document->type,
@@ -210,13 +180,26 @@ class DocumentController extends Controller
      */
     public function track(Request $request)
     {
-        $request->validate([
-            'tracking_number' => 'nullable|string',
-            'reference_number' => 'nullable|string',
-            'ref' => 'nullable|string',
-        ]);
+        return $this->trackLookupResponse($request, 15);
+    }
 
-        $lookupInput = strtoupper(trim(strip_tags((string)($request->tracking_number ?: $request->reference_number ?: $request->ref))));
+    public function trackInternal(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user || !($user->isAdmin() || $user->isOfficeAccount())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to use the internal tracking endpoint.',
+            ], 403);
+        }
+
+        return $this->trackLookupResponse($request, 5);
+    }
+
+    private function trackLookupResponse(Request $request, int $cacheSeconds): JsonResponse
+    {
+        $lookupInput = $this->resolveTrackLookupInput($request);
 
         if ($lookupInput === '') {
             return response()->json([
@@ -226,6 +209,38 @@ class DocumentController extends Controller
             ], 422);
         }
 
+        $cacheKey = 'track-lookup:v1:' . $lookupInput;
+        $cached = Cache::get($cacheKey);
+
+        if (is_array($cached) && isset($cached['status'], $cached['payload'])) {
+            return response()->json($cached['payload'], (int) $cached['status']);
+        }
+
+        [$status, $payload] = $this->buildTrackLookupPayload($lookupInput);
+
+        if ($cacheSeconds > 0 && in_array($status, [200, 404], true)) {
+            Cache::put($cacheKey, [
+                'status' => $status,
+                'payload' => $payload,
+            ], now()->addSeconds($cacheSeconds));
+        }
+
+        return response()->json($payload, $status);
+    }
+
+    private function resolveTrackLookupInput(Request $request): string
+    {
+        $request->validate([
+            'tracking_number' => 'nullable|string',
+            'reference_number' => 'nullable|string',
+            'ref' => 'nullable|string',
+        ]);
+
+        return strtoupper(trim(strip_tags((string)($request->tracking_number ?: $request->reference_number ?: $request->ref))));
+    }
+
+    private function buildTrackLookupPayload(string $lookupInput): array
+    {
         $document = Document::with([
             'submittedToOffice',
             'currentOffice',
@@ -239,11 +254,11 @@ class DocumentController extends Controller
         })->first();
 
         if (!$document) {
-            return response()->json([
+            return [404, [
                 'success' => false,
                 'found' => false,
                 'message' => 'Tracking number not found. Please check and try again.',
-            ], 404);
+            ]];
         }
 
         $orderedLogs = $document->routingLogs
@@ -266,8 +281,6 @@ class DocumentController extends Controller
         $logCount = $timelineLogs->count();
         $submittedOfficeName = $document->submittedToOffice?->name ?: 'Records Section';
 
-        // Build office segments to derive clear time-in/time-out per office
-        // plus transfer duration between offices.
         $segments = [];
 
         for ($i = 0; $i < $logCount; $i++) {
@@ -275,7 +288,6 @@ class DocumentController extends Controller
             $isSubmissionPending = $log->action === 'submitted' && $log->status_after === 'submitted';
             $officeId = null;
             if (!$isSubmissionPending) {
-                // Forwarding is an action done by the source office (time-out point).
                 if ($log->action === 'forwarded' && $log->from_office_id) {
                     $officeId = $log->from_office_id;
                 } else {
@@ -307,6 +319,11 @@ class DocumentController extends Controller
         }
 
         $arrivalMetaByLogIndex = [];
+        $terminalUserStatuses = ['completed', 'returned', 'cancelled', 'archived'];
+        $shouldStopDurationNow = in_array((string) $document->status, $terminalUserStatuses, true);
+        $terminalStopAt = $shouldStopDurationNow
+            ? optional($timelineLogs->last())->created_at
+            : null;
         $segmentCount = count($segments);
         for ($segIndex = 0; $segIndex < $segmentCount; $segIndex++) {
             $segment = $segments[$segIndex];
@@ -314,25 +331,18 @@ class DocumentController extends Controller
 
             $startLog = $timelineLogs->get($segment['start_index']);
             $timeInAt = $startLog->created_at;
-            // Time-out = when the next office received the document (the only log they create).
-            // There are no separate "forwarded" logs, so using endLog->created_at equals timeInAt
-            // for single-log segments, giving 0s. Use the next segment's start timestamp instead.
             $nextInAt = $nextSegment ? $timelineLogs->get($nextSegment['start_index'])->created_at : null;
-            $timeOutAt = $nextInAt; // null when this is the current/last office (open segment)
+            $segmentStopAt = $nextInAt ?: ($terminalStopAt ?: $timelineNow);
+            $timeOutAt = $nextInAt ?: ($terminalStopAt ?: null);
 
-            $officeDurationSeconds = $nextInAt !== null
-                ? max(0, $timeInAt->diffInSeconds($nextInAt))
-                : max(0, $timeInAt->diffInSeconds($timelineNow));
-
-            // Between-offices transit time is not tracked (no forwarded logs), so always null.
-            $betweenOfficesSeconds = null;
+            $officeDurationSeconds = max(0, $timeInAt->diffInSeconds($segmentStopAt));
 
             $arrivalMetaByLogIndex[$segment['start_index']] = [
                 'office_name' => $officeNameMap[$segment['office_id']] ?? 'Office',
                 'time_in_at' => $timeInAt,
                 'time_out_at' => $timeOutAt,
                 'office_duration_seconds' => $officeDurationSeconds,
-                'between_offices_seconds' => $betweenOfficesSeconds,
+                'between_offices_seconds' => null,
                 'next_office_name' => $nextSegment
                     ? ($officeNameMap[$nextSegment['office_id']] ?? 'Next Office')
                     : null,
@@ -351,7 +361,7 @@ class DocumentController extends Controller
 
         $physicalSubmissionOfficeName = $this->getPhysicalSubmissionOfficeName();
 
-        $logs = $timelineLogs->map(function ($log, $index) use ($submittedOfficeName, $arrivalMetaByLogIndex, $formatPerformerName, $physicalSubmissionOfficeName) {
+        $logs = $timelineLogs->map(function ($log, $index) use ($submittedOfficeName, $arrivalMetaByLogIndex, $formatPerformerName, $physicalSubmissionOfficeName, $document) {
             $isSubmissionPending = $log->action === 'submitted' && $log->status_after === 'submitted';
             $arrivalMeta = $arrivalMetaByLogIndex[$index] ?? null;
             $officeDurationSeconds = $arrivalMeta['office_duration_seconds'] ?? null;
@@ -359,9 +369,21 @@ class DocumentController extends Controller
 
             $remarks = $log->remarks;
             $displayToOffice = $isSubmissionPending ? ($log->toOffice?->name ?: $submittedOfficeName) : $log->toOffice?->name;
+            
+            // Check if submitter is office account or SuperAdmin
+            $submitterIsOfficeOrAdmin = false;
+            if ($document->user) {
+                $submitterIsOfficeOrAdmin = $document->user->isOfficeAccount() || $document->user->isSuperAdmin();
+            }
+            
             if ($isSubmissionPending) {
                 $destinationOfficeName = $displayToOffice ?: 'the selected destination office';
-                $remarks = 'Document submitted online. Awaiting physical submission to ' . $physicalSubmissionOfficeName . ' for routing to ' . $destinationOfficeName . '.';
+                // Office-to-office submissions don't show "Awaiting physical submission"
+                if ($submitterIsOfficeOrAdmin) {
+                    $remarks = 'Document submitted for routing to ' . $destinationOfficeName . '.';
+                } else {
+                    $remarks = 'Document submitted online. Awaiting physical submission to ' . $physicalSubmissionOfficeName . ' for routing to ' . $destinationOfficeName . '.';
+                }
             }
 
             $remarks = $this->normalizeTrackingRemarks($log, $remarks, $displayToOffice);
@@ -370,6 +392,7 @@ class DocumentController extends Controller
                 'id' => $log->id,
                 'action' => $log->action,
                 'action_label' => $log->actionLabel(),
+                'action_label_with_office' => $log->actionLabelWithOffice(),
                 'status_after' => $log->status_after,
                 'from_office' => $isSubmissionPending ? null : $log->fromOffice?->name,
                 'to_office' => $displayToOffice,
@@ -447,7 +470,7 @@ class DocumentController extends Controller
             ]]);
         }
 
-        return response()->json([
+        return [200, [
             'success' => true,
             'found' => true,
             'logs' => $logs,
@@ -469,7 +492,7 @@ class DocumentController extends Controller
                 'submitted_at' => $document->created_at->setTimezone('Asia/Manila')->format('M d, Y h:i A'),
                 'routing_logs' => $logs,
             ],
-        ]);
+        ]];
     }
 
     private function getPhysicalSubmissionOfficeName(): string

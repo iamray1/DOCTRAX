@@ -95,6 +95,10 @@
         .badge-archived{background:#fff7ed;color:#c2410c}
         .btn-view{padding:5px 13px;background:var(--primary);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:background .2s}
         .btn-view:hover{background:var(--primary-dark)}
+        .btn-manage{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:6px 10px;border-radius:7px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif;text-decoration:none;transition:all .15s;white-space:nowrap}
+        .btn-manage:hover{background:#dbeafe;border-color:#93c5fd;color:#1e40af}
+        .td-cta{width:96px;text-align:center;white-space:nowrap}
+        .td-cta .btn-manage{justify-content:center}
         .td-action{width:44px;text-align:center}
         .row-arrow{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;color:#94a3b8;transition:all .15s}
         tr.doc-row:hover .row-arrow{background:var(--primary);color:#fff}
@@ -148,6 +152,8 @@
         .mob-card-item.full{grid-column:1 / -1}
         .mob-card-k{display:block;font-size:8.8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:4px}
         .mob-card-v{display:block;min-width:0;font-size:10.8px;font-weight:500;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+        .mob-card-actions{display:flex;gap:8px;margin-top:10px}
+        .mob-card-actions .btn-manage{justify-content:center;font-size:11px}
         .mob-card-alert{margin-top:8px;display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:#fef2f2;color:#dc2626;font-size:10px;font-weight:600}
         .mob-card-alert i{font-size:9px}
         /* Drawer */
@@ -237,6 +243,7 @@
             .drawer{width:100%;max-width:100%}
             .drawer-meta{grid-template-columns:1fr}
             .dm-item{border-right:none}
+            .mob-card-actions .btn-manage{font-size:10.5px}
             .pagination-wrap{flex-wrap:wrap;justify-content:center;padding:14px}
             .pagination-meta{justify-content:center;text-align:center}
             .pagination-actions{justify-content:center;width:100%}
@@ -250,6 +257,7 @@
             .pagination-jump input{flex:1;max-width:72px}
             .records-table-card.has-list{max-height:min(64vh,520px)}
             .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+            .mob-card-actions{flex-direction:column}
             .mob-card-grid{grid-template-columns:1fr}
             .mob-card-item.full{grid-column:auto}
         }
@@ -433,6 +441,7 @@
                             <th>Current Office</th>
                             <th>Status</th>
                             <th>Submitted</th>
+                            <th>Action</th>
                             <th class="td-action"></th>
                         </tr>
                     </thead>
@@ -440,6 +449,10 @@
                     @foreach($documents as $doc)
                         @php
                             $docLookup = $doc->tracking_number ?: $doc->reference_number;
+                            $canActOnDoc = $user->office_id
+                                && (((int) $doc->current_office_id === (int) $user->office_id)
+                                    || ($doc->status === 'submitted' && (int) $doc->submitted_to_office_id === (int) $user->office_id));
+                            $canManageDoc = $canActOnDoc && in_array($doc->status, ['in_review', 'for_pickup']);
                         @endphp
                         <tr class="doc-row" onclick='openDocDetail(@json($docLookup))'>
                             <td style="font-family:monospace;font-size:12px;font-weight:600;color:var(--primary);white-space:nowrap">{{ $doc->reference_number ?: 'N/A' }}</td>
@@ -463,7 +476,7 @@
                                 @endif
                             </td>
                             <td>
-                                <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabel() }}</span>
+                                <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabelWithOffice() }}</span>
                                 @if($doc->status === 'submitted' && $doc->created_at->diffInDays(now()) >= 5)
                                     <div style="font-size:10px;color:#dc2626;margin-top:3px">
                                         <i class="fas fa-exclamation-circle"></i>
@@ -476,6 +489,13 @@
                                 @endif
                             </td>
                             <td style="font-size:11px;color:var(--text-muted)">{{ $doc->created_at->format('M d, Y') }}</td>
+                            <td class="td-cta" onclick="event.stopPropagation()">
+                                @if($canManageDoc)
+                                    <a class="btn-manage" href="/office/documents/{{ $doc->id }}" title="Manage document">
+                                        <i class="fas fa-pen"></i> Manage
+                                    </a>
+                                @endif
+                            </td>
                             <td class="td-action"><span class="row-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></span></td>
                         </tr>
                     @endforeach
@@ -494,6 +514,10 @@
                             : ($doc->status === 'archived'
                                 ? 'Unprocessed'
                                 : ($doc->currentOffice->name ?? $doc->submittedToOffice->name ?? '-'));
+                        $canActOnDoc = $user->office_id
+                            && (((int) $doc->current_office_id === (int) $user->office_id)
+                                || ($doc->status === 'submitted' && (int) $doc->submitted_to_office_id === (int) $user->office_id));
+                        $canManageDoc = $canActOnDoc && in_array($doc->status, ['in_review', 'for_pickup']);
                     @endphp
                     <div class="mob-card" onclick='openDocDetail(@json($docLookup))'>
                         <div class="mob-card-top">
@@ -505,7 +529,7 @@
                         </div>
                         <div class="mob-card-subject">{{ $doc->subject }}</div>
                         <div class="mob-card-meta">
-                            <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabel() }}</span>
+                            <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabelWithOffice() }}</span>
                             <span class="mob-card-date"><i class="fas fa-calendar"></i>{{ $doc->created_at->format('M d, Y') }}</span>
                         </div>
                         <div class="mob-card-grid">
@@ -530,6 +554,13 @@
                                 @else
                                     {{ 7 - (int) $doc->created_at->diffInDays(now()) }} day(s) left
                                 @endif
+                            </div>
+                        @endif
+                        @if($canManageDoc)
+                            <div class="mob-card-actions">
+                                <a class="btn-manage" href="/office/documents/{{ $doc->id }}" onclick="event.stopPropagation()" title="Manage document">
+                                    <i class="fas fa-pen"></i> Manage
+                                </a>
                             </div>
                         @endif
                     </div>
@@ -614,7 +645,7 @@ function openDocDetail(ref){
     document.getElementById('docDrawer').classList.add('open');
     document.body.style.overflow='hidden';
 
-    window.docTraxFetchJson('/api/track-document',{
+    window.docTraxFetchJson('/api/internal/track-document',{
         method:'POST',
         headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
         timeoutMs: 15000,
@@ -635,7 +666,7 @@ function openDocDetail(ref){
                 reference_number: fallback.reference_number || ref,
                 tracking_number: fallback.tracking_number || ref,
                 status: fallback.status || 'unknown',
-                status_label: fallback.status_label || 'Unknown',
+                status_label: fallback.status_label || (fallback.status === 'archived' ? 'Archived' : 'Unknown'),
                 sender_name: fallback.sender_name || '-',
                 type: fallback.type || '-',
                 submitted_to_office: fallback.submitted_to_office || '-',
@@ -699,7 +730,7 @@ function renderDrawer(doc){
             var dotIcon = isLatest ? 'fa-arrow-up' : 'fa-check';
             var fromTo = (log.from_office && log.to_office && log.from_office !== log.to_office) ? (log.from_office + ' -> ' + log.to_office) : '';
             var groupKey = _gk(log);
-            var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : groupKey;
+            var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : (((log.action === 'archived' || log.status_after === 'archived') && groupKey === 'Unknown') ? 'Archived' : groupKey);
             if (groupKey !== prevGroupKey) {
                 prevGroupKey = groupKey;
                 var dur = null;

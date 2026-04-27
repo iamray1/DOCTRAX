@@ -147,9 +147,6 @@
         .drawer-action-bar{padding:16px 20px;border-top:2px solid #fed7aa;background:#fff7ed;flex-shrink:0}
         .pickup-notice{font-size:12.5px;color:#9a3412;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px;line-height:1.5}
         .pickup-notice i{margin-top:2px;flex-shrink:0}
-        .btn-confirm-pickup{width:100%;padding:11px 16px;background:#ea580c;color:#fff;border:none;border-radius:9px;font-family:Poppins,sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .2s}
-        .btn-confirm-pickup:hover{background:#c2410c}
-        .btn-confirm-pickup:disabled{opacity:.6;cursor:not-allowed}
 
         /* Cancel action bar */
         .cancel-notice{font-size:12.5px;color:#991b1b;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px;line-height:1.5}
@@ -221,7 +218,7 @@
         .tl-dot.c-active{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.c-done{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.c-warn{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
-        .tl-dot.c-danger{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
+        .tl-dot.c-danger{background:#dc2626;box-shadow:0 0 0 2px #dc2626}
         .tl-dot.c-latest{background:#f59e0b;box-shadow:0 0 0 2px #f59e0b}
         .tl-action{font-size:12px;font-weight:700;color:#1b263b}
         .tl-meta{font-size:12px;color:#64748b;margin:2px 0}
@@ -359,6 +356,9 @@
         <select class="status-select" id="statusFilter" onchange="filterDocs(true)">
             <option value="">All Statuses</option>
             @foreach(\App\Models\Document::FILTER_STATUSES as $key => $label)
+                @if($key === 'received')
+                    @continue
+                @endif
                 <option value="{{ $key }}" {{ $status === $key ? 'selected' : '' }}>{{ $label }}</option>
             @endforeach
         </select>
@@ -532,28 +532,10 @@
     <div class="drawer-action-bar" id="drawerActionBar" style="display:none">
         <div class="pickup-notice">
             <i class="fas fa-box-open"></i>
-            Your document is ready for pickup. Please confirm once you have physically received it.
-        </div>
-        <button class="btn-confirm-pickup" id="drawerPickupBtn" onclick="openPickupModal()">
-            <i class="fas fa-check-circle"></i> Confirm I Received This Document
-        </button>
-    </div>
-
-</div>
-
-<!-- ─── Pickup Confirmation Modal ─── -->
-<div class="modal-backdrop" id="pickupModal">
-    <div class="modal-box">
-        <div class="modal-icon-wrap"><i class="fas fa-box-open"></i></div>
-        <h3>Confirm Document Receipt</h3>
-        <p>Are you sure you have physically received this document? This action cannot be undone and will mark the document as <strong>Completed</strong>.</p>
-        <div class="modal-actions">
-            <button onclick="closePickupModal()">Cancel</button>
-            <button class="modal-confirm" id="pickupConfirmBtn" onclick="submitPickupConfirm()">
-                <i class="fas fa-check"></i> Yes, I Received It
-            </button>
+            Your document is ready for pickup. Please coordinate with the releasing office.
         </div>
     </div>
+
 </div>
 
 
@@ -746,7 +728,7 @@ function openDocDetail(ref, tracking) {
     document.getElementById('docDrawer').classList.add('open');
     document.body.style.overflow = 'hidden';
 
-    window.docTraxFetchJson('/api/track-document', {
+    window.docTraxFetchJson('/api/internal/track-document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrf, 'Accept': 'application/json' },
         timeoutMs: 15000,
@@ -768,7 +750,7 @@ function openDocDetail(ref, tracking) {
                 reference_number: fallback.reference_number || tracking || ref,
                 tracking_number: fallback.tracking_number || tracking || ref,
                 status: fallback.status || 'unknown',
-                status_label: fallback.status_label || 'Unknown',
+                status_label: fallback.status_label || (fallback.status === 'archived' ? 'Archived' : 'Unknown'),
                 type: fallback.type || '-',
                 submitted_to_office: fallback.submitted_to_office || '-',
                 current_office: fallback.current_office || '-',
@@ -794,7 +776,8 @@ function closeDrawer() {
 }
 
 function dotClass(s) {
-    if (s === 'cancelled' || s === 'returned') return 'c-danger';
+    var st = String(s || '').toLowerCase();
+    if (st === 'cancelled' || /return|resubmit/.test(st)) return 'c-danger';
     if (s === 'completed') return 'c-done';
     if (s === 'forwarded') return 'c-warn';
     return 'c-active';
@@ -806,23 +789,17 @@ function escapeHtml(value) {
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-var _currentDrawerRef = null;
-
 function renderDrawer(doc) {
-    _currentDrawerRef = doc.reference_number || doc.tracking_number;
     document.getElementById('drTitle').textContent = doc.subject || '-';
     var ref = doc.reference_number || doc.tracking_number || '-';
     var trackingNo = doc.tracking_number || '';
     document.getElementById('drRef').textContent = 'TN · ' + ref;
     document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Document Control # ' + trackingNo) : '';
 
-    // Show/hide pickup action bar
+    // Show/hide pickup notice
     var actionBar = document.getElementById('drawerActionBar');
-    var pickupBtn = document.getElementById('drawerPickupBtn');
     if (doc.status === 'for_pickup') {
         actionBar.style.display = '';
-        pickupBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm I Received This Document';
-        pickupBtn.disabled = false;
     } else {
         actionBar.style.display = 'none';
     }
@@ -851,10 +828,12 @@ function renderDrawer(doc) {
         var prevGroupKey = null;
         Array.from(logs).reverse().forEach(function(log, idx) {
             var isLatest = idx === 0;
-            var dc = isLatest ? 'c-latest' : dotClass(log.status_after);
+            var latestStatus = String(doc.status || '').toLowerCase();
+            var dc = latestStatus === 'completed' ? 'c-done' : (/return|resubmit/.test(latestStatus) ? 'c-danger' : 'c-latest');
+            if (!isLatest) dc = dotClass(log.status_after);
             var dotIcon = isLatest ? 'fa-arrow-up' : 'fa-check';
             var groupKey = groupKeyFor(log);
-            var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : groupKey;
+            var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : (((log.action === 'archived' || log.status_after === 'archived') && groupKey === 'Unknown') ? 'Archived' : groupKey);
             if (groupKey !== prevGroupKey) {
                 prevGroupKey = groupKey;
                 var dur = null;
@@ -877,42 +856,7 @@ function renderDrawer(doc) {
         '<div class="drawer-timeline"><div class="tl">' + tlHtml + '</div></div>';
 }
 
-// ─── Pickup confirmation ───
-function openPickupModal() { document.getElementById('pickupModal').classList.add('show'); }
-function closePickupModal() {
-    document.getElementById('pickupModal').classList.remove('show');
-    document.getElementById('pickupConfirmBtn').disabled = false;
-}
-function submitPickupConfirm() {
-    if (!_currentDrawerRef) return;
-    var btn = document.getElementById('pickupConfirmBtn');
-    btn.disabled = true;
-    document.getElementById('drawerPickupBtn').disabled = true;
-    fetch('/api/documents/' + encodeURIComponent(_currentDrawerRef) + '/confirm-pickup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrf, 'Accept': 'application/json' },
-        body: '{}'
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-        if (d.success) {
-            closePickupModal();
-            closeDrawer();
-            window.location.reload();
-        } else {
-            alert(d.message || 'Failed. Please try again.');
-            closePickupModal();
-            document.getElementById('drawerPickupBtn').disabled = false;
-        }
-    })
-    .catch(function() {
-        alert('Something went wrong. Please try again.');
-        closePickupModal();
-        document.getElementById('drawerPickupBtn').disabled = false;
-    });
-}
-
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closePickupModal(); closeDrawer(); } });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closeDrawer(); } });
 
 
 

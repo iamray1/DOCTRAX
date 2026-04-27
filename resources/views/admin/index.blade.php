@@ -1280,30 +1280,6 @@
         var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         var docsData = JSON.parse(document.getElementById('docsData').textContent || '{}');
 
-        window.acceptDoc = function(id) {
-            var btn = document.querySelector('.btn-accept-office[data-id="' + id + '"]');
-            if (btn) { btn.disabled = true; }
-
-            fetch('/api/office/documents/' + id + '/accept', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                if (d.success) {
-                    if (btn) { btn.innerHTML = '<i class="fas fa-check"></i> Accepted'; btn.style.background = '#059669'; btn.disabled = true; }
-                    setTimeout(function() { location.reload(); }, 800);
-                } else {
-                    alert(d.message || 'Could not accept document.');
-                    if (btn) { btn.disabled = false; }
-                }
-            })
-            .catch(function() {
-                alert('Network error. Please try again.');
-                if (btn) { btn.disabled = false; }
-            });
-        };
-
         /* ─── Segmented Reference Box Logic ─── */
         (function(){
             var container = document.getElementById('refBoxes');
@@ -1450,7 +1426,7 @@
             document.getElementById('drawerOverlay').classList.add('open');
             document.getElementById('docDrawer').classList.add('open');
             document.body.style.overflow='hidden';
-            window.docTraxFetchJson('/api/track-document',{
+            window.docTraxFetchJson('/api/internal/track-document',{
                 method:'POST',
                 headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
                 timeoutMs: 15000,
@@ -1471,7 +1447,7 @@
                         reference_number: fallback.reference_number || ref,
                         tracking_number: fallback.tracking_number || ref,
                         status: fallback.status || 'unknown',
-                        status_label: fallback.status_label || 'Unknown',
+                        status_label: fallback.status_label || (fallback.status === 'archived' ? 'Archived' : 'Unknown'),
                         sender_name: fallback.sender_name || '-',
                         submitted_to_office: fallback.submitted_to_office || '-',
                         current_office: fallback.current_office || '-',
@@ -1529,7 +1505,7 @@
                     var dc = isLatest ? 'c-latest' : dotClass(log.status_after);
                     var dotIcon = isLatest ? 'fa-arrow-up' : 'fa-check';
                     var groupKey = _gk(log);
-                    var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : groupKey;
+                    var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : (((log.action === 'archived' || log.status_after === 'archived') && groupKey === 'Unknown') ? 'Archived' : groupKey);
                     if (groupKey !== prevGroupKey) {
                         prevGroupKey = groupKey;
                         var dur = null;

@@ -74,7 +74,7 @@
         .tl-dot.active{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.done{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.warn{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
-        .tl-dot.danger{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
+        .tl-dot.danger{background:#dc2626;box-shadow:0 0 0 2px #dc2626}
         .tl-dot.latest{background:#f59e0b;box-shadow:0 0 0 2px #f59e0b}
         .tl-action{font-size:12px;font-weight:700;color:#1b263b}
         .tl-meta{font-size:12px;color:#64748b;margin:2px 0}
@@ -267,10 +267,22 @@
     var defaultStateBody='The tracking number you entered does not match any document in our records.<br>Please double-check and try again.';
     var TRACK_AUTO_LOOKUP_DELAY = 350;
     var TRACK_LOOKUP_COOLDOWN_MS = 1200;
+    var TRACK_REQUEST_TIMEOUT_MS = 4500;
+    var TRACK_RETRY_OPTIONS = {
+        maxRetries: 2,
+        maxElapsedMs: 15000,
+        baseDelayMs: 850,
+        maxDelayMs: 2200,
+        backoffMultiplier: 1.9,
+        jitterRatio: 0.35,
+        retryOnRequestTypes: ['timeout', 'network', 'server']
+    };
     var _trackLookupTimer = null;
     var _trackLookupInFlight = false;
     var _lastTrackedLookup = '';
     var _lastTrackedAt = 0;
+    var trackBtn = document.getElementById('trackBtn');
+    var defaultTrackBtnHtml = trackBtn ? trackBtn.innerHTML : 'Track';
 
     function queueTrackLookup(prefilledLookup){
         clearTimeout(_trackLookupTimer);
@@ -349,7 +361,8 @@
     }
 
     function dotClass(s){
-        if(s==='cancelled'||s==='returned')return 'danger';
+        var st = String(s||'').toLowerCase();
+        if(st==='cancelled'||/return|resubmit/.test(st))return 'danger';
         if(s==='completed')return 'done';
         if(s==='forwarded')return 'warn';
         return 'active';
@@ -362,6 +375,38 @@
             .replace(/"/g,'&quot;')
             .replace(/'/g,'&#39;');
     }
+    function setTrackButtonState(mode){
+        if (!trackBtn) return;
+        if (mode === 'loading') {
+            trackBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Tracking...';
+            return;
+        }
+        trackBtn.innerHTML = defaultTrackBtnHtml;
+    }
+    function buildTrackErrorMessage(error){
+        if (window.isRequestErrorType(error, 'offline')) {
+            return window.describeRequestError(error, 'You appear to be offline. Please reconnect and try again.');
+        }
+        return window.describeRequestError(error, 'Could not load tracking details. Please try again.');
+    }
+    function runWhenTrackRequestsReady(callback){
+        if (typeof window.docTraxFetchJsonWithRetry === 'function') {
+            callback();
+            return;
+        }
+        window.addEventListener('DOMContentLoaded', callback, { once: true });
+    }
+    async function requestTrackData(ref){
+        var url = '/api/track-document?ref=' + encodeURIComponent(ref);
+        return window.docTraxFetchJsonWithRetry(url,{
+            method:'GET',
+            headers:{'Accept':'application/json'},
+            cache:'no-store',
+            timeoutMs: TRACK_REQUEST_TIMEOUT_MS,
+            rejectOnHttpError: false,
+            retryOptions: TRACK_RETRY_OPTIONS
+        });
+    }
     window.trackDoc=async function(prefilledLookup){
         clearTimeout(_trackLookupTimer);
         alertEl.classList.remove('show');
@@ -372,36 +417,33 @@
         var now = Date.now();
         if (_trackLookupInFlight && ref === _lastTrackedLookup) return;
         if (ref === _lastTrackedLookup && (now - _lastTrackedAt) < TRACK_LOOKUP_COOLDOWN_MS) return;
-        var btn=document.getElementById('trackBtn');
-        btn.disabled = true;
+        var btn=trackBtn;
+        if (btn) btn.disabled = true;
+        setTrackButtonState('loading');
         if (stateCard) stateCard.classList.remove('show');
         document.getElementById('resultCard').classList.remove('show');
         _trackLookupInFlight = true;
         _lastTrackedLookup = ref;
         _lastTrackedAt = now;
         try{
-            var data=await window.docTraxFetchJson('/api/track-document',{
-                method:'POST',
-                headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
-                timeoutMs: 15000,
-                body:JSON.stringify({
-                    reference_number:ref,
-                    tracking_number:ref
-                })
-            });
-            if(!data.success||!data.document){showResultState('not_found');}
-            else{renderResult(data.document);}
-        }catch(e){showResultState('error', window.describeRequestError(e, 'Could not load tracking details. Please try again.'));}
+            var data=await requestTrackData(ref);
+            if(data && data.success && data.document){renderResult(data.document);}
+            else if(data && data.found === false){showResultState('not_found');}
+            else{showResultState('error', (data && data.message) ? data.message : 'Could not load tracking details. Please try again.');}
+        }catch(e){showResultState('error', buildTrackErrorMessage(e));}
         finally{
             _trackLookupInFlight = false;
-            btn.disabled = false;
+            if (btn) btn.disabled = false;
+            setTrackButtonState('default');
         }
     };
     function renderResult(doc){
+        if (stateCard) stateCard.classList.remove('show');
         document.getElementById('rDocTitle').textContent=doc.subject;
         document.getElementById('rDocRef').textContent=doc.reference_number || doc.tracking_number || '-';
         var badge=document.getElementById('rStatusBadge');
-        badge.textContent=doc.status_label;
+        var statusLabel = doc.status_label || ((doc.status === 'archived') ? 'Archived' : 'Unknown');
+        badge.textContent=statusLabel;
         badge.style.background=(doc.status_color||'#6b7280')+'1a';
         badge.style.color=doc.status_color||'#6b7280';
         badge.style.border='1.5px solid '+(doc.status_color||'#6b7280')+'55';
@@ -412,14 +454,25 @@
         if(!logs.length){tl.innerHTML='<div style="color:var(--text-muted);font-size:13px">No routing history yet.</div>';}
         else{
             var prevGroupKey = null;
+            var latestStatus = String(doc.status || '').toLowerCase();
             Array.from(logs).reverse().forEach(function(log, idx){
                 var isLatest = idx === 0;
-                var dc = isLatest ? 'latest' : dotClass(log.status_after);
+                var latestClass = latestStatus === 'completed'
+                    ? 'done'
+                    : (/return|resubmit/.test(latestStatus) ? 'danger' : 'latest');
+                var dc = isLatest ? latestClass : dotClass(log.status_after);
                 var dotIcon = isLatest ? 'fa-arrow-up' : 'fa-check';
+                var isEndAction = log.action === 'completed' || log.action === 'returned';
                 var groupKey = (log.action === 'submitted') ? '__pending__' :
+                               (isEndAction ? '__ended__' :
+                               ((log.action === 'archived' || log.status_after === 'archived') ? '__archived__' :
                                (log.action === 'forwarded' ? (log.from_office || 'Unknown') :
-                               (log.to_office || log.from_office || 'Unknown'));
-                var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : groupKey;
+                               (log.to_office || log.from_office || 'Unknown'))));
+                var groupLabel = (groupKey === '__pending__')
+                    ? 'Submitted — Pending Physical Submission'
+                    : (groupKey === '__ended__'
+                        ? (log.action_label_with_office || log.action_label || 'Transaction Completed')
+                        : ((groupKey === '__archived__') ? 'Archived' : groupKey));
                 if (groupKey !== prevGroupKey) {
                     prevGroupKey = groupKey;
                     var hdr = document.createElement('div');
@@ -427,11 +480,12 @@
                     hdr.innerHTML = '<div class="tl-dot '+dc+'" style="margin-right:5px"><i class="fas '+dotIcon+'" style="font-size:7px;line-height:1;display:block"></i></div><span>' + esc(groupLabel) + '</span>';
                     tl.appendChild(hdr);
                 }
+                var timestampColor = (log.action === 'returned') ? 'color:#dc2626' : '';
                 var item=document.createElement('div');item.className='tl-item';
                 item.innerHTML=
                     (log.performed_by?'<div class="tl-action">'+esc(log.performed_by)+'</div>':'')+
-                    '<div class="tl-meta"><i class="fas fa-clock" style="margin-right:3px;font-size:10px"></i>'+esc(log.timestamp||'-')+'</div>'+
-                    '<div class="tl-meta"><i class="fas fa-tasks" style="margin-right:3px;font-size:10px"></i>'+esc(log.action_label||'Status Updated')+'</div>'+
+                    '<div class="tl-meta" style="'+timestampColor+'"><i class="fas fa-clock" style="margin-right:3px;font-size:10px"></i>'+esc(log.timestamp||'-')+'</div>'+
+                    (!isEndAction ? '<div class="tl-meta"><i class="fas fa-tasks" style="margin-right:3px;font-size:10px"></i>'+esc(log.action_label||'Status Updated')+'</div>' : '')+
                     (log.remarks?'<div class="tl-remarks">'+esc(log.remarks)+'</div>':'');
                 tl.appendChild(item);
             });
@@ -461,7 +515,7 @@
         if (/^[A-Z0-9]{8}$/.test(lookup)) {
             setRef(lookup);
         }
-        window.trackDoc(lookup);
+        runWhenTrackRequestsReady(function(){ window.trackDoc(lookup); });
     }
 })();
 </script>

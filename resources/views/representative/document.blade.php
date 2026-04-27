@@ -69,8 +69,6 @@
         .action-section h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
         .btn{padding:10px 18px;border:none;border-radius:9px;font-family:Poppins,sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .2s,opacity .2s;width:100%;margin-bottom:10px}
         .btn:disabled{opacity:.6;cursor:not-allowed}
-        .btn-accept{background:#16a34a;color:#fff}
-        .btn-accept:hover:not(:disabled){background:#15803d}
         .btn-primary{background:var(--primary);color:#fff}
         .btn-primary:hover:not(:disabled){background:var(--primary-dark)}
         .btn-outline{background:#fff;color:var(--text-dark);border:1.5px solid var(--border)}
@@ -238,6 +236,9 @@
                             foreach ($document->routingLogs->sortBy('created_at') as $tlLog) {
                                 if ($tlLog->action === 'submitted') {
                                     $tlKey = '__pending__'; $tlLabel = 'Submitted — Pending Physical Submission';
+                                } elseif (in_array($tlLog->action, ['completed', 'returned'])) {
+                                    $tlKey = '__ended__';
+                                    $tlLabel = $tlLog->actionLabelWithOffice();
                                 } elseif ($tlLog->action === 'forwarded') {
                                     $tlKey = 'from_' . ($tlLog->from_office_id ?? '0');
                                     $tlLabel = $tlLog->fromOffice?->name ?? 'Office';
@@ -282,12 +283,21 @@
                                     @if($tlLog->performer)
                                         <div class="tl-action">{{ $tlLog->performer->name }}</div>
                                     @endif
-                                    <div class="tl-meta"><i class="fas fa-clock" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->created_at->setTimezone('Asia/Manila')->format('M d, Y h:i A') }}</div>
-                                    <div class="tl-meta"><i class="fas fa-tasks" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->actionLabel() }}</div>
+                                    <div class="tl-meta" style="{{ in_array($tlLog->action, ['completed', 'returned']) && $tlLog->action === 'returned' ? 'color:#dc2626' : '' }}"><i class="fas fa-clock" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->created_at->setTimezone('Asia/Manila')->format('M d, Y h:i A') }}</div>
+                                    @if(!in_array($tlLog->action, ['completed', 'returned']))
+                                    <div class="tl-meta"><i class="fas fa-tasks" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->actionLabelWithOffice() }}</div>
+                                    @endif
                                     @php
-                                        $tlRemarks = $tlLog->action === 'submitted'
-                                            ? 'Document submitted online. Awaiting physical submission to Records Section for routing to ' . ($doc->submittedToOffice->name ?? 'the selected destination office') . '.'
-                                            : $tlLog->remarks;
+                                        if ($tlLog->action === 'submitted') {
+                                            $submittedByOffice = $doc->user && ($doc->user->isOfficeAccount() || $doc->user->isSuperAdmin());
+                                            if ($submittedByOffice) {
+                                                $tlRemarks = 'Document submitted by office account. Awaiting physical handoff to ' . ($doc->submittedToOffice->name ?? 'the destination office') . '.';
+                                            } else {
+                                                $tlRemarks = 'Document submitted online. Awaiting physical submission to Records Section for routing to ' . ($doc->submittedToOffice->name ?? 'the selected destination office') . '.';
+                                            }
+                                        } else {
+                                            $tlRemarks = $tlLog->remarks;
+                                        }
                                     @endphp
                                     @if($tlRemarks)<div class="tl-remarks">{{ $tlRemarks }}</div>@endif
                                 </div>
@@ -313,20 +323,6 @@
                             You can only act on documents at your office.
                         </div>
                     @else
-                        {{-- Accept --}}
-                        @if($canAccept)
-                            <div class="action-section">
-                                <h3><i class="fas fa-check-circle" style="margin-right:5px"></i>Accept Document</h3>
-                                <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
-                                    Confirm receipt of this document at your office.
-                                </p>
-                                <button class="btn btn-accept" id="acceptBtn" onclick="doAccept()">
-                                    <i class="fas fa-check"></i> Accept Document
-                                </button>
-                            </div>
-                            <hr class="divider">
-                        @endif
-
                         {{-- Forward --}}
                         @if(in_array($document->status, ['in_review']))
                             <div class="action-section">
@@ -350,16 +346,20 @@
                             </div>
                         @endif
 
-                        {{-- Confirm Pickup --}}
-                        @if($document->status === 'for_pickup')
+                        {{-- End Transaction --}}
+                        @if(in_array($document->status, ['in_review', 'for_pickup']))
                             <hr class="divider">
                             <div class="action-section">
-                                <h3>Confirm Pickup</h3>
+                                <h3>End Transaction</h3>
                                 <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
-                                    This document is ready for pickup. Confirm once the recipient has actually claimed it.
+                                    @if($document->status === 'for_pickup')
+                                        This document is ready for release. End the transaction once the recipient has actually claimed it.
+                                    @else
+                                        This document no longer needs another outgoing step. End the transaction once office processing is fully complete.
+                                    @endif
                                 </p>
-                                <button class="btn" style="background:#ea580c;color:#fff" onclick="openPickupModal()">
-                                    Mark as Picked Up
+                                <button class="btn btn-primary" onclick="openPickupModal()">
+                                    End Transaction
                                 </button>
                             </div>
                         @endif
@@ -379,20 +379,6 @@
 <script>
 var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 var docId = {{ $document->id }};
-
-function doAccept(){
-    document.getElementById('acceptModal').classList.add('show');
-}
-function closeAcceptModal(){
-    document.getElementById('acceptModal').classList.remove('show');
-}
-async function confirmAccept(){
-    var btn = document.getElementById('confirmAcceptBtn');
-    btn.disabled = true;
-    var res = await apiFetch('/api/representative/documents/'+docId+'/accept', {});
-    if(res.success){ location.reload(); }
-    else{ alert(res.message||'Failed'); btn.disabled = false; closeAcceptModal(); }
-}
 
 function openForwardModal(){
     document.getElementById('forwardOffice').value='';
@@ -455,9 +441,9 @@ async function confirmPickup(){
     var remarks = getRemarksValue('pickupRemarksSelect','pickupRemarks');
     var btn = document.getElementById('confirmPickupBtn');
     btn.disabled = true;
-    var res = await apiFetch('/api/representative/documents/'+docId+'/status', {status:'completed',remarks:remarks||'Document picked up by recipient.'});
+    var res = await apiFetch('/api/representative/documents/'+docId+'/status', {status:'completed',remarks:remarks||'Transaction ended after final office action.'});
     if(res.success){ location.reload(); }
-    else{ alert(res.message||'Failed to confirm pickup.'); btn.disabled = false; closePickupModal(); }
+    else{ alert(res.message||'Failed to end transaction.'); btn.disabled = false; closePickupModal(); }
 }
 async function confirmUpdateStatus(){
     var status  = document.getElementById('newStatus').value;
@@ -487,10 +473,19 @@ async function apiFetch(url, body){
     try{
         var res = await fetch(url,{
             method:'POST',
-            headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf},
+            headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
             body: JSON.stringify(body)
         });
-        return await res.json();
+        var text = await res.text();
+        var data = {};
+        if(text){
+            try{ data = JSON.parse(text); }
+            catch(_){ data = {success:false,message: res.ok ? 'Unexpected server response.' : 'The server returned an unexpected response.'}; }
+        }
+        if(!data || typeof data !== 'object'){ data = {}; }
+        if(typeof data.success === 'undefined'){ data.success = res.ok; }
+        if(!data.message && !res.ok){ data.message = 'Request failed. Please try again.'; }
+        return data;
     }catch(e){ return {success:false,message:'Network error'}; }
 }
 function toggleSidebar(){
@@ -516,24 +511,6 @@ function logout(){
 </script>
 
     <!-- Accept Modal -->
-    <div class="modal-overlay" id="acceptModal" onclick="if(event.target===this)closeAcceptModal()">
-        <div class="modal">
-            <div class="modal-head">
-                <div class="modal-icon"><i class="fas fa-check"></i></div>
-                <h3>Accept Document</h3>
-            </div>
-            <div class="modal-body">
-                <p>You are about to accept this document. This will confirm receipt at your office and begin <strong style="color:var(--text-dark)">Processing</strong>.</p>
-            </div>
-            <div class="modal-foot">
-                <button class="modal-btn" onclick="closeAcceptModal()">Cancel</button>
-                <button class="modal-btn success" id="confirmAcceptBtn" onclick="confirmAccept()">
-                    <i class="fas fa-check"></i> Confirm Accept
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Forward Modal -->
     <div class="modal-overlay" id="forwardModal" onclick="if(event.target===this)closeForwardModal()">
         <div class="modal" style="max-width:480px">
@@ -574,27 +551,34 @@ function logout(){
         </div>
     </div>
 
-    <!-- Confirm Pickup Modal -->
+    <!-- End Transaction Modal -->
     <div class="modal-overlay" id="pickupModal" onclick="if(event.target===this)closePickupModal()">
         <div class="modal" style="max-width:460px">
             <div class="modal-head">
-                <h3>Confirm Document Pickup</h3>
+                <h3>End Transaction</h3>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom:14px">Has the recipient <strong>actually claimed</strong> this document? This will mark the document as <strong style="color:#15803d">Completed</strong>.</p>
+                <p style="margin-bottom:14px">
+                    @if($document->status === 'for_pickup')
+                        Has the recipient <strong>actually claimed</strong> this document? This will end the transaction and mark the document as <strong style="color:#15803d">Completed</strong>.
+                    @else
+                        This document does not need to be released back out. End the transaction once the final office action is complete. This will mark the document as <strong style="color:#15803d">Completed</strong>.
+                    @endif
+                </p>
                 <label class="modal-label">Remarks <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
                 <select class="modal-field" id="pickupRemarksSelect" onchange="handleRemarksDropdown('pickupRemarksSelect','pickupRemarks')">
                     <option value="">Select a remark…</option>
-                    <option value="Document picked up by recipient.">Document picked up by recipient.</option>
-                    <option value="Document claimed by authorized representative.">Document claimed by authorized representative.</option>
+                    <option value="Transaction ended after final office action.">Transaction ended after final office action.</option>
+                    <option value="Document received and filed. Transaction ended.">Document received and filed. Transaction ended.</option>
+                    <option value="Document released to authorized representative. Transaction ended.">Document released to authorized representative. Transaction ended.</option>
                     <option value="__custom">Custom Remark…</option>
                 </select>
                 <textarea class="modal-field" id="pickupRemarks" placeholder="Type your custom remark..." style="min-height:70px;resize:vertical;display:none;margin-top:8px" data-no-capitalize></textarea>
             </div>
             <div class="modal-foot">
-                <button class="modal-btn" onclick="closePickupModal()">No, Not Yet</button>
-                <button class="modal-btn success" id="confirmPickupBtn" onclick="confirmPickup()">
-                    Yes, Mark as Picked Up
+                <button class="modal-btn" onclick="closePickupModal()">Not Yet</button>
+                <button class="modal-btn primary" id="confirmPickupBtn" onclick="confirmPickup()">
+                    Yes, End Transaction
                 </button>
             </div>
         </div>

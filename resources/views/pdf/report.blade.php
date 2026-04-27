@@ -4,280 +4,462 @@
     <meta charset="UTF-8">
     <title>Processing Report</title>
     <style>
-        @page { size: A4 portrait; margin: 11mm 12mm 14mm; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page {
+            size: 210mm 297mm;
+            margin: 10mm;
+        }
+
+        @php
+            $poppinsFontPath = str_replace('\\', '/', storage_path('fonts/Poppins'));
+        @endphp
+
+        @font-face {
+            font-family: 'Poppins';
+            src: url("{{ $poppinsFontPath }}/Poppins-Regular.ttf") format("truetype");
+            font-weight: 400;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: 'Poppins';
+            src: url("{{ $poppinsFontPath }}/Poppins-Medium.ttf") format("truetype");
+            font-weight: 500;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: 'Poppins';
+            src: url("{{ $poppinsFontPath }}/Poppins-SemiBold.ttf") format("truetype");
+            font-weight: 600;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: 'Poppins';
+            src: url("{{ $poppinsFontPath }}/Poppins-Bold.ttf") format("truetype");
+            font-weight: 700;
+            font-style: normal;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
         body {
-            font-family: DejaVu Sans, Arial, Helvetica, sans-serif;
-            font-size: 8.8px;
-            color: #1e293b;
-            line-height: 1.32;
-            padding-bottom: 10mm;
+            width: 100%;
+            min-height: 100%;
         }
-        .report-shell {
-            width: 96.5%;
-            margin: 0 auto;
+
+        body {
+            font-family: 'Poppins', 'DejaVu Sans', sans-serif;
+            font-size: 7.5px;
+            line-height: 1.3;
+            color: #1f2937;
+            background: #ffffff;
         }
-        .head-table,
-        .data-table {
+
+        .page {
+            width: 100%;
+        }
+
+        .header {
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+        }
+
+        .header-table {
             width: 100%;
             border-collapse: collapse;
+            border: none;
         }
-        .report-head {
-            border-bottom: 1.5px solid #dbeafe;
-            padding-bottom: 7px;
-            margin-bottom: 6px;
-        }
-        .head-table td {
+
+        .header-table td {
+            border: none;
+            padding: 0;
             vertical-align: top;
         }
-        .head-right {
-            width: 34%;
+
+        .header-left {
+            width: 65%;
+            padding-right: 10px;
+            padding-left: 5px;
+        }
+
+        .header-right {
+            width: 35%;
             text-align: right;
+            padding-left: 10px;
+            padding-right: 5px;
         }
-        .eyebrow {
-            font-size: 7.2px;
-            font-weight: 700;
-            letter-spacing: .18em;
+
+        .brand {
+            font-size: 6.5px;
+            font-weight: 600;
+            letter-spacing: 0.8px;
             text-transform: uppercase;
-            color: #1d4ed8;
-            margin-bottom: 2px;
+            color: #6b7280;
+            margin-top: 3px;
+            margin-bottom: -1px;
+            margin-left: 8px;
+            line-height: 1;
         }
-        .title {
-            font-size: 17px;
+
+        .report-title {
+            font-size: 14px;
             font-weight: 700;
-            color: #0f172a;
-            margin-bottom: 2px;
+            color: #111827;
+            line-height: 1;
+            margin-bottom: -1px;
+            margin-left: 8px;
         }
-        .subtitle {
-            font-size: 9px;
-            color: #64748b;
+
+        .report-subtitle {
+            font-size: 8px;
+            font-weight: 500;
+            color: #4b5563;
+            margin-left: 8px;
+            line-height: 1;
         }
-        .generated-label {
-            font-size: 7px;
-            font-weight: 700;
-            letter-spacing: .12em;
+
+        .meta-label {
+            font-size: 6px;
+            font-weight: 600;
             text-transform: uppercase;
-            color: #64748b;
-            margin-bottom: 2px;
+            letter-spacing: 0.5px;
+            color: #9ca3af;
+            margin-bottom: 1px;
+            margin-right: 8px;
         }
-        .generated-value {
-            font-size: 8.6px;
-            font-weight: 700;
-            color: #0f172a;
+
+        .meta-value {
+            font-size: 7.5px;
+            font-weight: 600;
+            color: #111827;
+            line-height: 1.3;
+            margin-right: 8px;
         }
-        .meta-line {
-            margin-bottom: 5px;
-            font-size: 8.2px;
-            color: #475569;
+
+        .summary {
+            width: 100%;
+            margin-bottom: 8px;
+            border: 1px solid #e5e7eb;
+            background: #f9fafb;
+            border-collapse: collapse;
         }
-        .meta-line strong {
-            color: #0f172a;
+
+        .summary td {
+            border: none;
+            padding: 5px 6px;
+            vertical-align: top;
         }
-        .meta-sep {
-            color: #94a3b8;
-            padding: 0 6px;
-        }
-        .section-title {
-            margin-bottom: 4px;
-            font-size: 7.2px;
-            font-weight: 700;
+
+        .summary-item {
+            font-size: 6.5px;
+            color: #6b7280;
             text-transform: uppercase;
-            letter-spacing: .16em;
-            color: #64748b;
+            letter-spacing: 0.3px;
+            margin-bottom: 1px;
         }
-        .data-table {
+
+        .summary-value {
+            font-size: 8px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .summary-divider {
+            width: 1px;
+            background: #e5e7eb;
+            padding: 0 !important;
+        }
+
+        .table-wrap {
+            width: 100%;
+        }
+
+        table.report-table {
+            width: 100%;
+            border-collapse: collapse;
             table-layout: fixed;
+            border: 1px solid #d1d5db;
         }
-        .data-table thead {
-            display: table-header-group;
+
+        .report-table thead th {
+            background: #f3f4f6;
+            color: #111827;
+            font-size: 6.5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            text-align: left;
+            padding: 4px 3px;
+            border: 1px solid #d1d5db;
+            vertical-align: middle;
+            line-height: 1.2;
         }
-        .data-table tr {
+
+        .report-table tbody tr {
             page-break-inside: avoid;
         }
-        .data-table th {
-            background: #163d7a;
-            color: #fff;
-            padding: 5px 5px;
-            text-align: left;
-            font-size: 7px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .1em;
-            border-right: 1px solid rgba(255, 255, 255, .14);
+
+        .report-table tbody tr:nth-child(even) {
+            background: #fafafa;
         }
-        .data-table th:last-child {
-            border-right: none;
-        }
-        .data-table td {
-            padding: 5px;
-            border-bottom: 1px solid #e2e8f0;
+
+        .report-table tbody td {
+            padding: 3px 3px;
+            border: 1px solid #e5e7eb;
             vertical-align: top;
-            font-size: 8px;
-            word-break: break-word;
+            font-size: 6.5px;
+            color: #1f2937;
+            word-wrap: break-word;
+            line-height: 1.2;
         }
-        .data-table tbody tr:nth-child(even) td {
-            background: #f8fafc;
+
+        .col-num {
+            width: 4%;
+            text-align: center;
+            font-weight: 600;
         }
-        .seq {
-            color: #64748b;
-            font-weight: 700;
+
+        .col-ref {
+            width: 16%;
         }
-        .mono-ref,
-        .mono-track {
+
+        .col-doc {
+            width: 28%;
+        }
+
+        .col-sender {
+            width: 13%;
+        }
+
+        .col-status {
+            width: 11%;
+        }
+
+        .col-handler {
+            width: 12%;
+        }
+
+        .col-activity {
+            width: 16%;
+        }
+
+        .ref-main {
             display: block;
-            font-weight: 700;
-            line-height: 1.23;
+            font-weight: 600;
+            font-size: 6.5px;
+            color: #111827;
+            margin-bottom: 0.5px;
+            line-height: 1.15;
         }
-        .mono-ref {
-            color: #0f172a;
+
+        .ref-sub {
+            display: block;
+            font-size: 5.8px;
+            color: #6b7280;
+            line-height: 1.15;
         }
-        .mono-track {
-            color: #1d4ed8;
-            margin-top: 2px;
-        }
+
         .doc-title {
-            font-weight: 700;
-            color: #0f172a;
-            margin-bottom: 2px;
+            font-weight: 600;
+            font-size: 6.5px;
+            color: #111827;
+            line-height: 1.2;
+            margin-bottom: 0.5px;
         }
-        .doc-sub,
-        .muted {
-            color: #64748b;
-            font-size: 7.6px;
+
+        .doc-type {
+            font-size: 5.8px;
+            color: #6b7280;
+            line-height: 1.15;
         }
-        .badge {
+
+        .sender-name,
+        .handler-name {
+            font-size: 6.5px;
+            color: #1f2937;
+            line-height: 1.2;
+        }
+
+        .status-badge {
             display: inline-block;
-            padding: 2px 7px;
-            border-radius: 999px;
-            font-size: 6.9px;
-            font-weight: 700;
+            padding: 0;
+            border: none;
+            background: transparent;
+            color: #111827;
+            font-size: 6px;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: .05em;
-            white-space: nowrap;
-            background: #fff7ed;
-            color: #c2410c;
+            letter-spacing: 0.2px;
         }
+
         .activity-line {
-            margin-bottom: 2px;
-            display: flex;
-            align-items: flex-start;
-            gap: 5px;
+            margin-bottom: 1px;
+            line-height: 1.15;
         }
+
         .activity-line:last-child {
             margin-bottom: 0;
         }
+
         .activity-label {
-            display: inline-block;
-            min-width: 48px;
-            white-space: nowrap;
-            flex: 0 0 48px;
-            font-size: 6.9px;
-            font-weight: 700;
+            display: block;
+            font-size: 5.5px;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: .06em;
-            color: #64748b;
+            letter-spacing: 0.2px;
+            color: #9ca3af;
+            margin-bottom: 0.3px;
+            line-height: 1.1;
         }
+
         .activity-value {
-            font-size: 7.8px;
-            color: #0f172a;
-            flex: 1 1 auto;
+            display: block;
+            font-size: 6.2px;
+            color: #1f2937;
+            line-height: 1.15;
         }
+
         .empty-state {
-            border: 1px dashed #cbd5e1;
-            border-radius: 8px;
-            padding: 15px 14px;
+            border: 1px solid #e5e7eb;
+            background: #fafafa;
             text-align: center;
-            color: #64748b;
-            background: #f8fafc;
+            padding: 24px 12px;
+            color: #6b7280;
         }
+
+        .empty-title {
+            font-size: 9px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 3px;
+        }
+
+        .empty-text {
+            font-size: 7.5px;
+            color: #6b7280;
+        }
+
         .footer {
             position: fixed;
-            left: 12mm;
-            right: 12mm;
-            bottom: -7mm;
+            bottom: 8mm;
+            left: 10mm;
+            right: 10mm;
             padding-top: 4px;
-            border-top: 1px solid #e2e8f0;
+            border-top: 1px solid #e5e7eb;
             text-align: center;
-            font-size: 7.4px;
-            color: #94a3b8;
+            font-size: 6px;
+            color: #9ca3af;
         }
     </style>
 </head>
 <body>
-    <div class="report-shell">
-        <div class="report-head">
-            <table class="head-table">
+    <div class="page">
+        <div class="header">
+            <table class="header-table">
                 <tr>
-                    <td>
-                        <div class="eyebrow">DepEd DOCTRAX</div>
-                        <div class="title">Processing Report</div>
-                        <div class="subtitle">{{ $officeName }}</div>
+                    <td class="header-left">
+                        <div class="brand">DepEd DOCTRAX</div>
+                        <div class="report-title">Processing Report</div>
+                        <div class="report-subtitle">{{ $officeName }}</div>
                     </td>
-                    <td class="head-right">
-                        <div class="generated-label">Generated</div>
-                        <div class="generated-value">{{ $generatedAt }}</div>
+                    <td class="header-right">
+                        <div class="meta-label">Generated</div>
+                        <div class="meta-value">{{ $generatedAt }}</div>
                     </td>
                 </tr>
             </table>
         </div>
 
-        <div class="meta-line">
-            <strong>{{ $rows->count() }}</strong> record(s)
-            <span class="meta-sep">|</span>
-            Date Basis: <strong>{{ $dateFieldLabel }}</strong>
-            @if($statusLabel !== 'All')
-                <span class="meta-sep">|</span>
-                Status: <strong>{{ $statusLabel }}</strong>
-            @endif
-        </div>
-
-        <div class="section-title">Document Listing</div>
+        <table class="summary">
+            <tr>
+                <td width="34%">
+                    <div class="summary-item">Total Records</div>
+                    <div class="summary-value">{{ $rows->count() }}</div>
+                </td>
+                <td class="summary-divider"></td>
+                <td width="33%">
+                    <div class="summary-item">Date Basis</div>
+                    <div class="summary-value">{{ $dateFieldLabel }}</div>
+                </td>
+                <td class="summary-divider"></td>
+                <td width="33%">
+                    <div class="summary-item">Status Filter</div>
+                    <div class="summary-value">{{ $statusLabel }}</div>
+                </td>
+            </tr>
+        </table>
 
         @if($rows->isEmpty())
-            <div class="empty-state">No documents matched the selected filters for this PDF export.</div>
+            <div class="empty-state">
+                <div class="empty-title">No documents found</div>
+                <div class="empty-text">There are no records matching the selected filters.</div>
+            </div>
         @else
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th style="width:4%">#</th>
-                        <th style="width:18%">Document Control Number / Tracking Number</th>
-                        <th style="width:22%">Document</th>
-                        <th style="width:12%">Submitted By</th>
-                        <th style="width:10%">Status</th>
-                        <th style="width:11%">Tagged To</th>
-                        <th style="width:23%">Activity</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($rows as $i => $doc)
-                        @php
-                            $submittedAt = $doc->created_at?->copy()->setTimezone('Asia/Manila')->format('m/d/Y g:i A') ?? 'N/A';
-                            $updatedAt = $doc->last_action_at?->copy()->setTimezone('Asia/Manila')->format('m/d/Y g:i A') ?? 'N/A';
-                        @endphp
+            <div class="table-wrap">
+                <table class="report-table">
+                    <thead>
                         <tr>
-                            <td class="seq">{{ $i + 1 }}</td>
-                            <td>
-                                <span class="mono-ref">{{ $doc->reference_number ?: 'N/A' }}</span>
-                                <span class="mono-track">{{ $doc->tracking_number ?: 'N/A' }}</span>
-                            </td>
-                            <td>
-                                <div class="doc-title">{{ $doc->subject ?: 'Untitled Document' }}</div>
-                                <div class="doc-sub">{{ $doc->type ?: 'No type specified' }}</div>
-                            </td>
-                            <td>{{ $doc->sender_name ?: 'Guest' }}</td>
-                            <td><span class="badge">{{ $doc->statusLabel() }}</span></td>
-                            <td>{{ $doc->currentHandler?->name ?? 'Unassigned' }}</td>
-                            <td>
-                                <div class="activity-line"><span class="activity-label">Submitted</span><span class="activity-value">{{ $submittedAt }}</span></div>
-                                <div class="activity-line"><span class="activity-label">Updated</span><span class="activity-value">{{ $updatedAt }}</span></div>
-                            </td>
+                            <th class="col-num">#</th>
+                            <th class="col-ref">Reference / Tracking</th>
+                            <th class="col-doc">Document</th>
+                            <th class="col-sender">Submitted By</th>
+                            <th class="col-status">Status</th>
+                            <th class="col-handler">Tagged To</th>
+                            <th class="col-activity">Activity</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach($rows as $i => $doc)
+                            @php
+                                $submittedAt = $doc->created_at?->copy()->setTimezone('Asia/Manila')->format('m/d/Y g:i A') ?? 'N/A';
+                            @endphp
+                            <tr>
+                                <td class="col-num">{{ $i + 1 }}</td>
+
+                                <td class="col-ref">
+                                    <span class="ref-main">{{ $doc->reference_number ?: 'N/A' }}</span>
+                                    <span class="ref-sub">{{ $doc->tracking_number ?: 'N/A' }}</span>
+                                </td>
+
+                                <td class="col-doc">
+                                    <div class="doc-title">{{ $doc->subject ?: 'Untitled Document' }}</div>
+                                    <div class="doc-type">{{ $doc->type ?: 'No type' }}</div>
+                                </td>
+
+                                <td class="col-sender">
+                                    <div class="sender-name">{{ $doc->sender_name ?: 'Guest' }}</div>
+                                </td>
+
+                                <td class="col-status">
+                                    <span class="status-badge">{{ $doc->statusLabel() }}</span>
+                                </td>
+
+                                <td class="col-handler">
+                                    <div class="handler-name">{{ $doc->currentHandler?->name ?? 'Unassigned' }}</div>
+                                </td>
+
+                                <td class="col-activity">
+                                    <div class="activity-line">
+                                        <span class="activity-label">Submitted</span>
+                                        <span class="activity-value">{{ $submittedAt }}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         @endif
     </div>
 
-    <div class="footer">This report is system-generated by DepEd DOCTRAX.</div>
+    <div class="footer">
+        System-generated by DepEd DOCTRAX
+    </div>
 </body>
 </html>

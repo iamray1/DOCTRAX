@@ -1,0 +1,2 @@
+Line 508: $canUpdateRemarks = $canActOnDoc && in_array($doc->status, ['in_review', 'for_pickup']) && (!$doc->isExternal() || $user->isRecords());
+Line 567: $canUpdateRemarks = $canActOnDoc && in_array($doc->status, ['in_review', 'for_pickup']) && (!$doc->isExternal() || $user->isRecords());

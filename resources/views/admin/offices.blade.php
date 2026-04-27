@@ -38,6 +38,7 @@
         * { margin:0; padding:0; box-sizing:border-box; }
         html { overflow-y: scroll; }
         body { background:var(--bg); font-family:'Poppins',sans-serif; color:var(--text-dark); min-height:100vh; display:flex; flex-direction:column; }
+        button, input, select, textarea { font-family: inherit; }
 
         /* ─── Sidebar ─── */
         .sidebar{position:fixed;top:0;left:0;width:240px;height:100vh;background:#0056b3;display:flex;flex-direction:column;z-index:200;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
@@ -96,6 +97,48 @@
         .panel-head { padding:18px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
         .panel-title { font-size:17px; font-weight:700; }
 
+        /* ─── Office document type manager ─── */
+        .doctypes-panel-body { padding:16px 20px 18px; display:flex; flex-direction:column; gap:12px; }
+        .doctypes-note { font-size:12px; color:var(--text-muted); display:flex; align-items:flex-start; gap:7px; line-height:1.55; }
+        .doctypes-controls { display:grid; grid-template-columns: minmax(240px, 1.2fr) minmax(240px, 1fr) auto; gap:10px; align-items:end; }
+        .doctypes-controls .modal-field { margin:0; }
+        .doctypes-add-wrap { display:flex; align-items:end; }
+        .doctypes-add-btn { height:42px; width:auto; padding:0 14px; border-radius:10px; white-space:nowrap; }
+        .doctypes-list { border:1px solid var(--border); border-radius:12px; background:#f8fafc; padding:10px; min-height:84px; max-height:320px; overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+        .doctypes-empty { font-size:12px; color:var(--text-muted); line-height:1.6; padding:8px; }
+        .doctype-item { background:#fff; border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .doctype-item + .doctype-item { margin-top:8px; }
+        .doctype-meta { min-width:0; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .doctype-name { font-size:13px; font-weight:600; color:var(--text-dark); word-break:break-word; }
+        .doctype-hint { font-size:11px; color:var(--text-muted); }
+        .pill.inactive { background:var(--danger-soft); color:var(--danger); }
+        .pill.default { background:var(--slate-soft); color:var(--slate-dark); }
+        .doctype-action-btn { border:none; border-radius:8px; padding:7px 11px; font-size:12px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .2s; }
+        .doctype-action-btn.activate { background:var(--blue-soft); color:var(--primary); }
+        .doctype-action-btn.activate:hover { background:var(--primary); color:#fff; }
+        .doctype-action-btn.deactivate { background:var(--danger-soft); color:var(--danger); }
+        .doctype-action-btn.deactivate:hover { background:var(--danger); color:#fff; }
+
+        /* ─── Office status manager ─── */
+        .office-status-panel { margin-top:18px; }
+        .office-status-body { padding:16px 20px 18px; display:flex; flex-direction:column; gap:12px; }
+        .office-status-note { font-size:12px; color:var(--text-muted); display:flex; align-items:flex-start; gap:7px; line-height:1.55; }
+        .office-status-create { display:grid; grid-template-columns:minmax(220px, 1fr) auto; gap:10px; align-items:start; }
+        .office-status-create .modal-field { margin:0; }
+        .office-status-create-btn { height:42px; align-self:end; white-space:nowrap; }
+        .office-status-list { border:1px solid var(--border); border-radius:12px; background:#f8fafc; padding:10px; max-height:320px; overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+        .office-status-item { background:#fff; border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .office-status-item + .office-status-item { margin-top:8px; }
+        .office-status-meta { min-width:0; display:flex; flex-direction:column; gap:4px; }
+        .office-status-name { font-size:13px; font-weight:600; color:var(--text-dark); word-break:break-word; }
+        .office-status-sub { font-size:11px; color:var(--text-muted); }
+        .office-status-btn { border:none; border-radius:8px; padding:7px 11px; font-size:12px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .2s; }
+        .office-status-btn.activate { background:var(--blue-soft); color:var(--primary); }
+        .office-status-btn.activate:hover { background:var(--primary); color:#fff; }
+        .office-status-btn.deactivate { background:var(--danger-soft); color:var(--danger); }
+        .office-status-btn.deactivate:hover { background:var(--danger); color:#fff; }
+        .office-status-btn:disabled { opacity:.65; cursor:not-allowed; }
+
         /* ─── Table ─── */
         .dtable { width:100%; border-collapse:collapse; font-size:13px; }
         .dtable th { padding:11px 14px; text-align:left; font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; background:#f8fafc; border-bottom:1px solid var(--border); }
@@ -139,6 +182,9 @@
         /* ─── Modal ─── */
         .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; align-items:center; justify-content:center; padding:16px; }
         .modal-overlay.show { display:flex; }
+        #officeStatusModal { z-index:240; }
+        #officeActionModal,
+        #officeUsersModal { z-index:260; }
         .modal { background:#fff; border-radius:16px; max-width:480px; width:100%; max-height:min(88vh,720px); display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.2); }
         .modal-head { padding:20px 24px 0; }
         .modal-head h3 { font-size:16px; font-weight:700; }
@@ -164,6 +210,11 @@
         .status-modal-copy { min-width:0; }
         .status-modal-msg { margin-bottom:0; font-size:14px; color:#475569; line-height:1.6; word-break:break-word; }
         .status-modal-sub { font-size:12px; color:#94a3b8; margin-top:6px; line-height:1.55; }
+        .office-user-list { margin-top:10px; border:1px solid var(--border); border-radius:10px; background:#f8fafc; padding:10px; max-height:220px; overflow:auto; }
+        .office-user-list-item { padding:8px 10px; border-radius:8px; background:#fff; border:1px solid #e2e8f0; display:flex; justify-content:space-between; gap:10px; align-items:center; }
+        .office-user-list-item + .office-user-list-item { margin-top:8px; }
+        .office-user-name { font-size:13px; font-weight:600; color:var(--text-dark); }
+        .office-user-email { font-size:11px; color:var(--text-muted); word-break:break-all; }
 
         /* ─── Toast ─── */
         .toast {
@@ -224,6 +275,13 @@
             .page-header h1{font-size:18px}
             .page-header p{font-size:12px}
             .btn-create{font-size:12px;padding:8px 14px}
+            .office-status-list{max-height:260px}
+            .office-status-create{grid-template-columns:1fr}
+            .office-status-create-btn{width:100%;justify-content:center}
+            .doctypes-controls{grid-template-columns:1fr}
+            .doctypes-add-wrap{justify-content:flex-start}
+            .doctypes-add-btn{width:100%;height:44px;justify-content:center}
+            .doctypes-list{max-height:260px}
             .panel.list-panel.has-list{max-height:min(68vh,560px)}
             .panel .dtable-wrap{display:none}
             .mob-cards{display:block;padding:12px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
@@ -309,9 +367,14 @@
                 <h1>Office Accounts</h1>
                 <p>Manage internal DepEd office accounts for document routing</p>
             </div>
-            <button class="btn-create" onclick="openCreateModal()">
-                <i class="fas fa-plus"></i> Create Office Account
-            </button>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn-create" onclick="openOfficeStatusModal()">
+                    <i class="fas fa-building-circle-check"></i> Office Status
+                </button>
+                <button class="btn-create" onclick="openCreateModal()">
+                    <i class="fas fa-plus"></i> Create Office Account
+                </button>
+            </div>
         </div>
 
         <div class="panel list-panel{{ $accounts->count() ? ' has-list' : '' }}">
@@ -445,6 +508,45 @@
             @endif
         </div>
 
+        <div class="panel" style="margin-top:18px;">
+            <div class="panel-head">
+                <div class="panel-title">Submit Document Type Options Per Office</div>
+            </div>
+            <div class="doctypes-panel-body">
+                <p class="doctypes-note">
+                    <i class="fas fa-info-circle" style="margin-top:2px;"></i>
+                    <span>Manage dropdown options shown in Submit Document per destination office. Use add and activate/deactivate only. The "Others" option stays auto-added by the submit form.</span>
+                </p>
+
+                <div class="doctypes-controls">
+                    <div class="modal-field">
+                        <label>Destination Office <span style="color:#dc2626">*</span></label>
+                        <div class="modal-select-wrap">
+                            <select class="modal-input" id="docTypeOfficeId" style="box-sizing:border-box">
+                                <option value="">- Select destination office -</option>
+                                @foreach(($routingOfficesForTypeConfig ?? collect()) as $office)
+                                    <option value="{{ $office->id }}">{{ $office->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="modal-field">
+                        <label>Document Type Name <span style="color:#dc2626">*</span></label>
+                        <input type="text" class="modal-input" id="docTypeName" maxlength="255" placeholder="e.g. Certification Request" autocomplete="off" data-no-capitalize>
+                    </div>
+
+                    <div class="doctypes-add-wrap">
+                        <button class="btn-create doctypes-add-btn" id="addDocTypeBtn" onclick="addOfficeDocumentType()">
+                            <i class="fas fa-plus"></i> Add Option
+                        </button>
+                    </div>
+                </div>
+
+                <div class="doctypes-list" id="docTypeList"></div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Create Office Account Modal -->
@@ -515,6 +617,96 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="officeUsersModal">
+        <div class="modal">
+            <div class="modal-head">
+                <h3><i class="fas fa-triangle-exclamation" style="color:var(--danger);margin-right:6px;"></i> Transfer Users First</h3>
+            </div>
+            <div class="modal-body">
+                <div class="status-modal-row">
+                    <div class="status-modal-copy">
+                        <p class="status-modal-msg" id="officeUsersModalMsg"></p>
+                        <div class="status-modal-sub" id="officeUsersModalSub"></div>
+                    </div>
+                </div>
+                <div class="office-user-list" id="officeUsersModalList"></div>
+            </div>
+            <div class="modal-foot">
+                <button class="modal-btn warning" type="button" onclick="closeOfficeUsersModal()">Close</button>
+                <button class="modal-btn success" type="button" id="officeUsersTransferBtn">Transfer Users</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="officeActionModal">
+        <div class="modal">
+            <div class="modal-head">
+                <h3 id="officeActionModalTitle">Update Office Status</h3>
+            </div>
+            <div class="modal-body">
+                <div class="status-modal-row">
+                    <div class="status-modal-copy">
+                        <p class="status-modal-msg" id="officeActionModalMsg"></p>
+                        <p class="status-modal-sub" id="officeActionModalSub"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="modal-btn" type="button" onclick="closeOfficeActionModal()">Cancel</button>
+                <button class="modal-btn" type="button" id="confirmOfficeActionBtn"></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="officeStatusModal">
+        <div class="modal" style="max-width:720px;">
+            <div class="modal-head">
+                <h3><i class="fas fa-building-circle-check" style="color:var(--primary);margin-right:6px;"></i> Office Status</h3>
+            </div>
+            <div class="modal-body">
+                <p class="office-status-note" style="margin-bottom:0;">
+                    <i class="fas fa-circle-info" style="margin-top:2px;"></i>
+                    <span>Deactivate an office only after transferring its users first. If users are still assigned, the system will block the action and show the assigned accounts.</span>
+                </p>
+                <div class="office-status-create">
+                    <div class="modal-field">
+                        <label>Office Name <span style="color:#dc2626">*</span></label>
+                        <input type="text" class="modal-input" id="officeStatusNewName" maxlength="255" placeholder="e.g. Accounting Unit" autocomplete="off">
+                        <div class="field-err" id="err-officeStatusNewName"><i class="fas fa-exclamation-circle"></i><span></span></div>
+                    </div>
+                    <button class="btn-create office-status-create-btn" id="officeStatusAddBtn" type="button" onclick="addOfficeFromStatus()">
+                        <i class="fas fa-plus"></i> Add Office
+                    </button>
+                </div>
+                <div class="office-status-list" id="officeStatusList">
+                    @forelse(($officeStatusOffices ?? collect()) as $office)
+                        <div class="office-status-item" data-office-id="{{ $office->id }}" data-office-name="{{ e($office->name) }}">
+                            <div class="office-status-meta">
+                                <div class="office-status-name">{{ $office->name }}</div>
+                                <div class="office-status-sub">
+                                    {{ $office->is_active ? 'Active' : 'Inactive' }}
+                                    - {{ $office->office_users_count ?? 0 }} {{ ($office->office_users_count ?? 0) === 1 ? 'user' : 'users' }} assigned
+                                </div>
+                            </div>
+                            <button type="button" class="office-status-btn {{ $office->is_active ? 'deactivate' : 'activate' }}" data-office-toggle="1" data-id="{{ $office->id }}" data-next-active="{{ $office->is_active ? '0' : '1' }}">
+                                @if($office->is_active)
+                                    <i class="fas fa-ban"></i> Deactivate
+                                @else
+                                    <i class="fas fa-check"></i> Reactivate
+                                @endif
+                            </button>
+                        </div>
+                    @empty
+                        <div class="doctypes-empty">No offices available.</div>
+                    @endforelse
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="modal-btn" type="button" onclick="closeOfficeStatusModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Suspend / Activate Confirmation Modal -->
     <div class="modal-overlay" id="statusModal">
         <div class="modal">
@@ -548,7 +740,7 @@
                 </p>
                 <p style="font-size:11px;color:#94a3b8;margin-bottom:8px;">
                     <i class="fas fa-info-circle" style="margin-right:3px;"></i>
-                    Past documents and routing history will remain tagged to this user under their previous office.
+                    Transfer is blocked while this personnel has in-progress documents assigned at the current office. Submitted-only or unassigned documents will not block transfer.
                 </p>
                 <div class="modal-field">
                     <label>New Office <span style="color:#dc2626">*</span></label>
@@ -576,6 +768,8 @@
     <script>
     (function() {
         var csrf = '{{ csrf_token() }}';
+        var officeDocumentTypesByOffice = @json($officeDocumentTypesByOffice ?? []);
+        var baseDocumentTypeOptionsByOffice = @json($baseDocumentTypeOptionsByOffice ?? []);
 
         function escapeHtml(str) {
             if (!str) return '';
@@ -832,6 +1026,539 @@
             })
             .catch(function() { showToast('Something went wrong.', 'error'); });
         });
+
+        var officeStatusModal = {
+            officeId: null,
+            officeName: '',
+            nextActive: true,
+            users: []
+        };
+
+        var officeActionState = {
+            officeId: null,
+            officeName: '',
+            nextActive: true,
+            buttonEl: null
+        };
+
+        window.openOfficeStatusModal = function () {
+            var modal = document.getElementById('officeStatusModal');
+            var list = document.getElementById('officeStatusList');
+            clearOfficeStatusAddError();
+            if (modal) modal.classList.add('show');
+            if (list) {
+                list.querySelectorAll('[data-office-toggle]').forEach(function (btn) {
+                    btn.disabled = false;
+                });
+            }
+        };
+
+        window.closeOfficeStatusModal = function () {
+            var modal = document.getElementById('officeStatusModal');
+            if (modal) modal.classList.remove('show');
+        };
+
+        function normalizeOfficeStatusName(value) {
+            return String(value || '').replace(/\s+/g, ' ').trim();
+        }
+
+        function clearOfficeStatusAddError() {
+            var input = document.getElementById('officeStatusNewName');
+            var err = document.getElementById('err-officeStatusNewName');
+            if (input) input.classList.remove('error');
+            if (err) {
+                err.classList.remove('show');
+                var sp = err.querySelector('span');
+                if (sp) sp.textContent = '';
+            }
+        }
+
+        function setOfficeStatusAddError(message) {
+            var input = document.getElementById('officeStatusNewName');
+            var err = document.getElementById('err-officeStatusNewName');
+            if (input) input.classList.add('error');
+            if (err) {
+                var sp = err.querySelector('span');
+                if (sp) sp.textContent = message;
+                err.classList.add('show');
+            }
+        }
+
+        window.addOfficeFromStatus = function () {
+            clearOfficeStatusAddError();
+
+            var input = document.getElementById('officeStatusNewName');
+            var btn = document.getElementById('officeStatusAddBtn');
+            if (!input || !btn) return;
+
+            var name = normalizeOfficeStatusName(input.value);
+            if (!name) {
+                setOfficeStatusAddError('Please enter the office name.');
+                input.focus();
+                return;
+            }
+
+            btn.disabled = true;
+
+            fetch('/api/admin/offices/catalog', {
+                method: 'POST',
+                headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN':csrf, 'Accept':'application/json' },
+                body: JSON.stringify({ name: name })
+            })
+            .then(function (r) {
+                return r.json().then(function (data) {
+                    data = data || {};
+                    data._ok = r.ok;
+                    return data;
+                });
+            })
+            .then(function (data) {
+                btn.disabled = false;
+
+                if (!data.success) {
+                    var message = data.message || 'Failed to add office.';
+                    setOfficeStatusAddError(message);
+                    showToast(message, 'error');
+                    return;
+                }
+
+                input.value = '';
+                showToast(data.message || 'Office added.', 'success');
+                setTimeout(function () { window.location.reload(); }, 700);
+            })
+            .catch(function () {
+                btn.disabled = false;
+                showToast('Something went wrong.', 'error');
+            });
+        };
+
+        window.openOfficeActionModal = function (officeName, nextActive, officeId, buttonEl) {
+            officeActionState.officeId = officeId;
+            officeActionState.officeName = officeName;
+            officeActionState.nextActive = !!nextActive;
+            officeActionState.buttonEl = buttonEl || null;
+
+            var titleEl = document.getElementById('officeActionModalTitle');
+            var msgEl = document.getElementById('officeActionModalMsg');
+            var subEl = document.getElementById('officeActionModalSub');
+            var confirmBtn = document.getElementById('confirmOfficeActionBtn');
+
+            if (titleEl) titleEl.textContent = officeActionState.nextActive ? 'Reactivate Office' : 'Deactivate Office';
+            if (msgEl) msgEl.textContent = officeActionState.nextActive
+                ? 'Reactivate ' + officeName + ' now?'
+                : 'Deactivate ' + officeName + ' now?';
+            if (subEl) subEl.textContent = officeActionState.nextActive
+                ? 'This office will become active again and can be used for routing.'
+                : 'This office will be marked inactive and removed from active routing.';
+            if (confirmBtn) {
+                confirmBtn.textContent = officeActionState.nextActive ? 'Reactivate' : 'Deactivate';
+                confirmBtn.className = 'modal-btn ' + (officeActionState.nextActive ? 'success' : 'danger');
+                confirmBtn.disabled = false;
+            }
+
+            var modal = document.getElementById('officeActionModal');
+            if (modal) modal.classList.add('show');
+        };
+
+        window.closeOfficeActionModal = function () {
+            var modal = document.getElementById('officeActionModal');
+            if (modal) modal.classList.remove('show');
+            var confirmBtn = document.getElementById('confirmOfficeActionBtn');
+            if (confirmBtn) confirmBtn.disabled = false;
+            officeActionState.officeId = null;
+            officeActionState.officeName = '';
+            officeActionState.nextActive = true;
+            officeActionState.buttonEl = null;
+        };
+
+        function openOfficeUsersModal() {
+            var modal = document.getElementById('officeUsersModal');
+            if (modal) modal.classList.add('show');
+        }
+
+        window.closeOfficeUsersModal = function () {
+            var modal = document.getElementById('officeUsersModal');
+            if (modal) modal.classList.remove('show');
+            officeStatusModal.officeId = null;
+            officeStatusModal.officeName = '';
+            officeStatusModal.nextActive = true;
+            officeStatusModal.users = [];
+        };
+
+        document.getElementById('officeStatusModal').addEventListener('click', function (e) {
+            if (e.target === this) window.closeOfficeStatusModal();
+        });
+
+        document.getElementById('officeActionModal').addEventListener('click', function (e) {
+            if (e.target === this) window.closeOfficeActionModal();
+        });
+
+        document.getElementById('confirmOfficeActionBtn').addEventListener('click', function () {
+            if (!officeActionState.officeId) return;
+            var officeId = officeActionState.officeId;
+            var officeName = officeActionState.officeName;
+            var nextActive = officeActionState.nextActive;
+            var buttonEl = officeActionState.buttonEl;
+            this.disabled = true;
+            closeOfficeActionModal();
+            updateOfficeStatus(officeId, nextActive, buttonEl, officeName);
+        });
+
+        function renderOfficeUsersModal(data) {
+            var msgEl = document.getElementById('officeUsersModalMsg');
+            var subEl = document.getElementById('officeUsersModalSub');
+            var listEl = document.getElementById('officeUsersModalList');
+            var transferBtn = document.getElementById('officeUsersTransferBtn');
+            if (!msgEl || !subEl || !listEl || !transferBtn) return;
+
+            msgEl.textContent = 'You cannot deactivate ' + data.office_name + ' yet because users are still assigned to this office.';
+            subEl.textContent = 'Transfer these accounts first before deactivating the office.';
+            transferBtn.onclick = function () {
+                closeOfficeUsersModal();
+                showToast('Use the Transfer button for each assigned user first.', 'error');
+            };
+
+            if (!data.users || !data.users.length) {
+                listEl.innerHTML = '<div class="doctypes-empty">No users found.</div>';
+                return;
+            }
+
+            listEl.innerHTML = data.users.map(function (user) {
+                return '' +
+                    '<div class="office-user-list-item">' +
+                        '<div>' +
+                            '<div class="office-user-name">' + escapeHtml(user.name) + '</div>' +
+                            '<div class="office-user-email">' + escapeHtml(user.email || '') + '</div>' +
+                        '</div>' +
+                        '<span class="pill ' + (user.status === 'active' ? 'active' : 'inactive') + '">' + escapeHtml(user.status || '') + '</span>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function updateOfficeStatus(officeId, isActive, buttonEl, officeName) {
+            if (buttonEl) buttonEl.disabled = true;
+
+            fetch('/api/admin/offices/' + officeId + '/status', {
+                method: 'PUT',
+                headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN':csrf, 'Accept':'application/json' },
+                body: JSON.stringify({ is_active: !!isActive })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (buttonEl) buttonEl.disabled = false;
+                if (!data.success) {
+                    if (data.has_users) {
+                        renderOfficeUsersModal(data);
+                        openOfficeUsersModal();
+                        return;
+                    }
+                    showToast(data.message || 'Failed to update office status.', 'error');
+                    return;
+                }
+
+                showToast(data.message || (officeName + ' updated.'), 'success');
+                setTimeout(function () { window.location.reload(); }, 700);
+            })
+            .catch(function () {
+                if (buttonEl) buttonEl.disabled = false;
+                showToast('Something went wrong.', 'error');
+            });
+        }
+
+        function checkOfficeUsers(officeId, officeName, nextActive, buttonEl) {
+            if (buttonEl) buttonEl.disabled = true;
+
+            fetch('/api/admin/offices/' + officeId + '/check-users', {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (buttonEl) buttonEl.disabled = false;
+                if (!data.success) {
+                    showToast(data.message || 'Unable to check office users.', 'error');
+                    return;
+                }
+
+                officeStatusModal.officeId = officeId;
+                officeStatusModal.officeName = officeName;
+                officeStatusModal.nextActive = !!nextActive;
+                officeStatusModal.users = data.users || [];
+
+                if (!officeStatusModal.nextActive && data.has_users) {
+                    renderOfficeUsersModal(data);
+                    openOfficeUsersModal();
+                    return;
+                }
+
+                openOfficeActionModal(officeName, nextActive, officeId, buttonEl);
+            })
+            .catch(function () {
+                if (buttonEl) buttonEl.disabled = false;
+                showToast('Something went wrong.', 'error');
+            });
+        }
+
+        var officeStatusList = document.getElementById('officeStatusList');
+        if (officeStatusList) {
+            officeStatusList.addEventListener('click', function (event) {
+                var btn = event.target.closest('[data-office-toggle]');
+                if (!btn) return;
+
+                var officeId = parseInt(btn.getAttribute('data-id') || '', 10);
+                var nextActive = btn.getAttribute('data-next-active') === '1';
+                var item = btn.closest('.office-status-item');
+                var officeName = item ? (item.getAttribute('data-office-name') || 'this office') : 'this office';
+
+                if (!Number.isInteger(officeId) || officeId <= 0) {
+                    showToast('Invalid office action.', 'error');
+                    return;
+                }
+
+                checkOfficeUsers(officeId, officeName, nextActive, btn);
+            });
+        }
+
+        var officeStatusNewNameEl = document.getElementById('officeStatusNewName');
+        if (officeStatusNewNameEl) {
+            officeStatusNewNameEl.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    window.addOfficeFromStatus();
+                }
+            });
+        }
+
+        function normalizeDocTypeName(value) {
+            return String(value || '').replace(/\s+/g, ' ').trim();
+        }
+
+        function getOfficeDocumentTypes(officeId) {
+            var key = String(officeId || '');
+            if (!officeDocumentTypesByOffice[key] || !Array.isArray(officeDocumentTypesByOffice[key])) {
+                officeDocumentTypesByOffice[key] = [];
+            }
+            return officeDocumentTypesByOffice[key];
+        }
+
+        function getBaseDocumentTypeOptions(officeId) {
+            var key = String(officeId || '');
+            var rows = baseDocumentTypeOptionsByOffice[key];
+            if (!Array.isArray(rows)) return [];
+
+            return rows.filter(function (name) {
+                return typeof name === 'string' && name.trim() !== '';
+            }).map(function (name) {
+                return name.trim();
+            });
+        }
+
+        function findOfficeDocumentTypeById(id) {
+            var targetId = parseInt(id, 10);
+            for (var officeId in officeDocumentTypesByOffice) {
+                if (!Object.prototype.hasOwnProperty.call(officeDocumentTypesByOffice, officeId)) continue;
+                var rows = officeDocumentTypesByOffice[officeId];
+                if (!Array.isArray(rows)) continue;
+                for (var i = 0; i < rows.length; i++) {
+                    if (parseInt(rows[i].id, 10) === targetId) {
+                        return { officeId: officeId, index: i, item: rows[i] };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function renderOfficeDocumentTypes() {
+            var officeSelect = document.getElementById('docTypeOfficeId');
+            var listEl = document.getElementById('docTypeList');
+            if (!officeSelect || !listEl) return;
+
+            var officeId = officeSelect.value;
+            if (!officeId) {
+                listEl.innerHTML = '<div class="doctypes-empty">Select a destination office to view and manage its custom document type options.</div>';
+                return;
+            }
+
+            var rows = getOfficeDocumentTypes(officeId).slice().sort(function (a, b) {
+                return String(a.name || '').localeCompare(String(b.name || ''));
+            });
+
+            if (rows.length === 0) {
+                var baseOptions = getBaseDocumentTypeOptions(officeId);
+                if (baseOptions.length === 0) {
+                    listEl.innerHTML = '<div class="doctypes-empty">No options found for this office yet. Add one above to start building its dropdown list.</div>';
+                    return;
+                }
+
+                listEl.innerHTML = baseOptions.map(function (name) {
+                    return '' +
+                        '<div class="doctype-item">' +
+                            '<div class="doctype-meta">' +
+                                '<span class="doctype-name">' + escapeHtml(name) + '</span>' +
+                                '<span class="pill default">Default</span>' +
+                                '<span class="doctype-hint">Current fallback option</span>' +
+                            '</div>' +
+                        '</div>';
+                }).join('');
+                return;
+            }
+
+            listEl.innerHTML = rows.map(function (row) {
+                var active = !!row.is_active;
+                var actionClass = active ? 'deactivate' : 'activate';
+                var actionLabel = active ? '<i class="fas fa-ban"></i> Deactivate' : '<i class="fas fa-check"></i> Activate';
+                return '' +
+                    '<div class="doctype-item">' +
+                        '<div class="doctype-meta">' +
+                            '<span class="doctype-name">' + escapeHtml(row.name) + '</span>' +
+                        '</div>' +
+                        '<button type="button" class="doctype-action-btn ' + actionClass + '" data-doc-type-toggle="1" data-id="' + row.id + '" data-next-active="' + (active ? '0' : '1') + '">' + actionLabel + '</button>' +
+                    '</div>';
+            }).join('');
+        }
+
+        window.addOfficeDocumentType = function () {
+            var officeSelect = document.getElementById('docTypeOfficeId');
+            var nameInput = document.getElementById('docTypeName');
+            var addBtn = document.getElementById('addDocTypeBtn');
+            if (!officeSelect || !nameInput || !addBtn) return;
+
+            var officeId = officeSelect.value;
+            var name = normalizeDocTypeName(nameInput.value);
+
+            if (!officeId) {
+                showToast('Select a destination office first.', 'error');
+                officeSelect.focus();
+                return;
+            }
+
+            if (!name) {
+                showToast('Enter a document type name first.', 'error');
+                nameInput.focus();
+                return;
+            }
+
+            addBtn.disabled = true;
+
+            fetch('/api/admin/offices/document-types', {
+                method: 'POST',
+                headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN':csrf, 'Accept':'application/json' },
+                body: JSON.stringify({ office_id: parseInt(officeId, 10), name: name })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                addBtn.disabled = false;
+                if (!data.success) {
+                    showToast(data.message || 'Failed to add document type.', 'error');
+                    return;
+                }
+
+                if (data.item) {
+                    var rows = getOfficeDocumentTypes(data.item.office_id);
+                    var incomingId = parseInt(data.item.id, 10);
+                    var existingIndex = rows.findIndex(function (row) {
+                        return parseInt(row.id, 10) === incomingId;
+                    });
+
+                    if (existingIndex >= 0) {
+                        rows[existingIndex] = data.item;
+                    } else {
+                        rows.push(data.item);
+                    }
+                }
+
+                nameInput.value = '';
+                renderOfficeDocumentTypes();
+                showToast(data.message || 'Document type saved.', 'success');
+            })
+            .catch(function () {
+                addBtn.disabled = false;
+                showToast('Something went wrong.', 'error');
+            });
+        };
+
+        function toggleOfficeDocumentType(id, isActive, buttonEl) {
+            var located = findOfficeDocumentTypeById(id);
+            if (!located) {
+                showToast('Document type not found. Please reload the page.', 'error');
+                return;
+            }
+
+            if (!isActive) {
+                var confirmed = window.confirm('Deactivate "' + located.item.name + '" for this office?');
+                if (!confirmed) return;
+            }
+
+            if (buttonEl) buttonEl.disabled = true;
+
+            fetch('/api/admin/offices/document-types/' + id, {
+                method: 'PUT',
+                headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN':csrf, 'Accept':'application/json' },
+                body: JSON.stringify({ is_active: !!isActive })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (buttonEl) buttonEl.disabled = false;
+                if (!data.success) {
+                    showToast(data.message || 'Failed to update document type.', 'error');
+                    return;
+                }
+
+                if (data.item) {
+                    var targetRows = getOfficeDocumentTypes(data.item.office_id);
+                    var targetId = parseInt(data.item.id, 10);
+                    var idx = targetRows.findIndex(function (row) {
+                        return parseInt(row.id, 10) === targetId;
+                    });
+
+                    if (idx >= 0) {
+                        targetRows[idx] = data.item;
+                    } else {
+                        targetRows.push(data.item);
+                    }
+                }
+
+                renderOfficeDocumentTypes();
+                showToast(data.message || 'Document type updated.', 'success');
+            })
+            .catch(function () {
+                if (buttonEl) buttonEl.disabled = false;
+                showToast('Something went wrong.', 'error');
+            });
+        }
+
+        var docTypeOfficeIdEl = document.getElementById('docTypeOfficeId');
+        if (docTypeOfficeIdEl) {
+            docTypeOfficeIdEl.addEventListener('change', renderOfficeDocumentTypes);
+        }
+
+        var docTypeListEl = document.getElementById('docTypeList');
+        if (docTypeListEl) {
+            docTypeListEl.addEventListener('click', function (event) {
+                var btn = event.target.closest('[data-doc-type-toggle]');
+                if (!btn) return;
+
+                var id = parseInt(btn.getAttribute('data-id') || '', 10);
+                var nextActive = btn.getAttribute('data-next-active') === '1';
+                if (!Number.isInteger(id) || id <= 0) {
+                    showToast('Invalid document type action.', 'error');
+                    return;
+                }
+
+                toggleOfficeDocumentType(id, nextActive, btn);
+            });
+        }
+
+        var docTypeNameEl = document.getElementById('docTypeName');
+        if (docTypeNameEl) {
+            docTypeNameEl.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    window.addOfficeDocumentType();
+                }
+            });
+        }
+
+        renderOfficeDocumentTypes();
 
         // ─── Toggle Reports Access ───
         window.toggleReports = function(id, name) {

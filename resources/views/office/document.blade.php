@@ -48,15 +48,15 @@
         .info-item .value{font-size:13px;color:var(--text-dark);font-weight:500}
         .info-item.full{grid-column:1/-1}
         /* Timeline */
-        .timeline{position:relative;margin-top:4px}
-        .timeline::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--border);z-index:-1}
-        .tl-item{position:relative;margin-bottom:20px;padding-left:24px}
+        .timeline{position:relative;margin-top:4px;z-index:0}
+        .timeline::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--border);z-index:0;pointer-events:none}
+        .tl-item{position:relative;z-index:1;margin-bottom:20px;padding-left:24px}
         .tl-item:last-child{margin-bottom:0}
-        .tl-dot{width:14px;height:14px;border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+        .tl-dot{width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;position:relative;z-index:2}
         .tl-dot.active{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.done{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.warn{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
-        .tl-dot.danger{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
+        .tl-dot.danger{background:#dc2626;box-shadow:0 0 0 2px #dc2626}
         .tl-dot.latest{background:#f59e0b;box-shadow:0 0 0 2px #f59e0b}
         .tl-action{font-size:12px;font-weight:700;color:#1b263b}
         .tl-meta{font-size:12px;color:#64748b;margin:2px 0}
@@ -64,6 +64,7 @@
         .tl-office-hdr{display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--text-dark);text-transform:none;letter-spacing:0;margin:18px 0 8px -7px;padding-left:7px;padding-bottom:6px;position:relative}
         .tl-office-hdr::after{content:'';position:absolute;left:21px;right:0;bottom:0;height:1.5px;background:var(--border)}
         .tl-office-hdr:first-child{margin-top:0}
+        .tl-dur{font-size:10px;font-weight:600;color:#6366f1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:20px;padding:1px 8px;text-transform:none;letter-spacing:0;white-space:nowrap;flex-shrink:0;margin-left:auto}
         .tl-item.voided{opacity:.45}
         .tl-item.voided .tl-action,.tl-item.voided .tl-meta,.tl-item.voided .tl-remarks{text-decoration:line-through;color:#94a3b8}
         .tl-dot.voided{background:#cbd5e1;box-shadow:0 0 0 2px #cbd5e1}
@@ -73,8 +74,6 @@
         .action-section h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
         .btn{padding:10px 18px;border:none;border-radius:9px;font-family:Poppins,sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .2s,opacity .2s;width:100%;margin-bottom:10px}
         .btn:disabled{opacity:.6;cursor:not-allowed}
-        .btn-accept{background:#16a34a;color:#fff}
-        .btn-accept:hover:not(:disabled){background:#15803d}
         .btn-primary{background:var(--primary);color:#fff}
         .btn-primary:hover:not(:disabled){background:var(--primary-dark)}
         .btn-outline{background:#fff;color:var(--text-dark);border:1.5px solid var(--border)}
@@ -388,7 +387,10 @@
                             $tlPrevKey = null;
                             foreach ($document->routingLogs->sortBy('created_at') as $tlLog) {
                                 if ($tlLog->action === 'submitted') {
-                                    $tlKey = '__pending__'; $tlLabel = 'Submitted — Pending Physical Submission';
+                                    $tlKey = '__pending__'; $tlLabel = 'Submitted - Pending Physical Submission';
+                                } elseif (in_array($tlLog->action, ['completed', 'returned'])) {
+                                    $tlKey = '__ended__';
+                                    $tlLabel = $tlLog->actionLabelWithOffice();
                                 } elseif ($tlLog->action === 'forwarded') {
                                     $tlKey = 'from_' . ($tlLog->from_office_id ?? '0');
                                     $tlLabel = $tlLog->fromOffice?->name ?? 'Office';
@@ -410,7 +412,9 @@
                             @php
                                 $hdrLogs = array_values(array_reverse($tlGroup['logs']));
                                 $hdrLog = $hdrLogs[0] ?? null;
+                                $hdrStartLog = $tlGroup['logs'][0] ?? null;
                                 $hdrS = $hdrLog ? $hdrLog->status_after : 'active';
+                                $hdrDuration = $hdrStartLog ? ($arrivalMetaByLogId[$hdrStartLog->id]['office_duration'] ?? null) : null;
                                 $hdrIsVoided = $hdrLog ? isset($voidedLogIds[$hdrLog->id]) : false;
                                 $hdrDc = $hdrIsVoided ? 'voided' : ($tlFirst ? 'latest' : match(true){
                                     in_array($hdrS,['cancelled','returned']) => 'danger',
@@ -419,7 +423,7 @@
                                 });
                                 $hdrIcon = $hdrIsVoided ? 'fa-ban' : ($tlFirst ? 'fa-arrow-up' : 'fa-check');
                             @endphp
-                            <div class="tl-office-hdr"><div class="tl-dot {{ $hdrDc }}" style="margin-right:5px"><i class="fas {{ $hdrIcon }}" style="font-size:5px"></i></div><span>{{ $tlGroup['label'] }}</span></div>
+                            <div class="tl-office-hdr"><div class="tl-dot {{ $hdrDc }}" style="margin-right:5px"><i class="fas {{ $hdrIcon }}" style="font-size:5px"></i></div><span>{{ $tlGroup['label'] }}</span>@if($hdrDuration)<span class="tl-dur"><i class="fas fa-hourglass-half" style="margin-right:4px;font-size:9px"></i>{{ $hdrDuration }}</span>@endif</div>
                             @foreach(array_reverse($tlGroup['logs']) as $tlLog)
                                 @php
                                     $s = $tlLog->status_after;
@@ -437,12 +441,21 @@
                                     @elseif($isVoided)
                                         <div class="tl-action"><span class="tl-void-badge">VOIDED</span></div>
                                     @endif
-                                    <div class="tl-meta"><i class="fas fa-clock" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->created_at->setTimezone('Asia/Manila')->format('M d, Y h:i A') }}</div>
+                                    <div class="tl-meta" style="{{ in_array($tlLog->action, ['completed', 'returned']) && $tlLog->action === 'returned' ? 'color:#dc2626' : '' }}"><i class="fas fa-clock" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->created_at->setTimezone('Asia/Manila')->format('M d, Y h:i A') }}</div>
+                                    @if(!in_array($tlLog->action, ['completed', 'returned']))
                                     <div class="tl-meta"><i class="fas fa-tasks" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->actionLabel() }}</div>
+                                    @endif
                                     @php
-                                        $tlRemarks = $tlLog->action === 'submitted'
-                                            ? 'Document submitted online. Awaiting physical submission to Records Section for routing to ' . ($doc->submittedToOffice->name ?? 'the selected destination office') . '.'
-                                            : $tlLog->remarks;
+                                        if ($tlLog->action === 'submitted') {
+                                            $submittedByOffice = $document->user && ($document->user->isOfficeAccount() || $document->user->isSuperAdmin());
+                                            if ($submittedByOffice) {
+                                                $tlRemarks = 'Document submitted by office account. Awaiting physical handoff to ' . ($document->submittedToOffice->name ?? 'the destination office') . '.';
+                                            } else {
+                                                $tlRemarks = 'Document submitted online. Awaiting physical submission to Records Section for routing to ' . ($document->submittedToOffice->name ?? 'the selected destination office') . '.';
+                                            }
+                                        } else {
+                                            $tlRemarks = $tlLog->remarks;
+                                        }
                                     @endphp
                                     @if($tlRemarks)<div class="tl-remarks">{{ $tlRemarks }}</div>@endif
                                 </div>
@@ -474,22 +487,8 @@
                             Only the assigned handler can update its status.
                         </div>
                     @else
-                        {{-- Accept --}}
-                        @if($canAccept)
-                            <div class="action-section">
-                                <h3><i class="fas fa-check-circle" style="margin-right:5px"></i>Accept Document</h3>
-                                <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
-                                    Confirm receipt of this document at your office.
-                                </p>
-                                <button class="btn btn-accept" id="acceptBtn" onclick="doAccept()">
-                                    <i class="fas fa-check"></i> Accept Document
-                                </button>
-                            </div>
-                            <hr class="divider">
-                        @endif
-
-                        @if(($user->isRecords() || $user->isSuperAdmin()) && in_array($document->status, ['in_review','for_pickup']))
-                            {{-- Update status — Records / SuperAdmin only --}}
+                        @if(in_array($document->status, ['in_review','on_hold']) && (!$document->isExternal() || $user->isRecords()))
+                            {{-- Update status --}}
                             <div class="action-section">
                                 <h3><i class="fas fa-tag" style="margin-right:5px"></i>Update Status</h3>
                                 <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Update the current processing status of this document.</p>
@@ -497,23 +496,23 @@
                                     <i class="fas fa-edit"></i> Update Status
                                 </button>
                             </div>
-
-                            {{-- Confirm Pickup --}}
-                            @if($document->status === 'for_pickup')
-                                <hr class="divider">
-                                <div class="action-section">
-                                    <h3>Confirm Pickup</h3>
-                                    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
-                                        This document is ready for pickup. Confirm once the recipient has actually claimed it.
-                                    </p>
-                                    <button class="btn" style="background:#ea580c;color:#fff" onclick="openPickupModal()">
-                                        Mark as Picked Up
-                                    </button>
-                                </div>
-                            @endif
+                            <hr class="divider">
                         @endif
 
-                        @if(!$canAccept && !(($user->isRecords() || $user->isSuperAdmin()) && in_array($document->status, ['in_review','for_pickup'])))
+                        {{-- End Transaction --}}
+                        @if(!in_array($document->status, ['completed','returned','cancelled','archived']))
+                            <div class="action-section">
+                                <h3>End Transaction</h3>
+                                <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
+                                    End this transaction and mark the document as completed.
+                                </p>
+                                <button class="btn" style="background:#ea580c;color:#fff" onclick="openEndModal()">
+                                    End Transaction
+                                </button>
+                            </div>
+                        @endif
+
+                        @if(!$canAccept && in_array($document->status, ['completed','returned','cancelled','archived']))
                             <p style="color:var(--text-muted);font-size:13px;text-align:center;padding:10px 0">
                                 No actions available for the current status.
                             </p>
@@ -529,23 +528,10 @@
 var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 var docId = {{ $document->id }};
 
-function doAccept(){
-    document.getElementById('acceptModal').classList.add('show');
-}
-function closeAcceptModal(){
-    document.getElementById('acceptModal').classList.remove('show');
-}
-async function confirmAccept(){
-    var btn = document.getElementById('confirmAcceptBtn');
-    btn.disabled = true;
-    var res = await apiFetch('/api/office/documents/'+docId+'/accept', {});
-    if(res.success){ location.reload(); }
-    else{ alert(res.message||'Failed'); btn.disabled = false; closeAcceptModal(); }
-}
-
 var STATUS_REMARKS = {
     'for_pickup': ['Document is ready for pickup.'],
     'returned':   ['Returned due to incomplete requirements.','Returned for correction — please resubmit.'],
+    'completed':  ['Document picked up by recipient.','Document claimed by authorized representative.','Transaction completed successfully.'],
 };
 function updateStatusRemarks(){
     var status = document.getElementById('newStatus').value;
@@ -581,21 +567,21 @@ async function confirmUpdateStatus(){
     else{ showErr('statusError', res.message||'Failed to update status.'); btn.disabled = false; }
 }
 
-function openPickupModal(){
-    document.getElementById('pickupRemarksSelect').value='';
-    document.getElementById('pickupRemarks').value=''; document.getElementById('pickupRemarks').style.display='none';
-    document.getElementById('pickupModal').classList.add('show');
+function openEndModal(){
+    document.getElementById('endRemarksSelect').value='';
+    document.getElementById('endRemarks').value=''; document.getElementById('endRemarks').style.display='none';
+    document.getElementById('endModal').classList.add('show');
 }
-function closePickupModal(){
-    document.getElementById('pickupModal').classList.remove('show');
+function closeEndModal(){
+    document.getElementById('endModal').classList.remove('show');
 }
-async function confirmPickup(){
-    var remarks = getRemarksValue('pickupRemarksSelect','pickupRemarks');
-    var btn = document.getElementById('confirmPickupBtn');
+async function confirmEnd(){
+    var remarks = getRemarksValue('endRemarksSelect','endRemarks');
+    var btn = document.getElementById('confirmEndBtn');
     btn.disabled = true;
-    var res = await apiFetch('/api/office/documents/'+docId+'/status', {status:'completed',remarks:remarks||'Document picked up by recipient.'});
+    var res = await apiFetch('/api/office/documents/'+docId+'/status', {status:'completed',remarks:remarks||'Transaction completed successfully.'});
     if(res.success){ location.reload(); }
-    else{ alert(res.message||'Failed to confirm pickup.'); btn.disabled = false; closePickupModal(); }
+    else{ alert(res.message||'Failed to end transaction.'); btn.disabled = false; closeEndModal(); }
 }
 
 function handleRemarksDropdown(selectId, textareaId){
@@ -643,45 +629,29 @@ function logout(){
 </script>
 
     <!-- Accept Modal -->
-    <div class="modal-overlay" id="acceptModal" onclick="if(event.target===this)closeAcceptModal()">
-        <div class="modal">
-            <div class="modal-head">
-                <div class="modal-icon"><i class="fas fa-check"></i></div>
-                <h3>Accept Document</h3>
-            </div>
-            <div class="modal-body">
-                <p>You are about to accept this document. This will confirm receipt at your office and begin <strong style="color:var(--text-dark)">Processing</strong>.</p>
-            </div>
-            <div class="modal-foot">
-                <button class="modal-btn" onclick="closeAcceptModal()">Cancel</button>
-                <button class="modal-btn success" id="confirmAcceptBtn" onclick="confirmAccept()">
-                    <i class="fas fa-check"></i> Confirm Accept
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Confirm Pickup Modal -->
-    <div class="modal-overlay" id="pickupModal" onclick="if(event.target===this)closePickupModal()">
+    <!-- End Transaction Modal -->
+    <div class="modal-overlay" id="endModal" onclick="if(event.target===this)closeEndModal()">
         <div class="modal" style="max-width:460px">
             <div class="modal-head">
-                <h3>Confirm Document Pickup</h3>
+                <h3>End Transaction</h3>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom:14px">Has the recipient <strong>actually claimed</strong> this document? This will mark the document as <strong style="color:#15803d">Completed</strong>.</p>
+                <p style="margin-bottom:14px">Are you sure you want to end this transaction? This will mark the document as <strong style="color:#15803d">Completed</strong>.</p>
                 <label class="modal-label">Remarks <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
-                <select class="modal-field" id="pickupRemarksSelect" onchange="handleRemarksDropdown('pickupRemarksSelect','pickupRemarks')">
+                <select class="modal-field" id="endRemarksSelect" onchange="handleRemarksDropdown('endRemarksSelect','endRemarks')">
                     <option value="">Select a remark…</option>
-                    <option value="Document picked up by recipient.">Document picked up by recipient.</option>
-                    <option value="Document claimed by authorized representative.">Document claimed by authorized representative.</option>
+                    <option value="Document processed and completed.">Document processed and completed.</option>
+                    <option value="Request approved and completed.">Request approved and completed.</option>
+                    <option value="Action taken and transaction closed.">Action taken and transaction closed.</option>
+                    <option value="Transaction completed successfully.">Transaction completed successfully.</option>
                     <option value="__custom">Custom Remark…</option>
                 </select>
-                <textarea class="modal-field" id="pickupRemarks" placeholder="Type your custom remark..." style="min-height:70px;resize:vertical;display:none;margin-top:8px" data-no-capitalize></textarea>
+                <textarea class="modal-field" id="endRemarks" placeholder="Type your custom remark..." style="min-height:70px;resize:vertical;display:none;margin-top:8px" data-no-capitalize></textarea>
             </div>
             <div class="modal-foot">
-                <button class="modal-btn" onclick="closePickupModal()">No, Not Yet</button>
-                <button class="modal-btn success" id="confirmPickupBtn" onclick="confirmPickup()">
-                    Yes, Mark as Picked Up
+                <button class="modal-btn" onclick="closeEndModal()">Cancel</button>
+                <button class="modal-btn success" id="confirmEndBtn" onclick="confirmEnd()">
+                    End Transaction
                 </button>
             </div>
         </div>
@@ -701,6 +671,7 @@ function logout(){
                     <option value="">Select status...</option>
                     <option value="for_pickup">For Pickup (Ready to Claim)</option>
                     <option value="returned">Return to Sender</option>
+                    <option value="completed">Complete Transaction</option>
                 </select>
                 <label class="modal-label" style="margin-top:12px">Remarks <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
                 <select class="modal-field" id="statusRemarksSelect" onchange="handleRemarksDropdown('statusRemarksSelect','statusRemarks')">

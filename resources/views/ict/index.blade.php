@@ -194,10 +194,8 @@
         .td-action{text-align:center}
         .btn-view{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:var(--primary);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif;text-decoration:none;transition:background .2s}
         .btn-view:hover{background:var(--primary-dark)}
-        .btn-accept{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:#16a34a;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif;transition:background .2s;margin-bottom:3px}
-        .btn-accept:hover{background:#15803d}
-        .btn-manage{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:#334155;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif;text-decoration:none;transition:background .2s}
-        .btn-manage:hover{background:#1e293b}
+        .btn-manage{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:6px 10px;border-radius:7px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif;text-decoration:none;transition:all .15s;white-space:nowrap}
+        .btn-manage:hover{background:#dbeafe;border-color:#93c5fd;color:#1e40af}
         tr.doc-row{cursor:pointer}
         .cell-ellipsis{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .table-doc-count{font-size:11px;color:#94a3b8;font-weight:500}
@@ -227,8 +225,8 @@
         .queue-panel .submission-person{font-size:12px;color:var(--text-dark);font-weight:500}
         .queue-panel .submission-date{display:inline-flex;align-items:center;gap:5px;margin-top:4px;font-size:11px;color:#94a3b8;white-space:nowrap}
         .queue-panel .submission-date i{font-size:10px}
-        .queue-panel .td-cta{white-space:nowrap}
-        .queue-panel .td-cta .btn-accept{width:100%;justify-content:center;padding:8px 10px;border-radius:8px;margin-bottom:0}
+        .queue-panel .td-cta{white-space:nowrap;text-align:center}
+        .queue-panel .td-cta .btn-manage{justify-content:center;margin-bottom:0}
         .queue-panel .td-action{width:44px;text-align:center}
         .mob-cards{display:none;padding:12px}
         .mob-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.04);cursor:pointer;transition:border-color .15s,box-shadow .15s}
@@ -244,7 +242,7 @@
         .mob-card-status{display:inline-flex;align-items:center;gap:5px;min-width:0}
         .mob-card-date{font-size:10.5px;color:var(--text-muted);display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
         .mob-card-actions{display:flex;gap:8px;margin-top:10px}
-        .mob-card-actions .btn-accept{flex:1;justify-content:center;padding:8px 10px;border-radius:10px;font-size:11px}
+        .mob-card-actions .btn-manage{justify-content:center;font-size:11px}
         .mob-card-row{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text-muted)}
         .mob-card-row i{font-size:11px;opacity:.75;flex-shrink:0}
         .mob-card.hidden-row{display:none}
@@ -272,7 +270,7 @@
         .tl-dot.c-active{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.c-done{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
         .tl-dot.c-warn{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
-        .tl-dot.c-danger{background:#22c55e;box-shadow:0 0 0 2px #22c55e}
+        .tl-dot.c-danger{background:#dc2626;box-shadow:0 0 0 2px #dc2626}
         .tl-dot.c-latest{background:#f59e0b;box-shadow:0 0 0 2px #f59e0b}
         .tl-action{font-size:12px;font-weight:700;color:#1b263b}
         .tl-meta{font-size:12px;color:#64748b;margin:2px 0}
@@ -303,6 +301,10 @@
         .btn-cancel-modal:hover{background:#e2e8f0}
         .btn-confirm-modal{background:#16a34a;color:#fff}
         .btn-confirm-modal:hover{background:#15803d}
+        .btn{padding:10px 18px;border-radius:9px;font-size:13px;font-weight:600;font-family:'Poppins',sans-serif;cursor:pointer;border:none;transition:background .2s;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+        .btn:disabled{opacity:.6;cursor:not-allowed}
+        .btn-primary{background:var(--primary);color:#fff;width:100%}
+        .btn-primary:hover:not(:disabled){background:var(--primary-dark)}
 
         /* ─── Pagination ─── */
         .pagination-bar{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted)}
@@ -357,7 +359,7 @@
             .dashboard-table-card.has-list .mob-cards{display:block!important;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px}
             .mob-cards{display:block;padding:10px}
             .table-card{border-radius:10px}
-            .mob-card-actions .btn-accept{font-size:10.5px}
+            .mob-card-actions .btn-manage{font-size:10.5px}
         }
         @media(max-width:1024px){
             .dashboard-table-card.has-list .table-card-scroll{display:none!important}
@@ -481,9 +483,9 @@
     <!-- Stats -->
     <div class="stats-grid">
         <div class="stat-card c-blue">
-            <div class="stat-label">Incoming</div>
+            <div class="stat-label">Queue</div>
             <div class="stat-num" id="stat-active">{{ \App\Support\UiNumber::compact($stats['active']) }}</div>
-            <div class="stat-sub">In your office queue</div>
+            <div class="stat-sub">Received by your office</div>
         </div>
         <div class="stat-card c-amber">
             <div class="stat-label">Processing</div>
@@ -514,9 +516,8 @@
                 <div class="filter-row">
                     <select id="tblStatus" onchange="filterTable()">
                         <option value="">All Statuses</option>
-                        @foreach(\App\Models\Document::FILTER_STATUSES as $val => $label)
-                            <option value="{{ $val }}">{{ $label }}</option>
-                        @endforeach
+                        <option value="in_review">Processing</option>
+                        <option value="processed">Processed</option>
                     </select>
                     <button class="btn-clear" onclick="document.getElementById('tblSearch').value='';document.getElementById('tblStatus').value='';filterTable()"><i class="fas fa-rotate-left"></i> Clear</button>
                 </div>
@@ -548,7 +549,13 @@
             </thead>
             <tbody>
                 @foreach($documents as $doc)
-                @php $sender = $doc->user ? $doc->user->name : ($doc->sender_name ?? 'Guest'); @endphp
+                @php
+                    $sender = $doc->user ? $doc->user->name : ($doc->sender_name ?? 'Guest');
+                    $canActOnDoc = $user->office_id
+                        && (((int) $doc->current_office_id === (int) $user->office_id)
+                            || ($doc->status === 'submitted' && (int) $doc->submitted_to_office_id === (int) $user->office_id));
+                    $canManageDoc = $canActOnDoc && in_array($doc->status, ['in_review', 'for_pickup']);
+                @endphp
                 <tr class="doc-row" data-search="{{ strtolower(trim(($doc->reference_number ?? '').' '.($doc->tracking_number ?? '').' '.$doc->subject.' '.$sender.' '.($doc->type ?? ''))) }}" data-status="{{ $doc->status }}" onclick='openDocDetail("{{ $doc->reference_number ?: $doc->tracking_number }}")'>
                     <td class="t-ref"><div class="cell-ellipsis" title="{{ $doc->reference_number ?: 'N/A' }}">{{ $doc->reference_number ?: 'N/A' }}</div></td>
                     <td class="t-track"><div class="cell-ellipsis" title="{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}">{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div></td>
@@ -558,11 +565,13 @@
                         <div class="submission-date"><i class="fas fa-calendar-alt"></i>{{ $doc->created_at->format('M d, Y') }}</div>
                     </td>
                     <td class="t-status">
-                        <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabel() }}</span>
+                        <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabelWithOffice() }}</span>
                     </td>
                     <td class="td-cta" onclick="event.stopPropagation()">
-                        @if($doc->status === 'submitted')
-                            <button class="btn-accept" onclick="quickAccept({{ $doc->id }}, this)"><i class="fas fa-check"></i> Accept</button>
+                        @if($canManageDoc)
+                            <a class="btn-manage" href="/office/documents/{{ $doc->id }}" title="Manage document">
+                                <i class="fas fa-pen"></i> Manage
+                            </a>
                         @endif
                     </td>
                     <td class="td-action"><span class="row-arrow"><i class="fas fa-chevron-right"></i></span></td>
@@ -573,7 +582,13 @@
         </div>
         <div class="mob-cards">
             @foreach($documents as $doc)
-            @php $sender = $doc->user ? $doc->user->name : ($doc->sender_name ?? 'Guest'); @endphp
+            @php
+                $sender = $doc->user ? $doc->user->name : ($doc->sender_name ?? 'Guest');
+                $canActOnDoc = $user->office_id
+                    && (((int) $doc->current_office_id === (int) $user->office_id)
+                        || ($doc->status === 'submitted' && (int) $doc->submitted_to_office_id === (int) $user->office_id));
+                $canManageDoc = $canActOnDoc && in_array($doc->status, ['in_review', 'for_pickup']);
+            @endphp
             <div class="mob-card" data-search="{{ strtolower(trim(($doc->reference_number ?? '').' '.($doc->tracking_number ?? '').' '.$doc->subject.' '.$sender.' '.($doc->type ?? ''))) }}" data-status="{{ $doc->status }}" onclick='openDocDetail("{{ $doc->reference_number ?: $doc->tracking_number }}")'>
                 <div class="mob-card-top">
                     <div class="mob-card-ids">
@@ -584,16 +599,18 @@
                 </div>
                 <div class="mob-card-subject">{{ $doc->subject }}</div>
                 <div class="mob-card-meta">
-                    <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabel() }}</span>
+                    <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabelWithOffice() }}</span>
                     <span class="mob-card-date"><i class="fas fa-calendar"></i>{{ $doc->created_at->format('M d, Y') }}</span>
                 </div>
                 <div class="mob-card-row">
                     <i class="fas fa-user"></i>
                     <span class="cell-ellipsis" title="{{ $sender }}">{{ $sender }}</span>
                 </div>
-                @if($doc->status === 'submitted')
+                @if($canManageDoc)
                 <div class="mob-card-actions">
-                    <button class="btn-accept" onclick="event.stopPropagation(); quickAccept({{ $doc->id }}, this)"><i class="fas fa-check"></i> Accept</button>
+                    <a class="btn-manage" href="/office/documents/{{ $doc->id }}" onclick="event.stopPropagation()" title="Manage document">
+                        <i class="fas fa-pen"></i> Manage
+                    </a>
                 </div>
                 @endif
             </div>
@@ -643,13 +660,18 @@
 </div>
 
 <!-- ─── Accept Modal ─── -->
-<div class="modal-overlay" id="acceptModal">
+<!-- ─── End Transaction Modal ─── -->
+<div class="modal-overlay" id="ictPickupModal">
     <div class="modal">
-        <h3><i class="fas fa-check-circle" style="color:#16a34a;margin-right:6px"></i>Accept Document</h3>
-        <p>Accept this document into your office queue? This will update the routing log.</p>
+        <h3><i class="fas fa-check-circle" style="color:#0056b3;margin-right:6px"></i>End Transaction</h3>
+        <p>Are you sure you want to end this transaction? This action cannot be undone.</p>
+        <div style="margin-bottom:14px">
+            <label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:6px">Remarks (Optional)</label>
+            <textarea id="ictPickupRemarks" style="width:100%;padding:9px 12px;font-family:Poppins,sans-serif;font-size:12px;border:1.5px solid var(--border);border-radius:8px;resize:vertical;min-height:60px;outline:none" placeholder="Add any remarks about the transaction completion..."></textarea>
+        </div>
         <div class="modal-btns">
-            <button class="btn-cancel-modal" onclick="document.getElementById('acceptModal').classList.remove('open')">Cancel</button>
-            <button class="btn-confirm-modal" onclick="confirmAccept()"><i class="fas fa-check"></i> Confirm</button>
+            <button class="btn-cancel-modal" onclick="closeIctPickupModal()">Cancel</button>
+            <button class="btn-confirm-modal" id="confirmIctPickupBtn" onclick="confirmIctPickup()"><i class="fas fa-check"></i> End Transaction</button>
         </div>
     </div>
 </div>
@@ -667,7 +689,6 @@
 
 <script>
 var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    var _acceptDocId = null;
 
     // ─── Sidebar ───
     window.toggleSidebar = function() {
@@ -823,22 +844,42 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
     window.submitReceiveLookup = submitReceiveLookup;
     window.receiveByReference = receiveByReference;
 
-    // ─── Accept Document ───
-    window.quickAccept = function(docId, btn) {
-        _acceptDocId = docId;
-        document.getElementById('acceptModal').classList.add('open');
+    var _ictPickupDocId = null;
+    window.openIctPickupModal = function(docId) {
+        _ictPickupDocId = docId;
+        document.getElementById('ictPickupRemarks').value = '';
+        document.getElementById('ictPickupModal').classList.add('open');
     };
-    window.confirmAccept = function() {
-        if (!_acceptDocId) return;
-        document.getElementById('acceptModal').classList.remove('open');
-        fetch('/api/ict/documents/' + _acceptDocId + '/accept', {
+    window.closeIctPickupModal = function() {
+        document.getElementById('ictPickupModal').classList.remove('open');
+        _ictPickupDocId = null;
+    };
+    window.confirmIctPickup = function() {
+        if (!_ictPickupDocId) return;
+        var btn = document.getElementById('confirmIctPickupBtn');
+        var remarks = document.getElementById('ictPickupRemarks').value.trim();
+        btn.disabled = true;
+        fetch('/api/ict/documents/' + _ictPickupDocId + '/status', {
             method:'POST',
             headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
-            body: JSON.stringify({})
+            body: JSON.stringify({status:'completed',remarks:remarks})
         }).then(function(r){return r.json();}).then(function(d) {
-            if (d.success) setTimeout(function(){ location.reload(); }, 600);
-            else alert(d.message || 'Could not accept document.');
-        }).catch(function() { alert('Network error.'); });
+            if (d.success) {
+                alert('Transaction ended successfully.');
+                closeIctPickupModal();
+                setTimeout(function(){ location.reload(); }, 600);
+            } else {
+                alert(d.message || 'Could not end transaction.');
+                btn.disabled = false;
+            }
+        }).catch(function() {
+            alert('Network error.');
+            btn.disabled = false;
+        });
+    };
+    window.escapeAttr = function(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     };
 
     // ─── Client-side Filter ───
@@ -850,15 +891,21 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
         var visible = 0;
         rows.forEach(function(tr) {
             var ds = (tr.getAttribute('data-search') || '').toLowerCase();
-            var dstat = tr.getAttribute('data-status') || '';
-            var show = (!q || ds.indexOf(q) > -1) && (!s || dstat === s);
+            var dstat = (tr.getAttribute('data-status') || '').toLowerCase();
+            var statusMatch = !s || (s === 'processed'
+                ? ['completed', 'for_pickup', 'returned'].indexOf(dstat) !== -1
+                : dstat === s);
+            var show = (!q || ds.indexOf(q) > -1) && statusMatch;
             tr.style.display = show ? '' : 'none';
             if (show) visible++;
         });
         cards.forEach(function(card) {
             var ds = (card.getAttribute('data-search') || '').toLowerCase();
-            var dstat = card.getAttribute('data-status') || '';
-            var show = (!q || ds.indexOf(q) > -1) && (!s || dstat === s);
+            var dstat = (card.getAttribute('data-status') || '').toLowerCase();
+            var statusMatch = !s || (s === 'processed'
+                ? ['completed', 'for_pickup', 'returned'].indexOf(dstat) !== -1
+                : dstat === s);
+            var show = (!q || ds.indexOf(q) > -1) && statusMatch;
             card.classList.toggle('hidden-row', !show);
         });
         var nr = document.getElementById('noResults');
@@ -878,7 +925,7 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
         document.getElementById('docDrawer').classList.add('open');
         document.getElementById('drawerOverlay').classList.add('open');
         document.body.style.overflow = 'hidden';
-        window.docTraxFetchJson('/api/track-document', {
+        window.docTraxFetchJson('/api/internal/track-document', {
             method: 'POST',
             headers: {'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
             timeoutMs: 15000,
@@ -911,7 +958,8 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
         return d.innerHTML;
     }
     function dotClass(s){
-        if(s==='cancelled' || s==='returned') return 'c-danger';
+        var st = String(s || '').toLowerCase();
+        if(st === 'cancelled' || /return|resubmit/.test(st)) return 'c-danger';
         if(s==='completed') return 'c-done';
         if(s==='forwarded') return 'c-warn';
         return 'c-active';
@@ -943,10 +991,18 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
             var prevGroupKey = null;
             logs.slice().reverse().forEach(function(log, idx) {
                 var isLatest = idx === 0;
-                var dc = isLatest ? 'c-latest' : dotClass(log.status_after);
+                var dc;
+                var latestStatus = String(doc.status || '').toLowerCase();
+                if (isLatest) {
+                    if (latestStatus === 'completed') dc = 'c-done';
+                    else if (/return|resubmit/.test(latestStatus)) dc = 'c-danger';
+                    else dc = 'c-latest';
+                } else {
+                    dc = dotClass(log.status_after);
+                }
                 var dotIcon = isLatest ? 'fa-arrow-up' : 'fa-check';
                 var groupKey = _gk(log);
-                var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : groupKey;
+                var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : (((log.action === 'archived' || log.status_after === 'archived') && groupKey === 'Unknown') ? 'Archived' : groupKey);
                 if (groupKey !== prevGroupKey) {
                     prevGroupKey = groupKey;
                     var dur = null;
@@ -966,7 +1022,8 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
 
         document.getElementById('drawerBody').innerHTML =
             '<div class="drawer-tl-head"><i class="fas fa-history"></i> Routing History</div>' +
-            '<div class="drawer-timeline"><div class="tl">' + tlHtml + '</div></div>';
+            '<div class="drawer-timeline"><div class="tl">' + tlHtml + '</div></div>' +
+            (doc.status === 'for_pickup' ? '<div style="padding:20px"><div class="action-section" style="border-top:1px solid var(--border);padding-top:16px"><h3 style="font-size:13px;font-weight:600;color:var(--text-dark);margin-bottom:8px">End Transaction</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">This document is ready for release. End the transaction once the recipient has actually claimed it.</p><button class="btn btn-primary" onclick="openIctPickupModal(' + escapeAttr(doc.id) + ')">End Transaction</button></div></div>' : '');
     }
 
     // ─── Live Stats (silent update every 30s) ───

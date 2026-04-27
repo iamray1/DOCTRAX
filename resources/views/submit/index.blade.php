@@ -422,23 +422,6 @@
                     <div class="section-label"><i class="fas fa-file-invoice"></i> Document Details</div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Document Type <span class="req">*</span></label>
-                            <select id="docType" onchange="toggleOthers()">
-                                <option value="" disabled selected>Select document type</option>
-                                <option>Transcript of Records (TOR)</option>
-                                <option>Certificate of Employment</option>
-                                <option>Service Record</option>
-                                <option>Leave Application</option>
-                                <option>Memorandum</option>
-                                <option>Letter / Endorsement</option>
-                                <option>Voucher / Payroll</option>
-                                <option>Report / Compliance</option>
-                                <option>Request / Petition</option>
-                                <option value="Others">Others</option>
-                            </select>
-                            <div class="err-text" id="errDocType"><i class="fas fa-exclamation-circle"></i> Please select a document type</div>
-                        </div>
-                        <div class="form-group">
                             <label>To:</label>
                             <select id="routingOffice">
                                 <option value="" selected disabled>Select destination office</option>
@@ -449,6 +432,13 @@
                                 @endforelse
                             </select>
                             <div class="err-text" id="errRoutingOffice"><i class="fas fa-exclamation-circle"></i> Please select a destination office</div>
+                        </div>
+                        <div class="form-group">
+                            <label>Document Type <span class="req">*</span></label>
+                            <select id="docType" onchange="toggleOthers()" disabled>
+                                <option value="" disabled selected>Select destination office first</option>
+                            </select>
+                            <div class="err-text" id="errDocType"><i class="fas fa-exclamation-circle"></i> Please select a document type</div>
                         </div>
                     </div>
 
@@ -538,7 +528,7 @@
                             <i class="fas fa-folder"></i> My Documents
                         </button>
                         @endif
-                        <button class="btn-secondary" onclick="window.location.reload()">
+                        <button class="btn-secondary" onclick="resetForm()">
                             <i class="fas fa-plus"></i> Submit Another
                         </button>
                     </div>
@@ -586,8 +576,11 @@
         const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         const isLoggedIn = {{ auth()->check() ? 'true' : 'false' }};
         const guestSubmitDraftKey = 'doctrax.public_submit_draft';
+        const documentTypeOptionsByOffice = @json($documentTypeOptionsByOffice ?? []);
         const recordsReminderModal = document.getElementById('recordsReminderModal');
         const recordsReminderOkBtn = document.getElementById('recordsReminderOkBtn');
+        const routingOfficeSelect = document.getElementById('routingOffice');
+        const docTypeSelect = document.getElementById('docType');
 
         function openRecordsReminderModal() {
             if (!recordsReminderModal) return;
@@ -649,6 +642,57 @@
             if (val !== 'Others') document.getElementById('othersSpecify').value = '';
         };
 
+        function getDocumentTypeOptionsForOffice(officeId) {
+            if (!officeId) return [];
+
+            const options = documentTypeOptionsByOffice[String(officeId)];
+            if (!Array.isArray(options)) return [];
+
+            return options.filter(function (option) {
+                return typeof option === 'string' && option.trim() !== '';
+            });
+        }
+
+        function populateDocumentTypeOptions(officeId, preferredValue) {
+            if (!docTypeSelect) return;
+
+            const currentValue = typeof preferredValue === 'string' ? preferredValue : docTypeSelect.value;
+            const options = getDocumentTypeOptionsForOffice(officeId);
+
+            docTypeSelect.innerHTML = '';
+
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.disabled = true;
+            placeholder.textContent = officeId ? 'Select document type' : 'Select destination office first';
+            docTypeSelect.appendChild(placeholder);
+
+            options.forEach(function (option) {
+                const optionEl = document.createElement('option');
+                optionEl.value = option;
+                optionEl.textContent = option;
+                docTypeSelect.appendChild(optionEl);
+            });
+
+            if (officeId) {
+                const othersOption = document.createElement('option');
+                othersOption.value = 'Others';
+                othersOption.textContent = 'Others';
+                docTypeSelect.appendChild(othersOption);
+            }
+
+            docTypeSelect.disabled = !officeId;
+
+            if (currentValue === 'Others' || options.indexOf(currentValue) !== -1) {
+                docTypeSelect.value = currentValue;
+            } else {
+                docTypeSelect.value = '';
+                placeholder.selected = true;
+            }
+
+            window.toggleOthers();
+        }
+
         function clearErrors() {
             document.querySelectorAll('.err-text').forEach(e => e.classList.remove('show'));
             document.querySelectorAll('input,select,textarea').forEach(e => e.classList.remove('err'));
@@ -668,6 +712,7 @@
                 sender_last_name: document.getElementById('senderLastName')?.value.trim() || '',
                 sender_contact: document.getElementById('senderContact')?.value.trim() || '',
                 sender_email: document.getElementById('senderEmail')?.value.trim().toLowerCase() || '',
+                routing_office_id: document.getElementById('routingOffice')?.value || '',
                 type: document.getElementById('docType')?.value || '',
                 others: document.getElementById('othersSpecify')?.value.trim() || '',
                 subject: document.getElementById('subject')?.value.trim() || '',
@@ -706,6 +751,10 @@
                 if (draft.sender_contact) document.getElementById('senderContact').value = normalizeContact(draft.sender_contact);
                 if (draft.sender_email) document.getElementById('senderEmail').value = draft.sender_email;
             }
+            if (draft.routing_office_id && routingOfficeSelect) {
+                routingOfficeSelect.value = draft.routing_office_id;
+            }
+            populateDocumentTypeOptions(routingOfficeSelect?.value || '', draft.type || '');
             if (draft.type) {
                 document.getElementById('docType').value = draft.type;
                 window.toggleOthers();
@@ -764,6 +813,13 @@
             el.addEventListener('input', saveGuestDraft);
             el.addEventListener('change', saveGuestDraft);
         });
+
+        if (routingOfficeSelect) {
+            routingOfficeSelect.addEventListener('change', function () {
+                populateDocumentTypeOptions(this.value);
+                saveGuestDraft();
+            });
+        }
 
         function fieldErr(inputId, errId) {
             document.getElementById(inputId)?.classList.add('err');
@@ -855,6 +911,7 @@
                 if (data.success) {
                     removeGuestDraft();
                     applySuccessData(data);
+                    // Show Records reminder for users/representatives (always show for public/guest/user/school rep)
                     openRecordsReminderModal();
                 } else {
                     if (data.requires_login) {
@@ -871,6 +928,56 @@
             }
         };
 
+        window.resetForm = function () {
+            closeRecordsReminderModal();
+            removeGuestDraft();
+            document.getElementById('formState').style.display = 'block';
+            document.getElementById('successState').style.display = 'none';
+
+            if (!isLoggedIn) {
+                ['senderFirstName', 'senderLastName', 'senderContact', 'senderEmail'].forEach(function(id) {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+            }
+
+            const routingOffice = document.getElementById('routingOffice');
+            if (routingOffice) routingOffice.selectedIndex = 0;
+            populateDocumentTypeOptions('', '');
+
+            const othersWrap = document.getElementById('othersWrap');
+            if (othersWrap) othersWrap.classList.remove('show');
+
+            ['othersSpecify', 'subject', 'description'].forEach(function(id) {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+
+            const qrBox = document.getElementById('qrBox');
+            if (qrBox) qrBox.style.display = 'none';
+
+            const qrImg = document.getElementById('qrImg');
+            if (qrImg) qrImg.removeAttribute('src');
+
+            const generatedCode = document.getElementById('generatedCode');
+            if (generatedCode) generatedCode.textContent = '';
+
+            const generatedDocControl = document.getElementById('generatedDocControl');
+            if (generatedDocControl) generatedDocControl.textContent = '-';
+
+            ['dSender', 'dType', 'dSubject', 'dRemarks', 'dOffice', 'dDate'].forEach(function(id) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '';
+            });
+
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) submitBtn.disabled = false;
+
+            clearErrors();
+            closeSigninModal();
+        };
+
+        populateDocumentTypeOptions(routingOfficeSelect?.value || '', '');
         restoreGuestDraft();
 
         var signinModalEl = document.getElementById('signinModal');

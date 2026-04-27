@@ -758,13 +758,7 @@
                 <button class="date-modal-close" onclick="closeDateModal()"><i class="fas fa-times"></i></button>
             </div>
             <div class="date-modal-body">
-                <div class="date-field-group">
-                    <label class="date-field-label">Date Basis</label>
-                    <select class="field" id="mDateField">
-                        <option value="created_at"    {{ ($filters['date_field'] ?: 'created_at') === 'created_at'    ? 'selected' : '' }}>Date Submitted</option>
-                        <option value="last_action_at" {{ ($filters['date_field'] ?: 'created_at') === 'last_action_at' ? 'selected' : '' }}>Last Action Date</option>
-                    </select>
-                </div>
+
                 <div class="date-field-group">
                     <label class="date-field-label">Date Range</label>
                     <div class="date-row">
@@ -834,7 +828,6 @@
                     <th>Process</th>
                     <th>Tagged To</th>
                     <th>Submitted At</th>
-                    <th>Last Action</th>
                     <th class="td-action"></th>
                 </tr>
                 </thead>
@@ -853,10 +846,9 @@
                         <td style="max-width:200px"><div class="cell-ellipsis" title="{{ $doc->subject }}">{{ $doc->subject }}</div></td>
                         <td><div class="cell-ellipsis" style="max-width:160px" title="{{ $doc->type }}">{{ $doc->type }}</div></td>
                         <td><div class="cell-ellipsis" style="max-width:170px" title="{{ $doc->sender_name }}">{{ $doc->sender_name }}</div></td>
-                        <td><span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabel() }}</span></td>
+                        <td><span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabelWithOffice() }}</span></td>
                         <td>{{ $doc->currentHandler?->name ?? 'Unassigned' }}</td>
                         <td class="muted-sm">{{ $doc->created_at?->copy()->setTimezone('Asia/Manila')->format('M d, Y h:i A') }}</td>
-                        <td class="muted-sm">{{ $doc->last_action_at ? $doc->last_action_at->copy()->setTimezone('Asia/Manila')->format('M d, Y h:i A') : '-' }}</td>
                         <td class="td-action">
                             <span class="row-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
                         </td>
@@ -881,7 +873,7 @@
                         <div style="font-size:11px;color:var(--text-muted);font-family:Poppins,sans-serif;font-weight:500;margin-top:2px">Document Control #: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
                         <div class="mob-doc-subject">{{ $doc->subject }}</div>
                         <div class="mob-doc-meta">
-                            <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabel() }}</span>
+                            <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabelWithOffice() }}</span>
                             <span class="mob-doc-date">{{ $doc->last_action_at ? $doc->last_action_at->copy()->setTimezone('Asia/Manila')->format('M d, Y h:i A') : '-' }}</span>
                         </div>
                         <div class="mob-doc-kv">
@@ -1401,10 +1393,8 @@ function closeDateModal() {
 function clearDateModal() {
     document.getElementById('mDateFrom').value = '';
     document.getElementById('mDateTo').value   = '';
-    document.getElementById('mDateField').value = 'created_at';
 }
 function applyDateModal() {
-    document.getElementById('hDateField').value = document.getElementById('mDateField').value;
     document.getElementById('hDateFrom').value  = document.getElementById('mDateFrom').value;
     document.getElementById('hDateTo').value    = document.getElementById('mDateTo').value;
     closeDateModal();
@@ -1501,7 +1491,7 @@ function openDocDetail(ref, tracking) {
     document.getElementById('docDrawer').classList.add('open');
     document.body.style.overflow = 'hidden';
 
-    window.docTraxFetchJson('/api/track-document', {
+    window.docTraxFetchJson('/api/internal/track-document', {
         method: 'POST',
         headers: {'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
         timeoutMs: 15000,
@@ -1525,7 +1515,7 @@ function openDocDetail(ref, tracking) {
                 reference_number: fallback.reference_number || tracking || ref,
                 tracking_number: fallback.tracking_number || tracking || ref,
                 status: fallback.status || 'unknown',
-                status_label: fallback.status_label || 'Unknown',
+                status_label: fallback.status_label || (fallback.status === 'archived' ? 'Archived' : 'Unknown'),
                 sender_name: fallback.sender_name || '-',
                 type: fallback.type || '-',
                 submitted_to_office: fallback.submitted_to_office || '-',
@@ -1585,7 +1575,7 @@ function renderDrawer(doc) {
             var dotIcon = isLatest ? 'fa-arrow-up' : 'fa-check';
             var fromTo = (log.from_office && log.to_office && log.from_office !== log.to_office) ? (log.from_office + ' -> ' + log.to_office) : '';
             var groupKey = groupKeyFor(log);
-            var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : groupKey;
+            var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : (((log.action === 'archived' || log.status_after === 'archived') && groupKey === 'Unknown') ? 'Archived' : groupKey);
             if (groupKey !== prevGroupKey) {
                 prevGroupKey = groupKey;
                 var dur = null;

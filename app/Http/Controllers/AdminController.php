@@ -31,8 +31,7 @@ class AdminController extends Controller
     {
         return $query->where(function ($q) use ($user) {
             $q->whereNull('user_id')
-              ->orWhere('user_id', '!=', $user->id)
-              ->orWhere('current_handler_id', $user->id);
+              ->orWhere('user_id', '!=', $user->id);
         });
     }
 
@@ -708,7 +707,7 @@ class AdminController extends Controller
         $this->authorize();
 
         $accounts = User::where('role', 'user')
-            ->where('account_type', 'representative')
+            ->where('account_type', 'office')
             ->whereNotNull('office_id')
             ->with('office')
             ->latest()
@@ -788,7 +787,7 @@ class AdminController extends Controller
                     'name'         => $request->name,
                     'email'        => $request->email,
                     'mobile'       => $request->mobile ?: null,
-                    'account_type' => 'representative',
+                    'account_type' => 'office',
                     'office_id'    => $officeId,
                     'password'     => Hash::make(Str::random(64)),
                 ]);
@@ -832,7 +831,7 @@ class AdminController extends Controller
 
         $target = User::findOrFail($id);
 
-        if ($target->account_type !== 'representative' || !$target->office_id) {
+        if ($target->account_type !== 'office' || !$target->office_id) {
             return response()->json(['success' => false, 'message' => 'Not a valid office account.'], 422);
         }
 
@@ -853,7 +852,7 @@ class AdminController extends Controller
 
         $target = User::findOrFail($id);
 
-        if ($target->account_type !== 'representative' || !$target->office_id) {
+        if ($target->account_type !== 'office' || !$target->office_id) {
             return response()->json(['success' => false, 'message' => 'Not a valid office account.'], 422);
         }
 
@@ -882,7 +881,7 @@ class AdminController extends Controller
 
         $target = User::findOrFail($id);
 
-        if ($target->account_type !== 'representative' || !$target->office_id) {
+        if ($target->account_type !== 'office' || !$target->office_id) {
             return response()->json(['success' => false, 'message' => 'Not a valid office account.'], 422);
         }
 
@@ -892,19 +891,15 @@ class AdminController extends Controller
             return response()->json(['success' => false, 'message' => 'User is already assigned to this office.'], 422);
         }
 
-        $assignment = $this->applyRepresentativeOfficeAssignment($target, $newOfficeId);
+        $newOffice = Office::findOrFail($newOfficeId);
+        $target->office_id = $newOfficeId;
         $target->save();
 
         return response()->json([
             'success' => true,
-            'message' => $this->representativeOfficeAssignmentMessage(
-                $target,
-                $assignment['old_office'],
-                $assignment['new_office'],
-                $assignment['untagged']
-            ),
-            'new_office_id' => $assignment['new_office']->id,
-            'new_office_name' => $assignment['new_office']->name,
+            'message' => 'Office account transferred to ' . $newOffice->name . '.',
+            'new_office_id' => $newOffice->id,
+            'new_office_name' => $newOffice->name,
         ]);
     }
 
@@ -1157,24 +1152,65 @@ class AdminController extends Controller
     /**
      * ICT Unit — live stats JSON.
      */
-    public function ictStatsJson()
+    public function ictUpdateStatus(Request $request, $id)
     {
         $user = Auth::user();
         if (!$user || !$user->isSuperAdmin()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
-        $stats = $user->office
-            ? $this->officeQueueStatsForUser($user)
-            : Cache::remember('ict_stats_' . $user->id, 15, function () use ($user) {
-                $base = Document::where('current_handler_id', $user->id);
-                return [
-                    'active'    => (clone $base)->whereNotIn('status', ['completed', 'for_pickup', 'archived', 'cancelled', 'returned'])->count(),
-                    'in_review' => (clone $base)->whereIn('status', ['received', 'in_review'])->count(),
-                    'completed' => (clone $base)->whereIn('status', ['completed', 'for_pickup'])->count(),
-                ];
-            });
+        $request->validate([
+            'status' => 'required|in:completed',
+            'remarks' => 'nullable|string|max:1000',
+        ]);
 
-        return response()->json($stats);
+        $document = Document::with('user')->findOrFail($id);
+
+        // Block update status for external documents (from office accounts or superadmin)
+        if ($document->isExternal()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'External documents cannot have status updates. Use forward to route them.',
+            ], 422);
+        }
+
+        if ($document->current_handler_id && (int) $document->current_handler_id !== (int) $user->id) {
+            $handlerName = optional($document->currentHandler)->name ?: 'another admin';
+            return response()->json([
+                'success' => false,
+                'message' => "This document is tagged to {$handlerName}.",
+            ], 409);
+        }
+
+        if (!$document->current_handler_id) {
+            $document->current_handler_id = $user->id;
+        }
+
+        if ($request->status === 'completed' && $document->status !== 'for_pickup') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only documents marked For Pickup can be ended after the actual release.',
+            ], 422);
+        }
+
+        $document->status = 'completed';
+        $document->last_action_at = now();
+        $document->save();
+
+        RoutingLog::create([
+            'document_id' => $document->id,
+            'performed_by' => $user->id,
+            'from_office_id' => null,
+            'to_office_id' => $user->office_id,
+            'action' => 'completed',
+            'status_after' => 'completed',
+            'remarks' => $request->remarks ?: null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaction ended. Document marked as Completed.',
+            'status' => 'completed',
+        ]);
     }
 }

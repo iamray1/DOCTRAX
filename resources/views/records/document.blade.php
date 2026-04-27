@@ -82,6 +82,26 @@
         .site-footer .footer-left{display:flex;align-items:center;gap:6px}
         .site-footer .footer-right{font-size:11px;color:#b0b8c4}
         @media(max-width:900px){.site-footer{padding:16px 5%;flex-direction:column;gap:6px;text-align:center}}
+        .action-section{margin-bottom:16px}
+        .action-section h3{font-size:14px;font-weight:600;color:var(--text-dark);margin-bottom:6px}
+        .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;font-family:Poppins,sans-serif;transition:all .2s}
+        .btn-primary{background:var(--primary);color:#fff}
+        .btn-primary:hover{background:var(--primary-dark)}
+        .btn-secondary{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1}
+        .btn-secondary:hover{background:#e2e8f0}
+        .btn:disabled{background:#cbd5e1;color:#94a3b8;cursor:not-allowed}
+        .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+        .modal-overlay.open{display:flex}
+        .modal{background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-width:420px;width:90%;max-height:90vh;overflow-y:auto}
+        .modal-head{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .modal-head h3{font-size:16px;font-weight:700;color:var(--text-dark)}
+        .modal-close{background:none;border:none;font-size:20px;color:#64748b;cursor:pointer;padding:4px}
+        .modal-body{padding:24px}
+        .modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:12px;justify-content:flex-end}
+        .form-group{margin-bottom:16px}
+        .form-group label{display:block;font-size:13px;font-weight:600;color:var(--text-dark);margin-bottom:6px}
+        .form-group textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Poppins,sans-serif;resize:vertical;min-height:80px}
+        .form-group textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,86,179,.1)}
     </style>
     <script src="/js/spa.js" defer></script>
 </head>
@@ -285,6 +305,9 @@
                             foreach ($timelineLogs as $tlLog) {
                                 if ($tlLog->action === 'submitted') {
                                     $tlKey = '__pending__'; $tlLabel = 'Submitted — Pending Physical Submission';
+                                } elseif (in_array($tlLog->action, ['completed', 'returned'])) {
+                                    $tlKey = '__ended__';
+                                    $tlLabel = $tlLog->actionLabelWithOffice();
                                 } elseif ($tlLog->action === 'forwarded') {
                                     $tlKey = 'from_' . ($tlLog->from_office_id ?? '0');
                                     $tlLabel = $tlLog->fromOffice?->name ?? 'Office';
@@ -329,12 +352,21 @@
                                         @if($tlLog->performer)
                                             <div class="tl-action">{{ $tlLog->performer->name }}</div>
                                         @endif
-                                        <div class="tl-meta"><i class="fas fa-clock" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->created_at->setTimezone('Asia/Manila')->format('M d, Y h:i A') }}</div>
-                                        <div class="tl-meta"><i class="fas fa-tasks" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->actionLabel() }}</div>
+                                        <div class="tl-meta" style="{{ in_array($tlLog->action, ['completed', 'returned']) && $tlLog->action === 'returned' ? 'color:#dc2626' : '' }}"><i class="fas fa-clock" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->created_at->setTimezone('Asia/Manila')->format('M d, Y h:i A') }}</div>
+                                        @if(!in_array($tlLog->action, ['completed', 'returned']))
+                                        <div class="tl-meta"><i class="fas fa-tasks" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->actionLabelWithOffice() }}</div>
+                                        @endif
                                         @php
-                                            $tlRemarks = $tlLog->action === 'submitted'
-                                                ? 'Document submitted online. Awaiting physical submission to Records Section for routing to ' . ($doc->submittedToOffice->name ?? 'the selected destination office') . '.'
-                                                : $tlLog->remarks;
+                                            if ($tlLog->action === 'submitted') {
+                                                $submittedByOffice = $doc->user && ($doc->user->isOfficeAccount() || $doc->user->isSuperAdmin());
+                                                if ($submittedByOffice) {
+                                                    $tlRemarks = 'Document submitted by office account. Awaiting physical handoff to ' . ($doc->submittedToOffice->name ?? 'the destination office') . '.';
+                                                } else {
+                                                    $tlRemarks = 'Document submitted online. Awaiting physical submission to Records Section for routing to ' . ($doc->submittedToOffice->name ?? 'the selected destination office') . '.';
+                                                }
+                                            } else {
+                                                $tlRemarks = $tlLog->remarks;
+                                            }
                                         @endphp
                                         @if($tlRemarks)<div class="tl-remarks">{{ $tlRemarks }}</div>@endif
                                     </div>
@@ -394,6 +426,50 @@
                     @endif
                 </div>
             </div>
+
+            @if($document->status === 'for_pickup')
+            <div class="card" style="margin-top:18px">
+                <div class="card-head">
+                    <h2>Actions</h2>
+                </div>
+                <div class="card-body">
+                    <div class="action-section">
+                        <h3>End Transaction</h3>
+                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
+                            This document is ready for release. End the transaction once the recipient has actually claimed it.
+                        </p>
+                        <button class="btn btn-primary" onclick="openPickupModal()">
+                            End Transaction
+                        </button>
+                    </div>
+                </div>
+            </div>
+            @endif
+        </div>
+    </div>
+</div>
+
+<!-- Modal for End Transaction -->
+<div class="modal-overlay" id="pickupModal">
+    <div class="modal">
+        <div class="modal-head">
+            <h3>End Transaction</h3>
+            <button class="modal-close" onclick="closePickupModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:14px;color:var(--text-dark);margin-bottom:16px">
+                Are you sure you want to end this transaction? This action cannot be undone.
+            </p>
+            <form id="pickupForm">
+                <div class="form-group">
+                    <label for="pickupRemarks">Remarks (Optional)</label>
+                    <textarea id="pickupRemarks" name="remarks" placeholder="Add any remarks about the transaction completion..."></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closePickupModal()">Cancel</button>
+            <button class="btn btn-primary" id="confirmPickupBtn" onclick="confirmPickup()">End Transaction</button>
         </div>
     </div>
 </div>
@@ -427,6 +503,55 @@ function logout(){
     fetch('/api/logout',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'}})
         .then(function(){window.location.href='/login';})
         .catch(function(){window.location.href='/login';});
+}
+
+function openPickupModal(){
+    document.getElementById('pickupModal').classList.add('open');
+    document.body.style.overflow='hidden';
+}
+
+function closePickupModal(){
+    document.getElementById('pickupModal').classList.remove('open');
+    document.body.style.overflow='';
+}
+
+function confirmPickup(){
+    var btn=document.getElementById('confirmPickupBtn');
+    var remarks=document.getElementById('pickupRemarks').value.trim();
+    btn.disabled=true;
+    btn.textContent='Ending...';
+
+    var csrf=document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    fetch('/api/records/documents/{{ $document->id }}/status',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
+        body:JSON.stringify({status:'completed',remarks:remarks})
+    })
+    .then(function(r){return r.json();})
+    .then(function(data){
+        if(data.success){
+            showToast('Transaction ended successfully.','success');
+            setTimeout(function(){window.location.reload();},1500);
+        }else{
+            showToast(data.message || 'Something went wrong.','error');
+            btn.disabled=false;
+            btn.textContent='End Transaction';
+        }
+    })
+    .catch(function(){
+        showToast('Something went wrong.','error');
+        btn.disabled=false;
+        btn.textContent='End Transaction';
+    });
+}
+
+function showToast(message,type){
+    // Assuming showToast is defined elsewhere, like in form-utils.js
+    if(window.showToast){
+        window.showToast(message,type);
+    }else{
+        alert(message);
+    }
 }
 </script>
 </body>

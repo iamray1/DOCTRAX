@@ -1074,7 +1074,7 @@
                     var dc = isLatest ? 'c-latest' : dotClass(log.status_after);
                     var dotIcon = isLatest ? 'fa-arrow-up' : 'fa-check';
                     var groupKey = _gk(log);
-                    var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : groupKey;
+                    var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : (((log.action === 'archived' || log.status_after === 'archived') && groupKey === 'Unknown') ? 'Archived' : groupKey);
                     if (groupKey !== prevGroupKey) {
                         prevGroupKey = groupKey;
                         var dur = null;
@@ -1116,7 +1116,7 @@
             document.getElementById('viewDocContent').innerHTML = '<div class="drawer-loader"><span class="loading-dots"><span></span></span>Loading details...</div>';
 
             try {
-                var data = await window.docTraxFetchJson('/api/track-document', {
+                var data = await window.docTraxFetchJson('/api/internal/track-document', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

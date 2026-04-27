@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\RepresentativeController;
 use App\Http\Controllers\RecordsController;
 use App\Models\Document;
 use App\Models\Office;
+use App\Models\OfficeDocumentType;
 
 Route::get('/', function () {
     $user = auth()->user();
@@ -77,28 +79,78 @@ Route::get('/submit', function () {
 
     $routingOfficeOptions = Office::query()
         ->active()
-        ->where(function ($query) {
-            $query->where('is_school', false)
-                ->orWhereNull('is_school');
-        })
+        ->whereRaw('COALESCE(is_school, false) = false')
         ->orderByRaw("CASE WHEN UPPER(code) = 'RECORDS' THEN 0 ELSE 1 END")
         ->orderBy('name')
         ->get(['id', 'code', 'name']);
 
+    $sanitizeDocumentTypeOptions = static function (array $options): array {
+        return collect($options)
+            ->filter(function ($option) {
+                return is_string($option)
+                    && trim($option) !== ''
+                    && strcasecmp(trim($option), 'Others') !== 0;
+            })
+            ->map(function ($option) {
+                return trim($option);
+            })
+            ->unique(function ($option) {
+                return strtolower($option);
+            })
+            ->values()
+            ->all();
+    };
+
+    $defaultDocumentTypeOptions = $sanitizeDocumentTypeOptions(
+        (array) config('document-types.default', [])
+    );
+
+    $documentTypeOverrides = (array) config('document-types.by_office_code', []);
+
+    $dbDocumentTypeRowsByOffice = collect();
+    if (Schema::hasTable('office_document_types')) {
+        $dbDocumentTypeRowsByOffice = OfficeDocumentType::query()
+            ->whereIn('office_id', $routingOfficeOptions->pluck('id'))
+            ->orderBy('name')
+            ->get(['office_id', 'name', 'is_active'])
+            ->groupBy('office_id');
+    }
+
+    $documentTypeOptionsByOffice = $routingOfficeOptions
+        ->mapWithKeys(function ($office) use ($documentTypeOverrides, $defaultDocumentTypeOptions, $sanitizeDocumentTypeOptions, $dbDocumentTypeRowsByOffice) {
+            $officeRows = $dbDocumentTypeRowsByOffice->get($office->id, collect());
+
+            if ($officeRows->isNotEmpty()) {
+                $officeOptions = $sanitizeDocumentTypeOptions(
+                    $officeRows->where('is_active', true)->pluck('name')->all()
+                );
+            } else {
+                $officeCode = strtoupper(trim((string) $office->code));
+                $officeOptions = $sanitizeDocumentTypeOptions((array) ($documentTypeOverrides[$officeCode] ?? []));
+
+                if ($officeOptions === []) {
+                    $officeOptions = $defaultDocumentTypeOptions;
+                }
+            }
+
+            return [(string) $office->id => $officeOptions];
+        })
+        ->all();
+
     $user = auth()->user();
     if ($user && $user->isAdmin()) {
-        return view('admin.submit', compact('user', 'recordsOfficeName', 'routingOfficeOptions'));
+        return view('admin.submit', compact('user', 'recordsOfficeName', 'routingOfficeOptions', 'documentTypeOptionsByOffice'));
     }
 
     if ($user && $user->account_type === 'representative' && $user->office_id) {
-        return view('office.submit', compact('recordsOfficeName', 'routingOfficeOptions'));
+        return view('office.submit', compact('recordsOfficeName', 'routingOfficeOptions', 'documentTypeOptionsByOffice'));
     }
 
     if ($user) {
-        return view('dashboard.submit', compact('user', 'recordsOfficeName', 'routingOfficeOptions'));
+        return view('dashboard.submit', compact('user', 'recordsOfficeName', 'routingOfficeOptions', 'documentTypeOptionsByOffice'));
     }
 
-    return view('submit.index', compact('recordsOfficeName', 'routingOfficeOptions'));
+    return view('submit.index', compact('recordsOfficeName', 'routingOfficeOptions', 'documentTypeOptionsByOffice'));
 })->name('submit');
 
 Route::get('/login', function () {
@@ -170,7 +222,9 @@ Route::get('/receive/{tracking}', function ($tracking) {
 Route::post('/api/submit-document', [DocumentController::class, 'submit'])
     ->middleware('submit-throttle');
 Route::match(['GET', 'POST'], '/api/track-document', [DocumentController::class, 'track'])
-    ->middleware('throttle:30,1');
+    ->middleware('track-throttle:public');
+Route::match(['GET', 'POST'], '/api/internal/track-document', [DocumentController::class, 'trackInternal'])
+    ->middleware(['auth', 'ensure-auth', 'track-throttle:internal']);
 Route::post('/api/check-email', [AuthController::class, 'checkEmail'])
     ->middleware('throttle:10,1');
 Route::post('/api/login', [AuthController::class, 'login'])
@@ -188,7 +242,6 @@ Route::middleware(['auth', 'ensure-auth', 'no-cache'])->group(function () {
     Route::get('/api/my-stats', [DashboardController::class, 'userStatsJson'])->middleware('throttle:60,1');
     Route::get('/api/admin-stats', [DashboardController::class, 'adminStatsJson'])->middleware('throttle:60,1');
     Route::get('/api/office-stats', [RepresentativeController::class, 'officeStatsJson'])->middleware('throttle:60,1');
-    Route::post('/api/documents/{tracking}/confirm-pickup', [DashboardController::class, 'confirmPickup'])->middleware('throttle:10,1');
     Route::post('/api/documents/{reference}/cancel', [DashboardController::class, 'cancelDocument'])->middleware('throttle:10,1');
 
     // Profile
@@ -199,11 +252,17 @@ Route::middleware(['auth', 'ensure-auth', 'no-cache'])->group(function () {
     // ─── Office account routes ───────────────────────────────────────────────
     Route::get('/office/dashboard', [RepresentativeController::class, 'dashboard'])
         ->name('office.dashboard');
+    Route::get('/representative/dashboard', [RepresentativeController::class, 'dashboard'])
+        ->name('representative.dashboard');
     Route::get('/office/documents/{id}', [RepresentativeController::class, 'show'])
         ->name('office.document');
+    Route::get('/representative/documents/{id}', [RepresentativeController::class, 'show'])
+        ->name('representative.document');
     Route::post('/api/office/documents/{id}/accept', [RepresentativeController::class, 'accept'])->middleware('throttle:20,1');
+    Route::post('/api/representative/documents/{id}/accept', [RepresentativeController::class, 'accept'])->middleware('throttle:20,1');
     Route::post('/api/office/documents/receive-by-reference', [RepresentativeController::class, 'receiveByReference'])->middleware('throttle:20,1');
     Route::post('/api/office/documents/{id}/status', [RepresentativeController::class, 'updateStatus'])->middleware('throttle:20,1');
+    Route::post('/api/representative/documents/{id}/status', [RepresentativeController::class, 'updateStatus'])->middleware('throttle:20,1');
     Route::get('/office/search', [RepresentativeController::class, 'search'])
         ->name('office.search')->middleware('throttle:60,1');
     Route::get('/api/office/user-activity/{id}', [RepresentativeController::class, 'userActivityJson'])->middleware('throttle:30,1');
@@ -221,9 +280,14 @@ Route::middleware(['auth', 'ensure-auth', 'no-cache'])->group(function () {
 
         Route::get('/admin/offices', [AdminController::class, 'officeAccounts'])->name('admin.offices')->middleware('throttle:30,1');
         Route::post('/api/admin/offices', [AdminController::class, 'createOfficeAccount'])->middleware('throttle:10,1');
+        Route::post('/api/admin/offices/catalog', [AdminController::class, 'createOffice'])->middleware('throttle:10,1');
         Route::delete('/api/admin/offices/{id}', [AdminController::class, 'deleteOfficeAccount'])->middleware('throttle:10,1');
         Route::put('/api/admin/offices/{id}/reports', [AdminController::class, 'toggleReportsAccess'])->middleware('throttle:20,1');
         Route::put('/api/admin/offices/{id}/transfer', [AdminController::class, 'transferOfficeAccount'])->middleware('throttle:10,1');
+        Route::post('/api/admin/offices/document-types', [AdminController::class, 'createOfficeDocumentType'])->middleware('throttle:20,1');
+        Route::put('/api/admin/offices/document-types/{id}', [AdminController::class, 'updateOfficeDocumentType'])->middleware('throttle:20,1');
+        Route::get('/api/admin/offices/{id}/check-users', [AdminController::class, 'checkOfficeUsers'])->middleware('throttle:20,1');
+        Route::put('/api/admin/offices/{id}/status', [AdminController::class, 'updateOfficeStatus'])->middleware('throttle:20,1');
         Route::get('/admin/schools', [AdminController::class, 'schools'])->name('admin.schools')->middleware('throttle:30,1');
         Route::post('/api/admin/schools', [AdminController::class, 'createSchool'])->middleware('throttle:10,1');
         Route::put('/api/admin/schools/{id}', [AdminController::class, 'updateSchool'])->middleware('throttle:10,1');
@@ -232,11 +296,13 @@ Route::middleware(['auth', 'ensure-auth', 'no-cache'])->group(function () {
         Route::get('/ict/documents', [AdminController::class, 'ictDocuments'])->name('ict.documents')->middleware('throttle:60,1');
         Route::post('/api/ict/receive-by-reference', [AdminController::class, 'ictReceiveByReference'])->middleware('throttle:20,1');
         Route::post('/api/ict/documents/{id}/accept', [AdminController::class, 'ictAccept'])->middleware('throttle:20,1');
+        Route::post('/api/ict/documents/{id}/status', [AdminController::class, 'ictUpdateStatus'])->middleware('throttle:20,1');
         Route::get('/api/ict-stats', [AdminController::class, 'ictStatsJson'])->middleware('throttle:60,1');
     });
 
     // ─── Records Section & SuperAdmin routes ─────────────────────────────────
     Route::get('/records/documents', [RecordsController::class, 'index'])->name('records.documents')->middleware('throttle:60,1');
     Route::get('/records/documents/{id}', [RecordsController::class, 'show'])->name('records.document');
+    Route::post('/api/records/documents/{id}/status', [RecordsController::class, 'updateStatus']);
     Route::get('/api/records-stats', [RecordsController::class, 'statsJson'])->middleware('throttle:60,1');
 });

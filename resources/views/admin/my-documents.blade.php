@@ -434,7 +434,7 @@
         .tl-dot.c-active { background: #22c55e; box-shadow: 0 0 0 2px #22c55e; }
         .tl-dot.c-done { background: #22c55e; box-shadow: 0 0 0 2px #22c55e; }
         .tl-dot.c-warn { background: #22c55e; box-shadow: 0 0 0 2px #22c55e; }
-        .tl-dot.c-danger { background: #22c55e; box-shadow: 0 0 0 2px #22c55e; }
+        .tl-dot.c-danger { background: #dc2626; box-shadow: 0 0 0 2px #dc2626; }
         .tl-dot.c-latest { background: #f59e0b; box-shadow: 0 0 0 2px #f59e0b; }
 
         .tl-action { font-size: 12px; font-weight: 700; color: #1b263b; }
@@ -606,10 +606,13 @@
             <select name="status" class="filter-select">
                 <option value="">All Status</option>
                 @foreach(\App\Models\Document::FILTER_STATUSES as $key => $label)
+                    @if($key === 'received')
+                        @continue
+                    @endif
                     <option value="{{ $key }}" {{ $status === $key ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
-            <button type="submit" class="filter-btn" id="searchBtn" data-no-auto-loading>@include('partials.filter-icon', ['size' => 16]) Search</button>
+            <button type="submit" class="filter-btn" id="searchBtn" data-no-auto-loading><i class="fas fa-search"></i> Search</button>
             @if($search || $status)
                 <a href="/my-documents" class="filter-clear">Clear</a>
             @endif
@@ -747,7 +750,8 @@
         }
 
         function dotClass(status) {
-            if (status === 'cancelled' || status === 'returned') return 'c-danger';
+            var st = String(status || '').toLowerCase();
+            if (st === 'cancelled' || /return|resubmit/.test(st)) return 'c-danger';
             if (status === 'completed') return 'c-done';
             if (status === 'forwarded') return 'c-warn';
             return 'c-active';
@@ -785,10 +789,13 @@
                 var prevGroupKey = null;
                 logs.slice().reverse().forEach(function(log, idx) {
                     var isLatest = idx === 0;
-                    var dc = isLatest ? 'c-latest' : dotClass(log.status_after);
+                    var latestStatus = String(doc.status || '').toLowerCase();
+                    var dc = isLatest
+                        ? (latestStatus === 'completed' ? 'c-done' : (/return|resubmit/.test(latestStatus) ? 'c-danger' : 'c-latest'))
+                        : dotClass(log.status_after);
                     var dotIcon = isLatest ? 'fa-arrow-up' : 'fa-check';
                     var groupKey = _gk(log);
-                    var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : groupKey;
+                    var groupLabel = (groupKey === '__pending__') ? 'Submitted — Pending Physical Submission' : (((log.action === 'archived' || log.status_after === 'archived') && groupKey === 'Unknown') ? 'Archived' : groupKey);
                     if (groupKey !== prevGroupKey) {
                         prevGroupKey = groupKey;
                         var dur = null;
@@ -828,7 +835,7 @@
                 '<div class="drawer-loader"><span class="loading-dots"><span></span><span></span><span></span></span>Loading details...</div>';
 
             try {
-                var data = await window.docTraxFetchJson('/api/track-document', {
+                var data = await window.docTraxFetchJson('/api/internal/track-document', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
                     timeoutMs: 15000,

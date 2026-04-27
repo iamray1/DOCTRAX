@@ -124,6 +124,26 @@ class Document extends Model
         return self::STATUSES[$this->status] ?? ucfirst($this->status);
     }
 
+    public function statusLabelWithOffice(): string
+    {
+        if (in_array($this->status, ['completed', 'returned'])) {
+            $lastLog = $this->routingLogs
+                ->where('action', $this->status === 'returned' ? 'returned' : 'completed')
+                ->last();
+            
+            $lastOffice = $lastLog?->fromOffice?->name ?? $this->currentOffice?->name ?? 'Office';
+            $statusText = 'Transaction Completed - ' . $lastOffice;
+            
+            if ($this->status === 'returned' && $lastLog?->remarks) {
+                $statusText .= ' (' . $lastLog->remarks . ')';
+            }
+            
+            return $statusText;
+        }
+        
+        return $this->statusLabel();
+    }
+
     public function getSubjectAttribute($value): ?string
     {
         if ($value === null) {
@@ -163,5 +183,19 @@ class Document extends Model
     public function routingLogs()
     {
         return $this->hasMany(RoutingLog::class)->orderBy('created_at', 'asc');
+    }
+
+    /**
+     * Check if this document is an external document (submitted by an office account or superadmin).
+     * External documents follow a simpler workflow: receive → forward only.
+     * Internal documents (from regular users) have full status workflow.
+     */
+    public function isExternal(): bool
+    {
+        if (!$this->user) {
+            return false;
+        }
+        
+        return $this->user->isOfficeAccount() || $this->user->isSuperAdmin();
     }
 }

@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'no-cache' => \App\Http\Middleware\NoCacheHeaders::class,
             'ensure-auth' => \App\Http\Middleware\EnsureAuthenticated::class,
             'submit-throttle' => \App\Http\Middleware\SubmitDocumentThrottle::class,
+            'track-throttle' => \App\Http\Middleware\TrackLookupThrottle::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

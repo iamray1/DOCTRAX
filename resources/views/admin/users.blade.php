@@ -1252,7 +1252,7 @@
                 ? currentOfficeName
                 : 'No school selected yet';
             document.getElementById('schoolModalHelp').textContent = assigned
-                ? 'If this representative is currently handling in-progress documents at the old school, those items will be returned to that school queue before the transfer completes.'
+                ? 'Transfer is blocked while this representative has in-progress documents assigned at the current school. Submitted-only or unassigned documents will not block transfer.'
                 : (hasListedSchool
                     ? 'This representative already selected a school during signup. Saving here will link that school selection to the school dashboard flow.'
                     : 'This links the representative to the selected school and enables the school dashboard flow.');
@@ -1289,9 +1289,7 @@
             var btn = document.getElementById('saveSchoolBtn');
             btn.disabled = true;
 
-            var endpoint = schoolCurrentOfficeId
-                ? '/api/admin/offices/' + schoolTargetId + '/transfer'
-                : '/api/admin/users/' + schoolTargetId;
+            var endpoint = '/api/admin/users/' + schoolTargetId;
 
             fetch(endpoint, {
                 method: 'PUT',
@@ -1304,7 +1302,80 @@
                 if (data.success) {
                     closeSchoolModal();
                     showToast(data.message, 'success');
-                    setTimeout(function() { window.location.reload(); }, 900);
+                    
+                    // Update UI with new school details without reload
+                    if (data.user && data.office_name) {
+                        var userId = schoolTargetId;
+                        var newOfficeName = data.office_name;
+                        var userName = data.user.name || '';
+                        
+                        // Extract rep name from full name if it contains ' - '
+                        var repName = userName;
+                        if (userName.indexOf(' - ') !== -1) {
+                            repName = userName.split(' - ')[1] || userName;
+                        }
+                        
+                        // Update desktop table row
+                        var row = document.getElementById('user-row-' + userId);
+                        if (row) {
+                            var nameCell = row.querySelector('.name-cell');
+                            if (nameCell) {
+                                nameCell.innerHTML = '<span class="name-office">' + escapeHtml(repName) + '</span>' +
+                                    '<span class="name-rep"><i class="fas fa-building" style="margin-right:3px;"></i>' + escapeHtml(newOfficeName) + '</span>';
+                            }
+                            
+                            // Update type badge to School
+                            var typeBadge = row.querySelector('.type-badge');
+                            if (typeBadge) {
+                                typeBadge.className = 'type-badge school';
+                                typeBadge.textContent = 'School';
+                            }
+                            
+                            // Update school transfer button onclick
+                            var schoolBtn = row.querySelector('.btn-sm.school');
+                            if (schoolBtn) {
+                                schoolBtn.setAttribute('onclick', "openSchoolModal(" + userId + ", '" + repName.replace(/'/g, "\\'") + "', " + data.office_id + ", '" + newOfficeName.replace(/'/g, "\\'") + "')");
+                                schoolBtn.setAttribute('title', 'Transfer School');
+                            }
+                            
+                            // Update edit button onclick
+                            var editBtn = row.querySelector('.btn-sm.edit');
+                            if (editBtn) {
+                                editBtn.setAttribute('onclick', "openEditModal(" + userId + ", '" + newOfficeName.replace(/'/g, "\\'") + "', '" + repName.replace(/'/g, "\\'") + "', '" + (data.user.email || '').replace(/'/g, "\\'") + "', '" + (data.user.mobile || '').replace(/'/g, "\\'") + "', 'representative', " + data.office_id + ")");
+                            }
+                        }
+                        
+                        // Update mobile card
+                        var mobCard = document.getElementById('mob-user-row-' + userId);
+                        if (mobCard) {
+                            var mobNameDiv = mobCard.querySelector('.mob-card-name');
+                            if (mobNameDiv) mobNameDiv.textContent = repName;
+                            
+                            var mobSubDiv = mobCard.querySelector('.mob-card-sub');
+                            if (mobSubDiv) mobSubDiv.innerHTML = '<i class="fas fa-building" style="margin-right:3px;"></i>' + escapeHtml(newOfficeName);
+                            
+                            // Update type badge in mobile
+                            var mobTypeBadge = mobCard.querySelector('.type-badge');
+                            if (mobTypeBadge) {
+                                mobTypeBadge.className = 'type-badge school';
+                                mobTypeBadge.textContent = 'School';
+                            }
+                            
+                            // Update school button in mobile
+                            var mobSchoolBtn = mobCard.querySelector('.btn-sm.school');
+                            if (mobSchoolBtn) {
+                                mobSchoolBtn.setAttribute('onclick', "openSchoolModal(" + userId + ", '" + repName.replace(/'/g, "\\'") + "', " + data.office_id + ", '" + newOfficeName.replace(/'/g, "\\'") + "')");
+                                mobSchoolBtn.setAttribute('title', 'Transfer School');
+                                mobSchoolBtn.innerHTML = '<i class="fas fa-building"></i> Transfer School';
+                            }
+                            
+                            // Update edit button in mobile
+                            var mobEditBtn = mobCard.querySelector('.btn-sm.edit');
+                            if (mobEditBtn) {
+                                mobEditBtn.setAttribute('onclick', "openEditModal(" + userId + ", '" + newOfficeName.replace(/'/g, "\\'") + "', '" + repName.replace(/'/g, "\\'") + "', '" + (data.user.email || '').replace(/'/g, "\\'") + "', '" + (data.user.mobile || '').replace(/'/g, "\\'") + "', 'representative', " + data.office_id + ")");
+                            }
+                        }
+                    }
                 } else {
                     err.textContent = data.message || 'Failed to update school.';
                     err.classList.add('show');

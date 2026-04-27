@@ -44,27 +44,29 @@ class DashboardController extends Controller
                 $data['office'] = $office;
 
                 $data['officeDocs'] = Document::with(['submittedToOffice', 'currentOffice', 'user'])
-                    ->where(function ($q) use ($office) {
-                        $q->where('current_office_id', $office->id)
-                          ->orWhere(function ($sub) use ($office) {
-                              $sub->where('status', 'submitted')
-                                  ->where('submitted_to_office_id', $office->id);
-                          });
+                    ->where('current_office_id', $office->id)
+                    ->where(function ($q) use ($user) {
+                        $q->whereNull('user_id')
+                          ->orWhere('user_id', '!=', $user->id);
                     })
-                    ->whereIn('status', ['submitted', 'received', 'in_review', 'for_pickup'])
+                    ->whereIn('status', ['received', 'in_review', 'on_hold', 'for_pickup'])
                     ->latest('last_action_at')
                     ->take(20)
                     ->get();
 
                 $data['officeStats'] = [
-                    'incoming'  => Document::where(function ($q) use ($office) {
-                            $q->where('current_office_id', $office->id)
-                              ->orWhere(function ($sub) use ($office) {
-                                  $sub->where('status', 'submitted')
-                                      ->where('submitted_to_office_id', $office->id);
-                              });
-                        })->whereIn('status', ['submitted', 'received', 'in_review'])->count(),
-                    'in_review' => Document::where('current_office_id', $office->id)->whereIn('status', ['received', 'in_review'])->count(),
+                    'incoming'  => Document::where('current_office_id', $office->id)
+                        ->where(function ($q) use ($user) {
+                            $q->whereNull('user_id')
+                              ->orWhere('user_id', '!=', $user->id);
+                        })
+                        ->whereIn('status', ['received', 'in_review'])->count(),
+                    'in_review' => Document::where('current_office_id', $office->id)
+                        ->where(function ($q) use ($user) {
+                            $q->whereNull('user_id')
+                              ->orWhere('user_id', '!=', $user->id);
+                        })
+                        ->whereIn('status', ['received', 'in_review'])->count(),
                     'completed' => Document::where('submitted_to_office_id', $office->id)
                         ->whereIn('status', ['completed', 'for_pickup'])->count(),
                 ];
@@ -93,8 +95,8 @@ class DashboardController extends Controller
             return redirect()->route('records.documents');
         }
 
-        // Office account (representative with assigned office): redirect to office dashboard
-        if ($user->isRepresentative() && $user->office_id) {
+        // Office account (non-school representative with assigned office): redirect to office dashboard
+        if ($user->isRepresentative() && $user->office_id && $user->office && !$user->office->is_school) {
             return redirect()->route('office.dashboard');
         }
 

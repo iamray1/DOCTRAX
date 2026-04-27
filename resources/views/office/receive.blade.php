@@ -140,7 +140,7 @@
     }
 
     // Lookup document on page load
-    window.docTraxFetchJson('/api/track-document', {
+    window.docTraxFetchJson('/api/internal/track-document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
         timeoutMs: 15000,

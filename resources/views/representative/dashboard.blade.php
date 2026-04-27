@@ -87,8 +87,6 @@
         .badge-cancelled{background:#fff7ed;color:#c2410c}
         .btn-view{padding:5px 13px;background:var(--primary);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:background .2s}
         .btn-view:hover{background:var(--primary-dark)}
-        .btn-accept{padding:5px 11px;background:#16a34a;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif;transition:background .2s;display:inline-flex;align-items:center;gap:5px}
-        .btn-accept:hover{background:#15803d}
         .empty-state{text-align:center;padding:50px 20px;color:var(--text-muted)}
         .empty-state i{font-size:40px;color:#cbd5e1;margin-bottom:12px;display:block}
         .empty-state h3{font-size:15px;font-weight:600;color:#94a3b8;margin-bottom:6px}
@@ -123,7 +121,6 @@
             th{padding:9px 12px;font-size:9px}
             td{padding:10px 12px;font-size:12px}
             .btn-view{font-size:10px;padding:4px 10px}
-            .btn-accept{font-size:10px;padding:4px 9px}
         }
         @keyframes spin{to{transform:rotate(360deg)}}
         .spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
@@ -250,7 +247,7 @@
             <div class="filters">
                 <div class="search-wrap">
                     <i class="fas fa-search"></i>
-                    <input type="text" id="searchInput" placeholder="Search doc no., subject, or sender..." data-clearable data-no-capitalize oninput="filterTable()">
+                    <input type="text" id="searchInput" placeholder="Search subject or sender..." data-clearable data-no-capitalize oninput="filterTable()">
                 </div>
                 <select id="statusFilter" onchange="filterTable()">
                     <option value="">All Statuses</option>
@@ -275,7 +272,7 @@
             <table id="docsTable">
                 <thead>
                     <tr>
-                        <th>Tracking #</th>
+                        <th>Tracking No.</th>
                         <th>Subject</th>
                         <th>Type</th>
                         <th>Sender</th>
@@ -286,7 +283,7 @@
                 </thead>
                 <tbody>
                 @foreach($documents as $doc)
-                    <tr data-status="{{ $doc->status }}" data-search="{{ strtolower(trim(($doc->reference_number ?? '') . ' ' . ($doc->tracking_number ?? '') . ' ' . ($doc->subject ?? '') . ' ' . ($doc->sender_name ?? ''))) }}">
+                    <tr data-status="{{ $doc->status }}" data-search="{{ strtolower($doc->subject . ' ' . $doc->sender_name) }}">
                         <td style="font-family:monospace;font-size:12px;font-weight:600;color:var(--primary)">
                             {{ $doc->reference_number }}
                         </td>
@@ -305,11 +302,6 @@
                         </td>
                         <td>
                             <div style="display:flex;gap:6px;align-items:center">
-                                @if(in_array($doc->status, ['submitted', 'forwarded']))
-                                    <button class="btn-accept" onclick="quickAccept({{ $doc->id }}, this)">
-                                        <i class="fas fa-check"></i> Accept
-                                    </button>
-                                @endif
                                 <a href="/representative/documents/{{ $doc->id }}" class="btn-view">
                                     <i class="fas fa-eye"></i> View
                                 </a>
@@ -337,39 +329,6 @@ function filterTable(){
     });
 }
 
-var _pendingAcceptId = null, _pendingAcceptBtn = null;
-function quickAccept(docId, btn){
-    _pendingAcceptId = docId;
-    _pendingAcceptBtn = btn;
-    document.getElementById('acceptModal').classList.add('show');
-}
-function closeAcceptModal(){
-    document.getElementById('acceptModal').classList.remove('show');
-    _pendingAcceptId = null;
-    _pendingAcceptBtn = null;
-}
-async function confirmAccept(){
-    var btn = document.getElementById('confirmAcceptBtn');
-    btn.disabled = true;
-    try{
-        var res = await fetch('/api/representative/documents/'+_pendingAcceptId+'/accept',{
-            method:'POST',
-            headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf},
-            body:'{}'
-        });
-        var data = await res.json();
-        if(data.success){ location.reload(); }
-        else{
-            alert(data.message||'Failed');
-            btn.disabled = false;
-            closeAcceptModal();
-        }
-    }catch(e){
-        alert('Error. Please try again.');
-        btn.disabled = false;
-        closeAcceptModal();
-    }
-}
 function toggleSidebar(){
     var s=document.getElementById('mainSidebar');
     var o=document.getElementById('mobOverlay');
@@ -410,25 +369,6 @@ function logout(){
     tick();clockInterval=setInterval(tick,1000);
 })();
 </script>
-
-    <!-- Accept Confirmation Modal -->
-    <div class="modal-overlay" id="acceptModal" onclick="if(event.target===this)closeAcceptModal()">
-        <div class="modal">
-            <div class="modal-head">
-                <div class="modal-icon"><i class="fas fa-check"></i></div>
-                <h3>Accept Document</h3>
-            </div>
-            <div class="modal-body">
-                <p>You are about to accept this document. This will confirm receipt at your office and begin <strong style="color:var(--text-dark)">Processing</strong>.</p>
-            </div>
-            <div class="modal-foot">
-                <button class="modal-btn" onclick="closeAcceptModal()">Cancel</button>
-                <button class="modal-btn success" id="confirmAcceptBtn" onclick="confirmAccept()">
-                    <i class="fas fa-check"></i> Confirm Accept
-                </button>
-            </div>
-        </div>
-    </div>
 
     <footer class="site-footer">
         <div class="footer-left">

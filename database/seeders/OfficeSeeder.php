@@ -15,13 +15,17 @@ class OfficeSeeder extends Seeder
             ['code' => 'ADMIN',    'name' => 'Administrative Services',                                'description' => 'Administrative services and support'],
             ['code' => 'PERSONNEL','name' => 'Personnel Section',                                      'description' => 'Personnel and HR services'],
             ['code' => 'RECORDS',  'name' => 'Records Section',                                        'description' => 'Handles official records and document routing'],
-            ['code' => 'CASH',     'name' => 'Cash Section',                                           'description' => 'Cash handling and disbursement'],
+            ['code' => 'CASHIER',  'name' => 'Cashiering Section',                                    'description' => 'Cash handling and disbursement'],
             ['code' => 'SUPPLY',   'name' => 'Property and Supply Section',                            'description' => 'Procurement, supply, and property management'],
             ['code' => 'ACCTG',    'name' => 'Accounting',                                             'description' => 'Financial and accounting services'],
             ['code' => 'BUDGET',   'name' => 'Budget',                                                 'description' => 'Budget management and allocation'],
             ['code' => 'LEGAL',    'name' => 'Legal Services',                                         'description' => 'Legal affairs and compliance'],
             ['code' => 'ICTU',     'name' => 'Information and Communications Technology Unit',         'description' => 'ICT services and support'],
             ['code' => 'PAYROLL',  'name' => 'Payroll Section',                                        'description' => 'Payroll processing and management'],
+            ['code' => 'CID',      'name' => 'Curriculum Implementation Division',                     'description' => 'Curriculum development and implementation'],
+            ['code' => 'HRMD',     'name' => 'Human Resource Management and Development',              'description' => 'HR management and staff development'],
+            ['code' => 'PLANNING',  'name' => 'Planning and Research Section',                         'description' => 'Planning and research services'],
+            ['code' => 'SGOD',     'name' => 'School Governance and Operations Division',              'description' => 'School governance and operations'],
         ];
 
         // Codes that should remain active

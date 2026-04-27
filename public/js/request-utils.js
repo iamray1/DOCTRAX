@@ -920,6 +920,86 @@
         return !!(error && error.requestType === type);
     };
 
+    function parseJsonResponse(response, opts) {
+        return response.text().then(function (text) {
+            var data = {};
+            var parseError = null;
+
+            if (text) {
+                try {
+                    data = JSON.parse(text);
+                } catch (error) {
+                    parseError = error;
+                }
+            }
+
+            if (opts.rejectOnHttpError !== false && !response.ok) {
+                var apiMessage = data && typeof data.message === 'string' && data.message.trim() !== ''
+                    ? data.message.trim()
+                    : null;
+
+                if (response.status === 429) {
+                    var rateLimitError = createRequestError('rate_limit', apiMessage || 'Too many requests. Please wait a moment and try again.');
+                    if (data && typeof data.retry_after === 'number') {
+                        rateLimitError.retryAfter = data.retry_after;
+                    }
+                    throw rateLimitError;
+                }
+
+                throw createRequestError('server', apiMessage || 'The server returned an unexpected response. Please try again.');
+            }
+
+            if (!text) return {};
+
+            if (parseError) {
+                throw createRequestError('server', 'Received an unexpected server response. Please try again.', parseError);
+            }
+
+            return data;
+        });
+    }
+
+    function waitForRetryDelay(delayMs) {
+        return new Promise(function (resolve) {
+            setTimeout(resolve, Math.max(0, delayMs || 0));
+        });
+    }
+
+    function normalizeRetryTypes(options) {
+        if (!options || !Array.isArray(options.retryOnRequestTypes) || !options.retryOnRequestTypes.length) {
+            return ['timeout', 'network', 'server'];
+        }
+        return options.retryOnRequestTypes.slice();
+    }
+
+    function isRetryableHttpStatus(status, options) {
+        if (Array.isArray(options.retryOnStatuses) && options.retryOnStatuses.length) {
+            return options.retryOnStatuses.indexOf(status) !== -1;
+        }
+        return status >= 500 && status <= 599;
+    }
+
+    function isRetryableRequestError(error, options) {
+        if (!error || !error.requestType) return false;
+        if (error.requestType === 'offline' || error.requestType === 'rate_limit') return false;
+        return normalizeRetryTypes(options).indexOf(error.requestType) !== -1;
+    }
+
+    function getRetryDelayMs(attemptIndex, options) {
+        var baseDelayMs = typeof options.baseDelayMs === 'number' ? options.baseDelayMs : 700;
+        var backoffMultiplier = typeof options.backoffMultiplier === 'number' ? options.backoffMultiplier : 1.8;
+        var maxDelayMs = typeof options.maxDelayMs === 'number' ? options.maxDelayMs : 2200;
+        var jitterRatio = typeof options.jitterRatio === 'number' ? Math.max(0, Math.min(options.jitterRatio, 1)) : 0.35;
+        var rawDelay = Math.min(maxDelayMs, Math.round(baseDelayMs * Math.pow(backoffMultiplier, Math.max(0, attemptIndex))));
+
+        if (jitterRatio <= 0 || rawDelay <= 0) return rawDelay;
+
+        var spread = Math.round(rawDelay * jitterRatio);
+        var minDelay = Math.max(0, rawDelay - spread);
+        var maxJitterDelay = rawDelay + spread;
+        return Math.round(minDelay + (Math.random() * (maxJitterDelay - minDelay)));
+    }
+
     window.docTraxFetch = function (url, opts) {
         opts = opts || {};
 
@@ -1019,23 +1099,55 @@
 
         return fetcher(url, opts)
             .then(function (response) {
-                if (opts.rejectOnHttpError !== false && !response.ok) {
-                    if (response.status === 429) {
-                        throw createRequestError('rate_limit', 'Too many requests. Please wait a moment and try again.');
-                    }
-                    throw createRequestError('server', 'The server returned an unexpected response. Please try again.');
-                }
-
-                return response.text().then(function (text) {
-                    if (!text) return {};
-
-                    try {
-                        return JSON.parse(text);
-                    } catch (parseError) {
-                        throw createRequestError('server', 'Received an unexpected server response. Please try again.', parseError);
-                    }
-                });
+                return parseJsonResponse(response, opts);
             });
+    };
+
+    // Retry helper for idempotent JSON requests such as lookups and searches.
+    window.docTraxFetchJsonWithRetry = function (url, opts) {
+        opts = opts || {};
+
+        var retryOptions = opts.retryOptions || {};
+        var maxRetries = typeof retryOptions.maxRetries === 'number' ? Math.max(0, retryOptions.maxRetries) : 2;
+        var maxElapsedMs = typeof retryOptions.maxElapsedMs === 'number' ? Math.max(0, retryOptions.maxElapsedMs) : 15000;
+        var startedAt = Date.now();
+        var requestOpts = {};
+
+        Object.keys(opts).forEach(function (key) {
+            if (key === 'retryOptions') return;
+            requestOpts[key] = opts[key];
+        });
+
+        var requestTimeoutMs = typeof requestOpts.timeoutMs === 'number'
+            ? Math.max(0, requestOpts.timeoutMs)
+            : DEFAULT_REQUEST_TIMEOUT;
+
+        function attemptRequest(attemptIndex) {
+            return window.docTraxFetch(url, requestOpts)
+                .then(function (response) {
+                    if (!response.ok && isRetryableHttpStatus(response.status, retryOptions)) {
+                        throw createRequestError('server', 'The server returned an unexpected response. Please try again.');
+                    }
+
+                    return parseJsonResponse(response, requestOpts);
+                })
+                .catch(function (error) {
+                    if (!isRetryableRequestError(error, retryOptions) || attemptIndex >= maxRetries) {
+                        throw error;
+                    }
+
+                    var delayMs = getRetryDelayMs(attemptIndex, retryOptions);
+                    if (maxElapsedMs > 0 && ((Date.now() - startedAt) + delayMs + requestTimeoutMs) >= maxElapsedMs) {
+                        throw error;
+                    }
+
+                    return waitForRetryDelay(delayMs).then(function () {
+                        return attemptRequest(attemptIndex + 1);
+                    });
+                });
+        }
+
+        return attemptRequest(0);
     };
 
     window.safeFetch = function (url, opts) {
