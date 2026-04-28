@@ -12,6 +12,10 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class RepresentativeController extends Controller
 {
+    private const REPORT_SEARCH_MAX_LENGTH = 100;
+    private const REPORT_IDENTIFIER_SEARCH_MIN_LENGTH = 6;
+    private const REPORT_EXPORT_LIMIT = 500;
+
     private function rep()
     {
         return Auth::user();
@@ -385,6 +389,100 @@ class RepresentativeController extends Controller
         ]);
     }
 
+    private function escapeLike(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+    }
+
+    private function isIdentifierSearch(string $search): bool
+    {
+        $compact = preg_replace('/[^A-Z0-9]/i', '', $search) ?? '';
+
+        return strlen($compact) >= self::REPORT_IDENTIFIER_SEARCH_MIN_LENGTH
+            && preg_match('/^[A-Z0-9\-\s]+$/i', $search);
+    }
+
+    private function shouldApplyKeywordSearch(string $search): bool
+    {
+        return strlen($search) >= 2 || $this->isIdentifierSearch($search);
+    }
+
+    private function applyReportKeywordSearch($query, string $search): void
+    {
+        $escaped = $this->escapeLike($search);
+        $like = "%{$escaped}%";
+
+        if ($this->isIdentifierSearch($search)) {
+            $identifierPrefix = strtoupper(preg_replace('/\s+/', '', $search) ?? $search);
+            $compactPrefix = strtoupper(preg_replace('/[^A-Z0-9]/i', '', $search) ?? $search);
+            $identifierLike = $this->escapeLike($identifierPrefix) . '%';
+            $compactLike = $this->escapeLike($compactPrefix) . '%';
+
+            $query->where(function ($q) use ($identifierLike, $compactLike, $like) {
+                $q->where('reference_number', 'like', $compactLike)
+                    ->orWhere('tracking_number', 'like', $identifierLike)
+                    ->orWhere('reference_number', 'like', $like)
+                    ->orWhere('tracking_number', 'like', $like);
+            });
+
+            return;
+        }
+
+        $query->where(function ($q) use ($like) {
+            $q->where('reference_number', 'like', $like)
+                ->orWhere('tracking_number', 'like', $like)
+                ->orWhere('subject', 'like', $like)
+                ->orWhere('sender_name', 'like', $like)
+                ->orWhere('sender_office', 'like', $like)
+                ->orWhere('type', 'like', $like)
+                ->orWhereHas('currentHandler', function ($u) use ($like) {
+                    $u->where('name', 'like', $like);
+                })
+                ->orWhereHas('user', function ($u) use ($like) {
+                    $u->where('name', 'like', $like);
+                })
+                ->orWhereHas('currentOffice', function ($o) use ($like) {
+                    $o->where('name', 'like', $like);
+                })
+                ->orWhereHas('submittedToOffice', function ($o) use ($like) {
+                    $o->where('name', 'like', $like);
+                })
+                ->orWhereHas('routingLogs.performer', function ($u) use ($like) {
+                    $u->where('name', 'like', $like);
+                });
+        });
+    }
+
+    private function dateBoundary(string $date, bool $endOfDay): ?\Carbon\Carbon
+    {
+        if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return null;
+        }
+
+        try {
+            $value = \Carbon\Carbon::createFromFormat('Y-m-d', $date);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (!$value || $value->format('Y-m-d') !== $date) {
+            return null;
+        }
+
+        return $endOfDay ? $value->endOfDay() : $value->startOfDay();
+    }
+
+    private function applyDateRangeFilter($query, string $dateField, string $dateFrom, string $dateTo): void
+    {
+        if ($from = $this->dateBoundary($dateFrom, false)) {
+            $query->where($dateField, '>=', $from);
+        }
+
+        if ($to = $this->dateBoundary($dateTo, true)) {
+            $query->where($dateField, '<=', $to);
+        }
+    }
+
     public function search(Request $request)
     {
         $user = $this->rep();
@@ -431,10 +529,9 @@ class RepresentativeController extends Controller
             });
         }
 
-        $search = trim((string) $request->query('search', ''));
-        $search = strip_tags($search);
+        $search = substr(strip_tags(trim((string) $request->query('search', ''))), 0, self::REPORT_SEARCH_MAX_LENGTH);
         $status = trim((string) $request->query('status', ''));
-        $type = trim((string) $request->query('type', ''));
+        $type = substr(strip_tags(trim((string) $request->query('type', ''))), 0, 120);
         $dateField = trim((string) $request->query('date_field', 'created_at'));
         if (!in_array($dateField, ['created_at', 'last_action_at'], true)) {
             $dateField = 'created_at';
@@ -442,37 +539,8 @@ class RepresentativeController extends Controller
         $dateFrom = trim((string) $request->query('date_from', ''));
         $dateTo = trim((string) $request->query('date_to', ''));
 
-        if ($search !== '') {
-            $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $search);
-            $needle = '%' . strtolower($escaped) . '%';
-            $query->where(function ($q) use ($needle) {
-                $q->whereRaw("LOWER(COALESCE(reference_number, '')) LIKE ?", [$needle])
-                    ->orWhereRaw("LOWER(COALESCE(tracking_number, '')) LIKE ?", [$needle])
-                    ->orWhereRaw("LOWER(COALESCE(subject, '')) LIKE ?", [$needle])
-                    ->orWhereRaw("LOWER(COALESCE(sender_name, '')) LIKE ?", [$needle])
-                    ->orWhereRaw("LOWER(COALESCE(sender_office, '')) LIKE ?", [$needle])
-                    ->orWhereRaw("LOWER(COALESCE(type, '')) LIKE ?", [$needle])
-                    // Search by current handler (tagged-to user) name
-                    ->orWhereHas('currentHandler', function ($u) use ($needle) {
-                        $u->whereRaw("LOWER(COALESCE(name, '')) LIKE ?", [$needle]);
-                    })
-                    // Search by submitter (account holder) name
-                    ->orWhereHas('user', function ($u) use ($needle) {
-                        $u->whereRaw("LOWER(COALESCE(name, '')) LIKE ?", [$needle]);
-                    })
-                    // Search by current office name
-                    ->orWhereHas('currentOffice', function ($o) use ($needle) {
-                        $o->whereRaw("LOWER(COALESCE(name, '')) LIKE ?", [$needle]);
-                    })
-                    // Search by submitted-to office name
-                    ->orWhereHas('submittedToOffice', function ($o) use ($needle) {
-                        $o->whereRaw("LOWER(COALESCE(name, '')) LIKE ?", [$needle]);
-                    })
-                    // Search by any user who performed an action (routing log)
-                    ->orWhereHas('routingLogs.performer', function ($u) use ($needle) {
-                        $u->whereRaw("LOWER(COALESCE(name, '')) LIKE ?", [$needle]);
-                    });
-            });
+        if ($search !== '' && $this->shouldApplyKeywordSearch($search)) {
+            $this->applyReportKeywordSearch($query, $search);
         }
 
         if ($status !== '') {
@@ -491,20 +559,21 @@ class RepresentativeController extends Controller
             $query->where('type', $type);
         }
 
-        if ($dateFrom !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
-            $query->whereDate($dateField, '>=', $dateFrom);
-        }
-
-        if ($dateTo !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
-            $query->whereDate($dateField, '<=', $dateTo);
-        }
+        $this->applyDateRangeFilter($query, $dateField, $dateFrom, $dateTo);
 
         if ($request->query('export') === 'pdf') {
             $dateFieldLabel = $dateField === 'last_action_at' ? 'Last Action Date' : 'Submitted Date';
             $rows = (clone $query)
                 ->orderByDesc($dateField)
                 ->orderByDesc('id')
+                ->limit(self::REPORT_EXPORT_LIMIT + 1)
                 ->get();
+
+            if ($rows->count() > self::REPORT_EXPORT_LIMIT) {
+                return redirect()
+                    ->route('office.search', $request->except('export'))
+                    ->with('error', 'PDF export is limited to ' . self::REPORT_EXPORT_LIMIT . ' rows. Please narrow the report with search, status, type, or date filters first.');
+            }
 
             $fileName = 'report-' . ($office ? strtolower(str_replace(' ', '-', $office->name)) . '-' : '') . now()->setTimezone('Asia/Manila')->format('Ymd-His') . '.pdf';
 
@@ -529,10 +598,20 @@ class RepresentativeController extends Controller
             ->paginate(20, ['*'], 'documents_page')
             ->withQueryString();
 
+        $statsRow = (clone $query)
+            ->withoutEagerLoads()
+            ->selectRaw(
+                "COUNT(*) as total,
+                SUM(CASE WHEN status IN (?, ?) THEN 1 ELSE 0 END) as processing,
+                SUM(CASE WHEN status IN (?, ?, ?) THEN 1 ELSE 0 END) as processed",
+                ['received', 'in_review', 'completed', 'for_pickup', 'returned']
+            )
+            ->first();
+
         $reportStats = [
-            'total' => (clone $query)->count(),
-            'processing' => (clone $query)->whereIn('status', ['received', 'in_review'])->count(),
-            'processed' => (clone $query)->whereIn('status', ['completed', 'for_pickup', 'returned'])->count(),
+            'total' => (int) ($statsRow->total ?? 0),
+            'processing' => (int) ($statsRow->processing ?? 0),
+            'processed' => (int) ($statsRow->processed ?? 0),
         ];
 
         $typesQuery = Document::query()->whereNotNull('type');
@@ -640,7 +719,7 @@ class RepresentativeController extends Controller
             $officeName  = $u->office?->name ?? null;
         }
 
-        $search   = trim((string) $request->query('search', ''));
+        $search   = substr(strip_tags(trim((string) $request->query('search', ''))), 0, self::REPORT_SEARCH_MAX_LENGTH);
         $status   = trim((string) $request->query('status', ''));
         $scope    = trim((string) $request->query('scope', ''));
         $dateFrom = trim((string) $request->query('date_from', ''));
@@ -656,15 +735,8 @@ class RepresentativeController extends Controller
             }
         })->where('user_id', '!=', $id);
 
-        if ($search !== '') {
-            $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $search);
-            $needle = '%' . strtolower($escaped) . '%';
-            $query->where(function ($q) use ($needle) {
-                $q->whereRaw("LOWER(COALESCE(reference_number,'')) LIKE ?", [$needle])
-                  ->orWhereRaw("LOWER(COALESCE(tracking_number,'')) LIKE ?", [$needle])
-                  ->orWhereRaw("LOWER(COALESCE(subject,'')) LIKE ?", [$needle])
-                  ->orWhereRaw("LOWER(COALESCE(sender_name,'')) LIKE ?", [$needle]);
-            });
+        if ($search !== '' && $this->shouldApplyKeywordSearch($search)) {
+            $this->applyReportKeywordSearch($query, $search);
         }
 
         if ($status !== '') {
@@ -677,13 +749,7 @@ class RepresentativeController extends Controller
             }
         }
 
-        if ($dateFrom !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
-            $query->whereDate('created_at', '>=', $dateFrom);
-        }
-
-        if ($dateTo !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
-            $query->whereDate('created_at', '<=', $dateTo);
-        }
+        $this->applyDateRangeFilter($query, 'created_at', $dateFrom, $dateTo);
 
         $docs = $query->orderByDesc('last_action_at')->orderByDesc('id')->get();
 
@@ -749,7 +815,7 @@ class RepresentativeController extends Controller
             $officeName  = $u->office?->name ?? $u->email;
         }
 
-        $search   = trim((string) $request->query('search', ''));
+        $search   = substr(strip_tags(trim((string) $request->query('search', ''))), 0, self::REPORT_SEARCH_MAX_LENGTH);
         $status   = trim((string) $request->query('status', ''));
         $scope    = trim((string) $request->query('scope', ''));
         $dateFrom = trim((string) $request->query('date_from', ''));
@@ -766,15 +832,8 @@ class RepresentativeController extends Controller
             }
         })->where('user_id', '!=', $id);
 
-        if ($search !== '') {
-            $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $search);
-            $needle = '%' . strtolower($escaped) . '%';
-            $query->where(function ($q) use ($needle) {
-                $q->whereRaw("LOWER(COALESCE(reference_number,'')) LIKE ?", [$needle])
-                  ->orWhereRaw("LOWER(COALESCE(tracking_number,'')) LIKE ?", [$needle])
-                  ->orWhereRaw("LOWER(COALESCE(subject,'')) LIKE ?", [$needle])
-                  ->orWhereRaw("LOWER(COALESCE(sender_name,'')) LIKE ?", [$needle]);
-            });
+        if ($search !== '' && $this->shouldApplyKeywordSearch($search)) {
+            $this->applyReportKeywordSearch($query, $search);
         }
 
         if ($status !== '') {
@@ -787,13 +846,7 @@ class RepresentativeController extends Controller
             }
         }
 
-        if ($dateFrom !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
-            $query->whereDate('created_at', '>=', $dateFrom);
-        }
-
-        if ($dateTo !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
-            $query->whereDate('created_at', '<=', $dateTo);
-        }
+        $this->applyDateRangeFilter($query, 'created_at', $dateFrom, $dateTo);
 
         $docs = $query->orderByDesc('last_action_at')->orderByDesc('id')->get();
         $generatedAt = now()->setTimezone('Asia/Manila')->format('M d, Y h:i A');
@@ -917,4 +970,3 @@ class RepresentativeController extends Controller
         return response()->json($stats);
     }
 }
-

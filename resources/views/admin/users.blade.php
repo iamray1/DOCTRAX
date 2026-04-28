@@ -1252,7 +1252,7 @@
                 ? currentOfficeName
                 : 'No school selected yet';
             document.getElementById('schoolModalHelp').textContent = assigned
-                ? 'Transfer is blocked while this representative has in-progress documents assigned at the current school. Submitted-only or unassigned documents will not block transfer.'
+                ? 'Transfer is blocked while this representative has in-progress documents submitted by or assigned to this account. Submitted-only documents will not block transfer.'
                 : (hasListedSchool
                     ? 'This representative already selected a school during signup. Saving here will link that school selection to the school dashboard flow.'
                     : 'This links the representative to the selected school and enables the school dashboard flow.');

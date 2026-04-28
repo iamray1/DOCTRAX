@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Cache;
 
 class RecordsController extends Controller
 {
+    private const SEARCH_MAX_LENGTH = 100;
+    private const IDENTIFIER_SEARCH_MIN_LENGTH = 6;
+
     private const STATUS_FILTER_OPTIONS = [
         'submitted'  => 'Awaiting Receipt',
         'processing' => 'Processing',
@@ -35,6 +38,78 @@ class RecordsController extends Controller
         abort(403, 'Unauthorized. Only Records Section or Super Admin can access this.');
     }
 
+    private function escapeLike(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+    }
+
+    private function isIdentifierSearch(string $search): bool
+    {
+        $compact = preg_replace('/[^A-Z0-9]/i', '', $search) ?? '';
+
+        return strlen($compact) >= self::IDENTIFIER_SEARCH_MIN_LENGTH
+            && preg_match('/^[A-Z0-9\-\s]+$/i', $search);
+    }
+
+    private function shouldApplyKeywordSearch(string $search): bool
+    {
+        return strlen($search) >= 2 || $this->isIdentifierSearch($search);
+    }
+
+    private function applyKeywordSearch($query, string $search): void
+    {
+        $escaped = $this->escapeLike($search);
+        $like = "%{$escaped}%";
+
+        if ($this->isIdentifierSearch($search)) {
+            $identifierPrefix = strtoupper(preg_replace('/\s+/', '', $search) ?? $search);
+            $compactPrefix = strtoupper(preg_replace('/[^A-Z0-9]/i', '', $search) ?? $search);
+            $identifierLike = $this->escapeLike($identifierPrefix) . '%';
+            $compactLike = $this->escapeLike($compactPrefix) . '%';
+
+            $query->where(function ($q) use ($identifierLike, $compactLike, $like) {
+                $q->where('reference_number', 'like', $compactLike)
+                  ->orWhere('tracking_number', 'like', $identifierLike)
+                  ->orWhere('reference_number', 'like', $like)
+                  ->orWhere('tracking_number', 'like', $like);
+            });
+
+            return;
+        }
+
+        $query->where(function ($q) use ($like) {
+            $q->where('reference_number', 'like', $like)
+              ->orWhere('tracking_number', 'like', $like)
+              ->orWhere('subject', 'like', $like)
+              ->orWhere('sender_name', 'like', $like)
+              ->orWhere('type', 'like', $like);
+        });
+    }
+
+    private function recordsStats(): array
+    {
+        return Cache::remember('records_stats', 15, function () {
+            $row = Document::query()
+                ->selectRaw(
+                    "COUNT(*) as total,
+                    SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as submitted,
+                    SUM(CASE WHEN status IN (?, ?) THEN 1 ELSE 0 END) as received,
+                    SUM(CASE WHEN status IN (?, ?) THEN 1 ELSE 0 END) as completed,
+                    SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as archived",
+                    ['submitted', 'received', 'in_review', 'completed', 'for_pickup', 'archived']
+                )
+                ->first();
+
+            return [
+                'total'     => (int) ($row->total ?? 0),
+                'submitted' => (int) ($row->submitted ?? 0),
+                'received'  => (int) ($row->received ?? 0),
+                'completed' => (int) ($row->completed ?? 0),
+                'archived'  => (int) ($row->archived ?? 0),
+            ];
+        });
+    }
+
     /**
      * All incoming documents dashboard — shows every document in the system.
      */
@@ -46,17 +121,9 @@ class RecordsController extends Controller
         $query = Document::with(['user', 'submittedToOffice', 'currentOffice', 'currentHandler']);
 
         // Search
-        $search = trim((string) $request->get('search', ''));
-        $search = strip_tags($search);
-        if ($search !== '') {
-            $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $search);
-            $query->where(function ($q) use ($escaped) {
-                $q->where('reference_number', 'like', "%{$escaped}%")
-                  ->orWhere('tracking_number', 'like', "%{$escaped}%")
-                  ->orWhere('subject', 'like', "%{$escaped}%")
-                  ->orWhere('sender_name', 'like', "%{$escaped}%")
-                  ->orWhere('type', 'like', "%{$escaped}%");
-            });
+        $search = substr(strip_tags(trim((string) $request->get('search', ''))), 0, self::SEARCH_MAX_LENGTH);
+        if ($search !== '' && $this->shouldApplyKeywordSearch($search)) {
+            $this->applyKeywordSearch($query, $search);
         }
 
         // Status filter
@@ -67,13 +134,7 @@ class RecordsController extends Controller
 
         $documents = $query->latest()->paginate(20)->withQueryString();
 
-        $stats = [
-            'total'       => Document::count(),
-            'submitted'   => Document::where('status', 'submitted')->count(),
-            'received'    => Document::whereIn('status', ['received', 'in_review'])->count(),
-            'completed'   => Document::whereIn('status', ['completed', 'for_pickup'])->count(),
-            'archived'    => Document::where('status', 'archived')->count(),
-        ];
+        $stats = $this->recordsStats();
 
         $statusOptions = self::STATUS_FILTER_OPTIONS;
 
@@ -108,15 +169,7 @@ class RecordsController extends Controller
     {
         $this->authorizeRecordsAccess();
 
-        $stats = Cache::remember('records_stats', 15, function () {
-            return [
-                'total'     => Document::count(),
-                'submitted' => Document::where('status', 'submitted')->count(),
-                'received'  => Document::whereIn('status', ['received', 'in_review'])->count(),
-                'completed' => Document::whereIn('status', ['completed', 'for_pickup'])->count(),
-                'archived'  => Document::where('status', 'archived')->count(),
-            ];
-        });
+        $stats = $this->recordsStats();
 
         // User-specific flag (not cached)
         $stats['has_reports_access'] = auth()->user()->hasReportsAccess();

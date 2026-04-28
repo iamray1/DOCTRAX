@@ -311,6 +311,21 @@
     <script>
         let cooldownActive = false;
 
+        function getActivationRetryAfter(response) {
+            const retryAfterHeader = response.headers.get('Retry-After');
+            const resetHeader = response.headers.get('X-RateLimit-Reset');
+            let retryAfter = parseInt(retryAfterHeader || '', 10);
+
+            if ((!retryAfter || retryAfter < 1) && resetHeader) {
+                const resetAt = parseInt(resetHeader, 10);
+                if (resetAt) {
+                    retryAfter = Math.max(1, resetAt - Math.floor(Date.now() / 1000));
+                }
+            }
+
+            return retryAfter || 0;
+        }
+
         async function resendActivation() {
             if (cooldownActive) return;
 
@@ -338,15 +353,30 @@
                     },
                     body: JSON.stringify({ email: "{{ $email ?? '' }}" }),
                 });
-                const data = await response.json();
+                const retryAfter = getActivationRetryAfter(response);
+                let data = {};
 
-                if (data.success) {
+                try {
+                    data = await response.json();
+                } catch (parseErr) {
+                    data = {};
+                }
+
+                if (response.ok && data.success) {
                     feedback.className = 'resend-feedback success-msg';
                     feedbackIcon.className = 'fas fa-check-circle';
                     feedbackText.textContent = 'Activation email sent! Check your inbox.';
 
                     btnText.textContent = 'Email Sent';
                     startCooldown(60, cooldownEl, cooldownSec, btn, btnText);
+                } else if (response.status === 429 || data.throttled) {
+                    const waitSeconds = data.retry_after || retryAfter || 60;
+                    feedback.className = 'resend-feedback error-msg';
+                    feedbackIcon.className = 'fas fa-exclamation-circle';
+                    feedbackText.textContent = data.message || 'Too many requests. Please try again later.';
+
+                    btnText.textContent = 'Resend Activation Email';
+                    startCooldown(waitSeconds, cooldownEl, cooldownSec, btn, btnText);
                 } else {
                     feedback.className = 'resend-feedback error-msg';
                     feedbackIcon.className = 'fas fa-exclamation-circle';

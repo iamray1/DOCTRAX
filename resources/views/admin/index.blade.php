@@ -44,6 +44,8 @@
             -webkit-font-smoothing: antialiased;
             color: var(--text-dark);
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         /* ─── Sidebar ─── */
@@ -81,7 +83,7 @@
         .mob-overlay.open{display:block}
 
         /* ─── Main Content Area ─── */
-        .main{margin-left:0;min-height:100vh}
+        .main{margin-left:0;flex:1;display:flex;flex-direction:column}
 
         /* ─── Main Content ─── */
         .dash-wrapper {
@@ -556,7 +558,7 @@
             align-items: center;
             font-size: 12px;
             color: #94a3b8;
-            margin-top: 40px;
+            margin-top: auto;
         }
 
         .footer-left {

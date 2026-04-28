@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\ActivationMail;
 use App\Mail\PasswordResetMail;
+use App\Models\ActivationToken;
 use App\Models\Office;
 use App\Models\User;
 use App\Services\ActivationService;
@@ -225,10 +226,22 @@ class AuthController extends Controller
         }
 
         if (!$this->activationService->canResend($user)) {
+            $windowStart = now()->subHour();
+            $oldest = ActivationToken::where('user_id', $user->id)
+                ->where('created_at', '>=', $windowStart)
+                ->orderBy('created_at')
+                ->first();
+
+            $retryAfter = 3600;
+            if ($oldest) {
+                $retryAfter = max(1, $oldest->created_at->addHour()->diffInSeconds(now()));
+            }
+
             return response()->json([
-                'success' => false,
-                'message' => 'Too many requests. Please wait before requesting another activation email.',
-            ], 429);
+                'success'     => false,
+                'message'     => 'Too many requests. Please try again in ' . $retryAfter . ' ' . ($retryAfter === 1 ? 'second' : 'seconds') . '.',
+                'retry_after' => $retryAfter,
+            ], 429)->header('Retry-After', (string) $retryAfter);
         }
 
         $rawToken = $this->activationService->createToken($user);

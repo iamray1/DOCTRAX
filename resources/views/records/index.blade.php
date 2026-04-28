@@ -400,7 +400,7 @@
                 <span class="table-title">Documents</span>
                 <span class="table-doc-count" id="docUpdateFlash"></span>
             </div>
-            <form method="GET" action="/records/documents" class="filters" id="filterForm" data-live-search>
+            <form method="GET" action="/records/documents" class="filters" id="filterForm" data-live-search data-live-debounce="1000" data-live-min-interval="2200" data-live-min-length="2">
                 <div class="search-wrap">
                     <i class="fas fa-search"></i>
                     <input

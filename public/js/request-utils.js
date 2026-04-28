@@ -1470,17 +1470,42 @@
     var LIVE_FORM_DEFAULT_DEBOUNCE_MS = 700;
     var LIVE_FORM_MIN_INTERVAL_MS = 1200;
 
+    function getLiveFormMinLength(form) {
+        var minLength = parseInt(form.getAttribute('data-live-min-length') || '0', 10);
+        return isNaN(minLength) || minLength < 0 ? 0 : minLength;
+    }
+
+    function isLiveTextField(field) {
+        if (!field || field.hasAttribute('data-no-live-search')) return false;
+        var tag = field.tagName;
+        var type = (field.getAttribute('type') || '').toLowerCase();
+        return tag === 'TEXTAREA' || type === 'text' || type === 'search' || type === '';
+    }
+
+    function getNamedFormField(form, key) {
+        var field = form.elements ? form.elements[key] : null;
+        if (!field) return null;
+        if (field.length && !field.tagName) return field[0] || null;
+        return field;
+    }
+
     function buildLiveFormUrl(form) {
         var action = form.getAttribute('action') || location.pathname;
         var url = new URL(action, location.origin);
         var formData = new FormData(form);
         var params = new URLSearchParams();
+        var minLength = getLiveFormMinLength(form);
 
         formData.forEach(function (value, key) {
             var normalized = typeof value === 'string' ? window.sanitizeInput(value) : value;
             if (normalized === null || normalized === undefined) return;
             if (String(normalized).trim() === '') return;
-            params.append(key, String(normalized).trim());
+            normalized = String(normalized).trim();
+
+            var field = getNamedFormField(form, key);
+            if (minLength > 0 && isLiveTextField(field) && normalized.length < minLength) return;
+
+            params.append(key, normalized);
         });
 
         url.search = params.toString();
@@ -1559,12 +1584,24 @@
         var delay = parseInt(form.getAttribute('data-live-debounce') || String(LIVE_FORM_DEFAULT_DEBOUNCE_MS), 10);
         if (isNaN(delay) || delay < 0) delay = LIVE_FORM_DEFAULT_DEBOUNCE_MS;
 
+        function hasShortLiveTextValue() {
+            var minLength = getLiveFormMinLength(form);
+            if (minLength <= 0) return false;
+
+            return Array.prototype.some.call(form.querySelectorAll('input, textarea'), function (field) {
+                if (!isLiveTextField(field)) return false;
+                var value = String(field.value || '').trim();
+                return value.length > 0 && value.length < minLength;
+            });
+        }
+
         function scheduleDebouncedSubmit() {
             if (form._liveSearchInputTimer) {
                 clearTimeout(form._liveSearchInputTimer);
             }
 
             form._liveSearchInputTimer = setTimeout(function () {
+                if (hasShortLiveTextValue()) return;
                 queueLiveFormSubmit(form, false);
             }, delay);
         }
@@ -1604,6 +1641,7 @@
                         clearTimeout(form._liveSearchInputTimer);
                         form._liveSearchInputTimer = null;
                     }
+                    if (hasShortLiveTextValue()) return;
                     queueLiveFormSubmit(form, false);
                 });
             }

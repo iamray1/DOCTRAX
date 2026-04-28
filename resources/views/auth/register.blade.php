@@ -615,10 +615,11 @@
                             <a href="/login" class="btn btn-primary btn-register" style="display: block; text-decoration: none; text-align: center;">
                                 Go to Login
                             </a>
-                            <div style="margin-top: 14px;">
+                            <div style="margin-top: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                 <button type="button" onclick="resendActivation('${formData.email}')" id="resendBtn" style="background: none; border: none; color: #0056b3; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: underline; font-family: Poppins, sans-serif;">
                                     Didn't receive it? Resend email
                                 </button>
+                                <span id="resendCooldown" style="font-size: 12px; color: #94a3b8;"></span>
                             </div>
                     `;
                 } else if (response.status === 422) {
@@ -676,10 +677,82 @@
         // Init default state
         setAccountType('individual');
 
+        let resendCooldownTimer = null;
+
+        function formatResendCountdown(seconds) {
+            seconds = Math.max(0, parseInt(seconds, 10) || 0);
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            if (minutes <= 0) return secs + 's';
+            return minutes + 'm ' + String(secs).padStart(2, '0') + 's';
+        }
+
+        function getResendRetryAfter(response) {
+            const retryAfterHeader = response.headers.get('Retry-After');
+            const resetHeader = response.headers.get('X-RateLimit-Reset');
+            let retryAfter = parseInt(retryAfterHeader || '', 10);
+
+            if ((!retryAfter || retryAfter < 1) && resetHeader) {
+                const resetAt = parseInt(resetHeader, 10);
+                if (resetAt) {
+                    retryAfter = Math.max(1, resetAt - Math.floor(Date.now() / 1000));
+                }
+            }
+
+            return retryAfter || 0;
+        }
+
+        function resetResendButton(btn, originalText) {
+            if (resendCooldownTimer) {
+                clearInterval(resendCooldownTimer);
+                resendCooldownTimer = null;
+            }
+            const cooldownText = document.getElementById('resendCooldown');
+            if (cooldownText) cooldownText.textContent = '';
+            btn.innerText = originalText;
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.color = '#0056b3';
+        }
+
+        function startResendCooldown(seconds, originalText, statusText, statusColor) {
+            const btn = document.getElementById('resendBtn');
+            const cooldownText = document.getElementById('resendCooldown');
+            if (!btn || !cooldownText) return;
+
+            let remaining = Math.max(1, parseInt(seconds, 10) || 60);
+
+            if (resendCooldownTimer) clearInterval(resendCooldownTimer);
+
+            if (statusText) btn.innerText = statusText;
+            if (statusColor) btn.style.color = statusColor;
+
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            cooldownText.textContent = 'wait ' + formatResendCountdown(remaining);
+
+            resendCooldownTimer = setInterval(function () {
+                remaining--;
+                if (remaining <= 0) {
+                    clearInterval(resendCooldownTimer);
+                    resendCooldownTimer = null;
+                    cooldownText.textContent = '';
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.color = '#0056b3';
+                    btn.innerText = originalText;
+                    return;
+                }
+
+                cooldownText.textContent = 'wait ' + formatResendCountdown(remaining);
+            }, 1000);
+        }
+
         // Resend activation email
         async function resendActivation(email) {
             const btn = document.getElementById('resendBtn');
-            const originalText = btn.innerText;
+            const originalText = btn.getAttribute('data-original-text') || btn.textContent.trim();
+            btn.setAttribute('data-original-text', originalText);
             btn.innerHTML = '<span class="loading-dots"><span></span></span>';
             btn.disabled = true;
             btn.style.opacity = '0.5';
@@ -695,36 +768,30 @@
                     },
                     body: JSON.stringify({ email: email }),
                 });
-                const data = await response.json();
+                const retryAfter = getResendRetryAfter(response);
+                let data = {};
 
-                if (data.success) {
-                    btn.innerText = 'Email sent!';
-                    btn.style.color = '#16a34a';
-                    setTimeout(() => {
-                        btn.innerText = originalText;
-                        btn.disabled = false;
-                        btn.style.opacity = '1';
-                        btn.style.color = '#0056b3';
-                    }, 5000);
+                try {
+                    data = await response.json();
+                } catch (parseErr) {
+                    data = {};
+                }
+
+                if (response.ok && data.success) {
+                    startResendCooldown(60, originalText, 'Email sent', '#16a34a');
+                } else if (response.status === 429 || data.throttled) {
+                    btn.innerText = originalText;
+                    btn.style.color = '#0056b3';
+                    startResendCooldown(data.retry_after || retryAfter || 60, originalText);
                 } else {
                     btn.innerText = data.message || 'Failed to resend';
                     btn.style.color = '#dc2626';
-                    setTimeout(() => {
-                        btn.innerText = originalText;
-                        btn.disabled = false;
-                        btn.style.opacity = '1';
-                        btn.style.color = '#0056b3';
-                    }, 4000);
+                    setTimeout(() => resetResendButton(btn, originalText), 4000);
                 }
             } catch (err) {
                 btn.innerText = 'Error. Try again.';
                 btn.style.color = '#dc2626';
-                setTimeout(() => {
-                    btn.innerText = originalText;
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                    btn.style.color = '#0056b3';
-                }, 3000);
+                setTimeout(() => resetResendButton(btn, originalText), 3000);
             }
         }
     </script>

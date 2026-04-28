@@ -87,6 +87,16 @@
         .btn-create { display:inline-flex; align-items:center; gap:8px; background:var(--primary-gradient); color:#fff; border:none; padding:10px 18px; border-radius:10px; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer; transition:opacity .2s; }
         .btn-create:hover { opacity:.9; }
 
+        /* Filters */
+        .filters { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+        .filter-search-wrap { position:relative; flex:1 1 360px; min-width:min(100%,360px); display:flex; align-items:center; }
+        .filter-search-wrap .clearable-wrap { width:100%; }
+        .filter-search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:13px; pointer-events:none; z-index:1; }
+        .filter-input { width:100%; padding:10px 14px 10px 38px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:13px; background:var(--white); color:var(--text-dark); outline:none; transition:border-color .15s, box-shadow .15s; }
+        .filter-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(0,86,179,.08); }
+        .filter-clear { padding:10px 14px; background:var(--white); border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:13px; color:var(--text-muted); cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; text-decoration:none; min-height:42px; }
+        .filter-clear:hover { background:#f8fafc; color:var(--text-dark); }
+
         /* ─── Panel ─── */
         .panel { background:#fff; border-radius:16px; box-shadow:var(--shadow-sm); border:1px solid var(--border); overflow:hidden; }
         .panel.list-panel.has-list { display:flex; flex-direction:column; max-height:clamp(520px,72vh,820px); }
@@ -275,6 +285,11 @@
             .page-header h1{font-size:18px}
             .page-header p{font-size:12px}
             .btn-create{font-size:12px;padding:8px 14px}
+            .filters{gap:8px}
+            .filter-search-wrap,
+            .filter-clear{flex:1 1 100%;min-width:0}
+            .filter-input{font-size:12px;padding:9px 10px 9px 34px}
+            .filter-clear{font-size:12px;padding:8px 10px}
             .office-status-list{max-height:260px}
             .office-status-create{grid-template-columns:1fr}
             .office-status-create-btn{width:100%;justify-content:center}
@@ -376,6 +391,16 @@
                 </button>
             </div>
         </div>
+
+        <form class="filters" method="GET" action="/admin/offices" id="searchForm" data-live-search>
+            <div class="filter-search-wrap">
+                <i class="fas fa-search filter-search-icon" aria-hidden="true"></i>
+                <input type="text" id="officeAccountsSearch" name="search" class="filter-input" placeholder="Search name, office, email, or mobile..." value="{{ $filters['search'] ?? '' }}" data-clearable data-no-capitalize>
+            </div>
+            @if(($filters['search'] ?? '') !== '')
+                <button type="button" class="filter-clear" onclick="clearOfficeFilters()"><i class="fas fa-rotate-left"></i> Clear</button>
+            @endif
+        </form>
 
         <div class="panel list-panel{{ $accounts->count() ? ' has-list' : '' }}">
             <div class="panel-head">
@@ -503,7 +528,7 @@
             @else
             <div class="empty-state">
                 <i class="fas fa-building"></i>
-                <p>No office accounts yet. Create one to get started.</p>
+                <p>{{ ($filters['search'] ?? '') !== '' ? 'No office accounts match your search.' : 'No office accounts yet. Create one to get started.' }}</p>
             </div>
             @endif
         </div>
@@ -802,6 +827,15 @@
             document.getElementById('mobOverlay').classList.remove('open');
             document.body.style.overflow = '';
             var btn = document.getElementById('mobHamBtn'); if (btn) btn.classList.remove('toggle');
+        };
+        window.clearOfficeFilters = function() {
+            var form = document.getElementById('searchForm');
+            if (!form) return;
+            var search = document.getElementById('officeAccountsSearch');
+            if (search) search.value = '';
+            if (typeof form.requestSubmit === 'function') form.requestSubmit();
+            else form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+            if (search) search.focus();
         };
         document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeSidebar(); });
 

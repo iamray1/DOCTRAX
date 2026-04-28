@@ -20,6 +20,8 @@ use Illuminate\Support\Str;
 
 class AdminController extends Controller
 {
+    private const TRANSFER_NON_BLOCKING_STATUSES = ['submitted', 'completed', 'returned', 'cancelled', 'archived'];
+
     public function __construct(
         private ActivationService $activationService
     ) {}
@@ -221,7 +223,20 @@ class AdminController extends Controller
         return Document::query()
             ->where('current_handler_id', $target->id)
             ->where('current_office_id', $officeId)
-            ->whereNotIn('status', ['submitted', 'completed', 'returned', 'cancelled', 'archived'])
+            ->whereNotIn('status', self::TRANSFER_NON_BLOCKING_STATUSES)
+            ->count();
+    }
+
+    private function activeInProgressSchoolTransferDocumentsCount(User $target, int $officeId): int
+    {
+        return Document::query()
+            ->whereNotIn('status', self::TRANSFER_NON_BLOCKING_STATUSES)
+            ->where(function ($query) use ($target, $officeId) {
+                $query->where(function ($handled) use ($target, $officeId) {
+                    $handled->where('current_handler_id', $target->id)
+                        ->where('current_office_id', $officeId);
+                })->orWhere('user_id', $target->id);
+            })
             ->count();
     }
 
@@ -302,10 +317,10 @@ class AdminController extends Controller
 
         $blocked = 0;
         if ($oldOffice) {
-            $blocked = $this->activeInProgressHandledDocumentsCount($target, $oldOffice->id);
+            $blocked = $this->activeInProgressSchoolTransferDocumentsCount($target, $oldOffice->id);
 
             if ($blocked > 0) {
-                throw new \RuntimeException("Transfer blocked. {$target->name} is currently handling {$blocked} in-progress document(s) at {$oldOffice->name}. Finish or hand off those documents first.");
+                throw new \RuntimeException("Transfer blocked. {$target->name} has {$blocked} in-progress document(s) submitted by or assigned to this account. Finish or resolve those documents first.");
             }
         }
 
@@ -784,7 +799,7 @@ class AdminController extends Controller
     {
         $this->authorize();
 
-        $accounts = User::where('role', 'user')
+        $query = User::where('role', 'user')
             ->whereIn('account_type', ['office', 'representative'])
             ->whereNotNull('office_id')
             ->whereHas('office', function ($office) {
@@ -793,7 +808,23 @@ class AdminController extends Controller
                         ->orWhereNull('is_school');
                 });
             })
-            ->with('office')
+            ->with('office');
+
+        $search = strip_tags(trim((string) $request->get('search', '')));
+        if ($search !== '') {
+            $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $search);
+            $query->where(function ($q) use ($escaped) {
+                $q->where('name', 'like', "%{$escaped}%")
+                    ->orWhere('email', 'like', "%{$escaped}%")
+                    ->orWhere('mobile', 'like', "%{$escaped}%")
+                    ->orWhereHas('office', function ($office) use ($escaped) {
+                        $office->where('name', 'like', "%{$escaped}%")
+                            ->orWhere('code', 'like', "%{$escaped}%");
+                    });
+            });
+        }
+
+        $accounts = $query
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -873,6 +904,9 @@ class AdminController extends Controller
             'routingOfficesForTypeConfig' => $routingOfficesForTypeConfig,
             'officeDocumentTypesByOffice' => $officeDocumentTypesByOffice,
             'baseDocumentTypeOptionsByOffice' => $baseDocumentTypeOptionsByOffice,
+            'filters' => [
+                'search' => $search,
+            ],
         ]);
     }
 

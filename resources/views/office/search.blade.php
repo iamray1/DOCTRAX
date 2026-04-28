@@ -182,6 +182,7 @@
         .btn-date-trigger .date-badge { display:none; }
         .btn-date-trigger.has-dates .date-badge { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%; background:var(--primary); color:#fff; font-size:9px; font-weight:700; }
         .filters-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .alert-banner { margin-bottom: 14px; padding: 10px 14px; border-radius: 9px; border: 1px solid #fecaca; background: #fef2f2; color: #991b1b; font-size: 12px; font-weight: 500; }
 
         /* Date Range Modal */
         .date-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:500; align-items:center; justify-content:center; padding:16px; }
@@ -688,6 +689,10 @@
         </div>
     </div>
 
+    @if(session('error'))
+        <div class="alert-banner">{{ session('error') }}</div>
+    @endif
+
     {{-- Documents Section --}}
     @if($selectedUser)
     @php
@@ -708,7 +713,7 @@
     @endif
 
     <div class="filters-card">
-        <form method="GET" action="{{ route('office.search') }}" id="reportForm" data-live-search>
+        <form method="GET" action="{{ route('office.search') }}" id="reportForm" data-live-search data-live-debounce="1200" data-live-min-interval="2500" data-live-min-length="2">
             {{-- Hidden date fields — values set by modal --}}
             <input type="hidden" name="date_field" id="hDateField" value="{{ $filters['date_field'] ?: 'created_at' }}">
             <input type="hidden" name="date_from"  id="hDateFrom"  value="{{ $filters['date_from'] }}">
