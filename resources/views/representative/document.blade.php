@@ -124,7 +124,7 @@
         .modal-err{font-size:12px;color:#dc2626;margin-top:6px;display:none}
         .modal-err.show{display:block}
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js" defer></script>
 </head>
@@ -137,7 +137,10 @@
     $navDisplayName = $navOfficeName ?? $navRepName;
     $initials = collect(explode(' ', trim($navRepName ?: $user->name)))->filter()->map(fn($w)=>strtoupper(substr($w,0,1)))->take(2)->implode('');
     $canAct = $document->current_office_id === $user->office_id;
+    $isHandler = !$document->current_handler_id
+        || (int)$document->current_handler_id === (int)$user->id;
     $canAccept = $canAct && in_array($document->status, ['submitted','forwarded']);
+    $canUpdateStatus = $canAct && $isHandler && (!$document->isExternal() || $user->isRecords());
 @endphp
 
 <!-- Mobile top bar -->
@@ -280,8 +283,11 @@
                                     };
                                 @endphp
                                 <div class="tl-item">
-                                    @if($tlLog->performer)
-                                        <div class="tl-action">{{ $tlLog->performer->name }}</div>
+                                    @php
+                                        $tlPerformerName = $tlLog->performer?->name ?: ($tlLog->action === 'submitted' ? ($doc->sender_name ?? $document->sender_name ?? null) : null);
+                                    @endphp
+                                    @if($tlPerformerName)
+                                        <div class="tl-action">{{ $tlPerformerName }}</div>
                                     @endif
                                     <div class="tl-meta" style="{{ in_array($tlLog->action, ['completed', 'returned']) && $tlLog->action === 'returned' ? 'color:#dc2626' : '' }}"><i class="fas fa-clock" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->created_at->setTimezone('Asia/Manila')->format('M d, Y h:i A') }}</div>
                                     @if(!in_array($tlLog->action, ['completed', 'returned']))
@@ -322,6 +328,12 @@
                             This document is currently at <strong>{{ $document->currentOffice?->name ?? 'another office' }}</strong>.
                             You can only act on documents at your office.
                         </div>
+                    @elseif($canAct && !$isHandler)
+                        <div class="alert-info">
+                            <i class="fas fa-tag" style="margin-right:5px"></i>
+                            This document is currently tagged to <strong>{{ $document->currentHandler->name }}</strong>.
+                            Only the assigned handler can update its status.
+                        </div>
                     @else
                         {{-- Forward --}}
                         @if(in_array($document->status, ['in_review']))
@@ -336,7 +348,7 @@
                         @endif
 
                         {{-- Update status --}}
-                        @if(in_array($document->status, ['in_review','on_hold','for_pickup']))
+                        @if($canUpdateStatus && in_array($document->status, ['in_review','on_hold','for_pickup']))
                             <div class="action-section">
                                 <h3><i class="fas fa-tag" style="margin-right:5px"></i>Update Status</h3>
                                 <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Update the current processing status of this document.</p>
@@ -347,7 +359,7 @@
                         @endif
 
                         {{-- End Transaction --}}
-                        @if(in_array($document->status, ['in_review', 'for_pickup']))
+                        @if($canUpdateStatus && in_array($document->status, ['for_pickup', 'returned'], true))
                             <hr class="divider">
                             <div class="action-section">
                                 <h3>End Transaction</h3>
@@ -355,7 +367,7 @@
                                     @if($document->status === 'for_pickup')
                                         This document is ready for release. End the transaction once the recipient has actually claimed it.
                                     @else
-                                        This document no longer needs another outgoing step. End the transaction once office processing is fully complete.
+                                        This document is ready to be returned. End the transaction once the sender has actually claimed it.
                                     @endif
                                 </p>
                                 <button class="btn btn-primary" onclick="openPickupModal()">
@@ -364,7 +376,14 @@
                             </div>
                         @endif
 
-                        @if(!$canAccept && !in_array($document->status, ['in_review','on_hold','for_pickup']))
+                        @if(!$canUpdateStatus && $document->isExternal() && !$user->isRecords() && in_array($document->status, ['in_review','on_hold','for_pickup','returned'], true))
+                            <div class="alert-info">
+                                <i class="fas fa-info-circle" style="margin-right:5px"></i>
+                                Outside-submitted documents can only have status updates from Records Section.
+                            </div>
+                        @endif
+
+                        @if(!$canAccept && !in_array($document->status, ['in_review','on_hold','for_pickup','returned']))
                             <p style="color:var(--text-muted);font-size:13px;text-align:center;padding:10px 0">
                                 No actions available for the current status.
                             </p>
@@ -432,6 +451,7 @@ function closeStatusModal(){
 function openPickupModal(){
     document.getElementById('pickupRemarksSelect').value='';
     document.getElementById('pickupRemarks').value=''; document.getElementById('pickupRemarks').style.display='none';
+    hideErr('pickupError');
     document.getElementById('pickupModal').classList.add('show');
 }
 function closePickupModal(){
@@ -441,9 +461,9 @@ async function confirmPickup(){
     var remarks = getRemarksValue('pickupRemarksSelect','pickupRemarks');
     var btn = document.getElementById('confirmPickupBtn');
     btn.disabled = true;
-    var res = await apiFetch('/api/representative/documents/'+docId+'/status', {status:'completed',remarks:remarks||'Transaction ended after final office action.'});
+    var res = await apiFetch('/api/representative/documents/'+docId+'/status', {status:'completed',remarks:remarks||null});
     if(res.success){ location.reload(); }
-    else{ alert(res.message||'Failed to end transaction.'); btn.disabled = false; closePickupModal(); }
+    else{ showErr('pickupError', res.message||'Failed to end transaction.'); btn.disabled = false; }
 }
 async function confirmUpdateStatus(){
     var status  = document.getElementById('newStatus').value;
@@ -562,18 +582,20 @@ function logout(){
                     @if($document->status === 'for_pickup')
                         Has the recipient <strong>actually claimed</strong> this document? This will end the transaction and mark the document as <strong style="color:#15803d">Completed</strong>.
                     @else
-                        This document does not need to be released back out. End the transaction once the final office action is complete. This will mark the document as <strong style="color:#15803d">Completed</strong>.
+                        Has the sender <strong>actually claimed</strong> the returned document? This will end the transaction and mark the document as <strong style="color:#15803d">Completed</strong>.
                     @endif
                 </p>
                 <label class="modal-label">Remarks <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
                 <select class="modal-field" id="pickupRemarksSelect" onchange="handleRemarksDropdown('pickupRemarksSelect','pickupRemarks')">
                     <option value="">Select a remark…</option>
                     <option value="Transaction ended after final office action.">Transaction ended after final office action.</option>
+                    <option value="Returned document claimed by sender.">Returned document claimed by sender.</option>
                     <option value="Document received and filed. Transaction ended.">Document received and filed. Transaction ended.</option>
                     <option value="Document released to authorized representative. Transaction ended.">Document released to authorized representative. Transaction ended.</option>
                     <option value="__custom">Custom Remark…</option>
                 </select>
                 <textarea class="modal-field" id="pickupRemarks" placeholder="Type your custom remark..." style="min-height:70px;resize:vertical;display:none;margin-top:8px" data-no-capitalize></textarea>
+                <div class="modal-err" id="pickupError"></div>
             </div>
             <div class="modal-foot">
                 <button class="modal-btn" onclick="closePickupModal()">Not Yet</button>

@@ -112,7 +112,8 @@
             .dashboard-table-card.has-list{max-height:min(68vh,560px)}
             .table-head{padding:14px 16px;flex-direction:column;align-items:stretch;gap:8px}
             .table-title{font-size:15px}
-            .filters{flex-direction:column;gap:6px}
+            .filters{flex-direction:column;align-items:stretch;width:100%;gap:6px}
+            .filters .search-wrap{width:100%}
             .filters input{font-size:12px;padding:8px 12px 8px 32px}
             .filters input::placeholder{font-size:11px}
             .filters select{font-size:12px;padding:8px 28px 8px 10px;min-width:0;width:100%}
@@ -143,7 +144,7 @@
         .modal-btn.success{background:#16a34a;color:#fff;border-color:#16a34a}
         .modal-btn.success:hover{background:#15803d}
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js" defer></script>
 </head>

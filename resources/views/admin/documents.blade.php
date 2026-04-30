@@ -739,11 +739,11 @@
         @media (max-width: 900px) {
             .dash-wrapper { padding: 20px 16px 40px; }
             .page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
-            .filters { gap: 8px; }
-            .filter-input { font-size: 12px; padding: 8px 10px; }
-            .filter-select { font-size: 12px; padding: 8px 6px; }
-            .filter-btn { font-size: 12px; padding: 8px 12px; }
-            .filter-clear { font-size: 12px; padding: 8px 10px; }
+            .filters { gap: 8px; flex-wrap: wrap; align-items: stretch; }
+            .filter-input { flex: 1 1 100%; width: 100%; font-size: 12px; padding: 8px 10px; }
+            .filter-select { flex: 1 1 150px; min-width: 0; font-size: 12px; padding: 8px 6px; }
+            .filter-btn { flex: 1 1 auto; justify-content: center; font-size: 12px; padding: 8px 12px; }
+            .filter-clear { flex: 1 1 auto; text-align: center; font-size: 12px; padding: 8px 10px; }
             .stats-row { grid-template-columns: 1fr 1fr; }
             .panel.list-panel.has-list { max-height: min(68vh, 560px); }
             .dtable-wrap { display: none; }
@@ -756,7 +756,7 @@
             .pagination-links { flex-wrap: wrap; justify-content: center; }
         }
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js" defer></script>
 </head>

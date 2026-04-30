@@ -69,7 +69,7 @@ class RoutingLog extends Model
             'forwarded'  => 'Forwarded',
             'completed'  => 'Completed',
             'for_pickup' => 'Ready for Pickup',
-            'returned'   => 'Returned',
+            'returned'   => 'For Return',
             'cancelled'  => 'Cancelled',
             'archived'   => 'Archived (Unprocessed)',
             default      => ucfirst(str_replace('_', ' ', $action)),
@@ -77,7 +77,7 @@ class RoutingLog extends Model
     }
 
     /**
-     * Action label with office name for completed/returned transactions.
+     * Action label with office name for completed transactions and for-return updates.
      */
     public function actionLabelWithOffice(): string
     {
@@ -87,7 +87,7 @@ class RoutingLog extends Model
             $officeName = $this->toOffice?->name ?? $this->fromOffice?->name ?? 'Office';
             
             if ($action === 'returned') {
-                return 'Returned to Sender - ' . $officeName;
+                return 'For Return - ' . $officeName;
             }
             
             return 'Transaction Completed - ' . $officeName;

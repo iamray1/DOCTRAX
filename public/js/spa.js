@@ -113,6 +113,28 @@
             });
         }
 
+        function resetMobileSidebarState(root) {
+            root = root || document;
+
+            var sidebar = root.querySelector('.sidebar');
+            if (sidebar) {
+                sidebar.classList.remove('open');
+                sidebar.style.transition = '';
+            }
+
+            root.querySelectorAll('.mob-overlay').forEach(function (overlay) {
+                overlay.classList.remove('open', 'show');
+            });
+
+            root.querySelectorAll('.mob-hamburger').forEach(function (button) {
+                button.classList.remove('toggle', 'open');
+            });
+
+            if (root === document && document.body) {
+                document.body.style.overflow = '';
+            }
+        }
+
         /* Perform the actual DOM swap (head sync + body replace + script re-exec) */
         function applySwap(html, url, historyMode, options) {
             options = options || {};
@@ -189,35 +211,13 @@
             });
 
             /* -- Body -- */
-            /* Save sidebar open state before replacing body */
-            var _sbWasOpen = !!document.querySelector('.sidebar.open');
-
-            /* Pre-apply sidebar open state to new content BEFORE inserting into DOM
-               so the sidebar never visually disappears during SPA navigation. */
-            if (_sbWasOpen) {
-                var _newSb = doc.querySelector('.sidebar');
-                var _newOv = doc.querySelector('.mob-overlay');
-                var _newHb = doc.querySelector('.mob-hamburger');
-                if (_newSb) { _newSb.classList.add('open'); _newSb.style.transition = 'none'; }
-                if (_newOv) { _newOv.classList.add('open'); _newOv.classList.add('show'); }
-                if (_newHb) { _newHb.classList.add('toggle'); }
-            }
+            resetMobileSidebarState(doc);
 
             document.body.innerHTML = doc.body.innerHTML;
             document.body.className  = doc.body.className;
             /* Reset any inline styles carried over from the previous page (e.g. overflow:hidden
                set by a drawer/modal) so the new page always starts with a clean slate. */
             document.body.removeAttribute('style');
-
-            /* Keep body locked if sidebar was open */
-            if (_sbWasOpen && document.querySelector('.sidebar')) {
-                document.body.style.overflow = 'hidden';
-                /* Re-enable sidebar transition after one frame so future toggles animate */
-                requestAnimationFrame(function () {
-                    var sb = document.querySelector('.sidebar');
-                    if (sb) sb.style.transition = '';
-                });
-            }
 
             /* -- Re-execute body <script> tags -- */
             document.body.querySelectorAll('script').forEach(function (old) {
@@ -301,6 +301,7 @@
         function fetchAndSwap(url, historyMode, fallbackUrl, options) {
             options = options || {};
             var reqId = ++_navSeq;
+            if (!options.silent) resetMobileSidebarState(document);
             if (!options.silent) _barStart();
 
             return fetch(url, {
@@ -348,12 +349,18 @@
         };
 
         document.addEventListener('click', function (e) {
+            if (e.target.closest('.mob-overlay.open')) {
+                resetMobileSidebarState(document);
+                return;
+            }
+
             var a = e.target.closest('a');
             if (!a || !a.href || a.target) return;
             if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
             if (a.hostname !== location.hostname) return;
             var href = a.getAttribute('href');
             if (!href || href === '#' || href.charAt(0) === '#') return;
+            if (a.closest('.sidebar')) resetMobileSidebarState(document);
             if (a.href === location.href || a.href === location.href + '#') return;
 
             // Full reload for auth pages (or if we're currently on one)
@@ -367,6 +374,14 @@
         });
 
         /* ── Browser back / forward ── */
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') resetMobileSidebarState(document);
+        });
+
+        window.addEventListener('resize', function () {
+            if (window.innerWidth > 900) resetMobileSidebarState(document);
+        });
+
         window.addEventListener('popstate', function () {
             if (shouldFullReload(location.href)) { location.reload(); return; }
             fetchAndSwap(location.href, 'none', location.href, { preserveScroll: true })

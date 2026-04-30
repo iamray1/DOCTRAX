@@ -108,30 +108,53 @@
     if (!window.__docTraxIdleGuardInitialized) {
         var IDLE_TIMEOUT = 30 * 60 * 1000; // 30 minutes in ms
         var _idleTimer = null;
+        var _lastActivityAt = Date.now();
+        var _idleLogoutStarted = false;
 
         window.__docTraxIdleGuardInitialized = true;
         window.__docTraxIdleLogoutMs = IDLE_TIMEOUT;
 
-        function resetIdleTimer() {
+        function logoutForIdle() {
+            if (_idleLogoutStarted) return;
+            _idleLogoutStarted = true;
+
+            if (window.performLogout) {
+                window.performLogout();
+            } else {
+                window.location.replace('/login');
+            }
+        }
+
+        function scheduleIdleTimer() {
             if (_idleTimer) clearTimeout(_idleTimer);
-            _idleTimer = setTimeout(function() {
-                if (window.performLogout) {
-                    window.performLogout();
-                } else {
-                    window.location.replace('/login');
-                }
-            }, IDLE_TIMEOUT);
+            var remaining = Math.max(0, IDLE_TIMEOUT - (Date.now() - _lastActivityAt));
+            _idleTimer = setTimeout(logoutForIdle, remaining);
+        }
+
+        function markActivity() {
+            _lastActivityAt = Date.now();
+            scheduleIdleTimer();
+        }
+
+        function handleResume() {
+            if (Date.now() - _lastActivityAt >= IDLE_TIMEOUT) {
+                logoutForIdle();
+                return;
+            }
+
+            markActivity();
         }
 
         ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click', 'input'].forEach(function(evt) {
-            document.addEventListener(evt, resetIdleTimer, { passive: true });
+            document.addEventListener(evt, markActivity, { passive: true });
         });
 
-        window.addEventListener('focus', resetIdleTimer);
+        window.addEventListener('focus', handleResume);
+        window.addEventListener('pageshow', handleResume);
         document.addEventListener('visibilitychange', function() {
-            if (!document.hidden) resetIdleTimer();
+            if (!document.hidden) handleResume();
         });
 
-        resetIdleTimer();
+        scheduleIdleTimer();
     }
 })();

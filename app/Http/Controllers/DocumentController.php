@@ -180,7 +180,7 @@ class DocumentController extends Controller
      */
     public function track(Request $request)
     {
-        return $this->trackLookupResponse($request, 15);
+        return $this->trackLookupResponse($request, 15, false);
     }
 
     public function trackInternal(Request $request): JsonResponse
@@ -194,10 +194,10 @@ class DocumentController extends Controller
             ], 403);
         }
 
-        return $this->trackLookupResponse($request, 5);
+        return $this->trackLookupResponse($request, 5, true);
     }
 
-    private function trackLookupResponse(Request $request, int $cacheSeconds): JsonResponse
+    private function trackLookupResponse(Request $request, int $cacheSeconds, bool $includeInternalFields = false): JsonResponse
     {
         $lookupInput = $this->resolveTrackLookupInput($request);
 
@@ -209,14 +209,14 @@ class DocumentController extends Controller
             ], 422);
         }
 
-        $cacheKey = 'track-lookup:v1:' . $lookupInput;
+        $cacheKey = 'track-lookup:v4:' . ($includeInternalFields ? 'internal:' : 'public:') . $lookupInput;
         $cached = Cache::get($cacheKey);
 
         if (is_array($cached) && isset($cached['status'], $cached['payload'])) {
             return response()->json($cached['payload'], (int) $cached['status']);
         }
 
-        [$status, $payload] = $this->buildTrackLookupPayload($lookupInput);
+        [$status, $payload] = $this->buildTrackLookupPayload($lookupInput, $includeInternalFields);
 
         if ($cacheSeconds > 0 && in_array($status, [200, 404], true)) {
             Cache::put($cacheKey, [
@@ -239,9 +239,10 @@ class DocumentController extends Controller
         return strtoupper(trim(strip_tags((string)($request->tracking_number ?: $request->reference_number ?: $request->ref))));
     }
 
-    private function buildTrackLookupPayload(string $lookupInput): array
+    private function buildTrackLookupPayload(string $lookupInput, bool $includeInternalFields = false): array
     {
         $document = Document::with([
+            'user.office',
             'submittedToOffice',
             'currentOffice',
             'currentHandler',
@@ -370,11 +371,7 @@ class DocumentController extends Controller
             $remarks = $log->remarks;
             $displayToOffice = $isSubmissionPending ? ($log->toOffice?->name ?: $submittedOfficeName) : $log->toOffice?->name;
             
-            // Check if submitter is office account or SuperAdmin
-            $submitterIsOfficeOrAdmin = false;
-            if ($document->user) {
-                $submitterIsOfficeOrAdmin = $document->user->isOfficeAccount() || $document->user->isSuperAdmin();
-            }
+            $submitterIsOfficeOrAdmin = $document->isInternalOfficeSubmission();
             
             if ($isSubmissionPending) {
                 $destinationOfficeName = $displayToOffice ?: 'the selected destination office';
@@ -387,6 +384,10 @@ class DocumentController extends Controller
             }
 
             $remarks = $this->normalizeTrackingRemarks($log, $remarks, $displayToOffice);
+            $performedBy = $formatPerformerName($log->performer);
+            if (!$performedBy && $log->action === 'submitted') {
+                $performedBy = trim((string) $document->sender_name) ?: $formatPerformerName($document->user);
+            }
 
             return [
                 'id' => $log->id,
@@ -396,7 +397,7 @@ class DocumentController extends Controller
                 'status_after' => $log->status_after,
                 'from_office' => $isSubmissionPending ? null : $log->fromOffice?->name,
                 'to_office' => $displayToOffice,
-                'performed_by' => $formatPerformerName($log->performer),
+                'performed_by' => $performedBy,
                 'remarks' => $remarks,
                 'timestamp' => $log->created_at->copy()->setTimezone('Asia/Manila')->format('M d, Y h:i A'),
                 'office_name' => $arrivalMeta['office_name'] ?? null,
@@ -448,6 +449,9 @@ class DocumentController extends Controller
             $legacyTimestamp = $document->created_at->copy()->setTimezone('Asia/Manila')->format('M d, Y h:i A');
             $legacyOfficeName = $document->submittedToOffice?->name ?: $currentOfficeName;
             $legacyAction = $document->status === 'submitted' ? 'submitted' : 'processing';
+            $legacyPerformedBy = $legacyAction === 'submitted'
+                ? (trim((string) $document->sender_name) ?: $formatPerformerName($document->user))
+                : $currentHandlerName;
 
             $logs = collect([[
                 'id' => null,
@@ -456,7 +460,7 @@ class DocumentController extends Controller
                 'status_after' => $document->status,
                 'from_office' => null,
                 'to_office' => $legacyOfficeName,
-                'performed_by' => $currentHandlerName,
+                'performed_by' => $legacyPerformedBy,
                 'remarks' => 'Routing history is unavailable for this legacy document. Timeline logs were enabled after this record was created.',
                 'timestamp' => $legacyTimestamp,
                 'office_name' => $legacyOfficeName,
@@ -470,28 +474,36 @@ class DocumentController extends Controller
             ]]);
         }
 
+        $documentPayload = [
+            'id' => $document->id,
+            'reference_number' => $document->reference_number ?: $document->tracking_number,
+            'tracking_number' => $document->tracking_number,
+            'subject' => $document->subject,
+            'type' => $document->type,
+            'description' => $document->description,
+            'status' => $document->status,
+            'status_label' => $document->statusLabel(),
+            'status_color' => $document->statusColor(),
+            'is_external' => $document->isExternal(),
+            'sender_name' => $document->sender_name,
+            'submitted_to_office' => $document->submittedToOffice?->name,
+            'current_office' => $currentOfficeName,
+            'current_handler' => $currentHandlerName,
+            'last_action_at' => $document->last_action_at?->setTimezone('Asia/Manila')->format('M d, Y h:i A'),
+            'submitted_at' => $document->created_at->setTimezone('Asia/Manila')->format('M d, Y h:i A'),
+            'routing_logs' => $logs,
+        ];
+
+        if ($includeInternalFields) {
+            $documentPayload['current_office_id'] = $document->current_office_id;
+            $documentPayload['current_handler_id'] = $document->current_handler_id;
+        }
+
         return [200, [
             'success' => true,
             'found' => true,
             'logs' => $logs,
-            'document' => [
-                'id' => $document->id,
-                'reference_number' => $document->reference_number ?: $document->tracking_number,
-                'tracking_number' => $document->tracking_number,
-                'subject' => $document->subject,
-                'type' => $document->type,
-                'description' => $document->description,
-                'status' => $document->status,
-                'status_label' => $document->statusLabel(),
-                'status_color' => $document->statusColor(),
-                'sender_name' => $document->sender_name,
-                'submitted_to_office' => $document->submittedToOffice?->name,
-                'current_office' => $currentOfficeName,
-                'current_handler' => $currentHandlerName,
-                'last_action_at' => $document->last_action_at?->setTimezone('Asia/Manila')->format('M d, Y h:i A'),
-                'submitted_at' => $document->created_at->setTimezone('Asia/Manila')->format('M d, Y h:i A'),
-                'routing_logs' => $logs,
-            ],
+            'document' => $documentPayload,
         ]];
     }
 

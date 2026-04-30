@@ -109,7 +109,7 @@
             .auth-header h2 { font-size: 18px; }
         }
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
 </head>
 <body>
     <nav class="navbar">

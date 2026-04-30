@@ -103,7 +103,7 @@
         .form-group textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Poppins,sans-serif;resize:vertical;min-height:80px}
         .form-group textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,86,179,.1)}
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
 </head>
 <body>
 @php
@@ -349,8 +349,11 @@
                                         };
                                     @endphp
                                     <div class="tl-item">
-                                        @if($tlLog->performer)
-                                            <div class="tl-action">{{ $tlLog->performer->name }}</div>
+                                        @php
+                                            $tlPerformerName = $tlLog->performer?->name ?: ($tlLog->action === 'submitted' ? ($doc->sender_name ?? $document->sender_name ?? null) : null);
+                                        @endphp
+                                        @if($tlPerformerName)
+                                            <div class="tl-action">{{ $tlPerformerName }}</div>
                                         @endif
                                         <div class="tl-meta" style="{{ in_array($tlLog->action, ['completed', 'returned']) && $tlLog->action === 'returned' ? 'color:#dc2626' : '' }}"><i class="fas fa-clock" style="margin-right:3px;font-size:10px"></i>{{ $tlLog->created_at->setTimezone('Asia/Manila')->format('M d, Y h:i A') }}</div>
                                         @if(!in_array($tlLog->action, ['completed', 'returned']))
@@ -427,7 +430,7 @@
                 </div>
             </div>
 
-            @if($document->status === 'for_pickup')
+            @if($user->isRecords() && in_array($document->status, ['for_pickup', 'returned'], true))
             <div class="card" style="margin-top:18px">
                 <div class="card-head">
                     <h2>Actions</h2>
@@ -436,7 +439,7 @@
                     <div class="action-section">
                         <h3>End Transaction</h3>
                         <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
-                            This document is ready for release. End the transaction once the recipient has actually claimed it.
+                            This document is ready for release or return. End the transaction once the recipient has actually claimed it.
                         </p>
                         <button class="btn btn-primary" onclick="openPickupModal()">
                             End Transaction

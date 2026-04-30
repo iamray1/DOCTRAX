@@ -282,7 +282,7 @@
             to   { opacity: 1; transform: translateY(0); }
         }
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
 </head>
 <body>
 

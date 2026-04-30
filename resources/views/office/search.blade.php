@@ -601,7 +601,7 @@
             .print-meta { display: block; }
         }
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js" defer></script>
 </head>
@@ -799,7 +799,7 @@
         <div class="stat-card c-emerald">
             <div class="stat-label">Processed</div>
             <div class="stat-num">{{ \App\Support\UiNumber::compact($reportStats['processed']) }}</div>
-            <div class="stat-sub">For pickup, returned, or claimed</div>
+            <div class="stat-sub">Claimed (Completed)</div>
         </div>
     </div>
 

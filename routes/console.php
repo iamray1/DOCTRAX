@@ -15,4 +15,4 @@ Schedule::command('documents:archive-unprocessed')
     ->withoutOverlapping();
 
 // Automatic pickup completion is intentionally disabled.
-// Documents must remain in for_pickup until the actual claim is confirmed.
+// Documents must remain in for_pickup/returned until the actual claim is confirmed.

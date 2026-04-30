@@ -98,7 +98,7 @@
         .site-footer .footer-right{font-size:11px;color:#b0b8c4}
 
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js" defer></script>
 </head>

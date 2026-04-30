@@ -69,7 +69,7 @@
         }
         .resend-row button:disabled { color: #94a3b8; text-decoration: none; cursor: not-allowed; }
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
 </head>
 <body>
     <!-- Navigation Bar -->

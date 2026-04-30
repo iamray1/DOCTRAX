@@ -230,8 +230,8 @@
             .table-head{padding:11px 12px 10px;flex-direction:column;align-items:stretch;gap:8px}
             .table-title{font-size:15px}
             .table-doc-count{font-size:11px}
-            .filters{gap:6px;flex-wrap:wrap;min-width:0;justify-content:stretch;flex-basis:auto}
-            .search-wrap{flex:1 1 100%;max-width:none}
+            .filters{gap:6px;flex-wrap:wrap;align-items:stretch;width:100%;min-width:0;justify-content:stretch;flex-basis:auto}
+            .search-wrap{flex:1 1 100%;width:100%;max-width:none}
             .filters input{font-size:11px;padding:7px 9px 7px 28px}
             .filters input::placeholder{font-size:10px}
             .filters select{font-size:11px;padding:7px 24px 7px 8px;min-width:0;flex:1 1 100%}
@@ -265,8 +265,9 @@
         .site-footer .footer-left{display:flex;align-items:center;gap:6px}
         .site-footer .footer-right{font-size:11px;color:#b0b8c4}
         @media(max-width:900px){.site-footer{padding:16px 5%;flex-direction:column;gap:6px;text-align:center}}
+        @include('partials.submission-notifications-styles')
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js" defer></script>
 </head>
@@ -350,16 +351,19 @@
                 <h1>All Documents</h1>
                 <p>View and monitor all documents in DOCTRAX &mdash; {{ $roleName }} Access</p>
             </div>
-            <div class="live-clock">
-                <div class="clock-time-display">
-                    <span id="c-h">--</span>:<span id="c-m">--</span>:<span class="seconds" id="c-s">--</span>
-                    <span class="period" id="c-p">--</span>
+            <div class="submission-header-actions">
+                <div class="live-clock">
+                    <div class="clock-time-display">
+                        <span id="c-h">--</span>:<span id="c-m">--</span>:<span class="seconds" id="c-s">--</span>
+                        <span class="period" id="c-p">--</span>
+                    </div>
+                    <div class="clock-sep"></div>
+                    <div class="clock-date-display">
+                        <span class="day" id="c-day">Loading...</span>
+                        <span id="c-date"></span>
+                    </div>
                 </div>
-                <div class="clock-sep"></div>
-                <div class="clock-date-display">
-                    <span class="day" id="c-day">Loading...</span>
-                    <span id="c-date"></span>
-                </div>
+                @include('partials.submission-notifications')
             </div>
         </div>
     </div>
@@ -452,7 +456,7 @@
                             $canActOnDoc = $user->office_id
                                 && (((int) $doc->current_office_id === (int) $user->office_id)
                                     || ($doc->status === 'submitted' && (int) $doc->submitted_to_office_id === (int) $user->office_id));
-                            $canManageDoc = $canActOnDoc && in_array($doc->status, ['in_review', 'for_pickup']);
+                            $canManageDoc = $canActOnDoc && in_array($doc->status, ['in_review', 'for_pickup', 'returned'], true);
                         @endphp
                         <tr class="doc-row" onclick='openDocDetail(@json($docLookup))'>
                             <td style="font-family:monospace;font-size:12px;font-weight:600;color:var(--primary);white-space:nowrap">{{ $doc->reference_number ?: 'N/A' }}</td>
@@ -517,7 +521,7 @@
                         $canActOnDoc = $user->office_id
                             && (((int) $doc->current_office_id === (int) $user->office_id)
                                 || ($doc->status === 'submitted' && (int) $doc->submitted_to_office_id === (int) $user->office_id));
-                        $canManageDoc = $canActOnDoc && in_array($doc->status, ['in_review', 'for_pickup']);
+                        $canManageDoc = $canActOnDoc && in_array($doc->status, ['in_review', 'for_pickup', 'returned'], true);
                     @endphp
                     <div class="mob-card" onclick='openDocDetail(@json($docLookup))'>
                         <div class="mob-card-top">
@@ -830,5 +834,6 @@ function logout(){
 })();
 
 </script>
+@include('partials.submission-notifications-script')
 </body>
 </html>

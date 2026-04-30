@@ -12,6 +12,7 @@ use App\Http\Controllers\RecordsController;
 use App\Models\Document;
 use App\Models\Office;
 use App\Models\OfficeDocumentType;
+use App\Services\ActivationService;
 
 Route::get('/', function () {
     $user = auth()->user();
@@ -61,6 +62,7 @@ Route::get('/track', function () {
     $myDocs = null;
     $user = auth()->user();
     if ($user) {
+        app(ActivationService::class)->linkGuestDocumentsForUser($user);
         $myDocs = $user->documents()->latest()->take(30)->get();
         // Serve admin sidebar version for admin/superadmin
         if ($user->isAdmin()) {
@@ -156,6 +158,19 @@ Route::get('/submit', function () {
 Route::get('/login', function () {
     return view('auth.login');
 })->middleware('no-cache')->name('login');
+
+Route::get('/api/session/refresh', function () {
+    return response()->json([
+        'success' => true,
+        'csrf_token' => csrf_token(),
+        'authenticated' => auth()->check(),
+        'expires_in' => (int) config('session.lifetime', 30) * 60,
+    ])->withHeaders([
+        'Cache-Control' => 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma' => 'no-cache',
+        'Expires' => 'Sat, 01 Jan 2000 00:00:00 GMT',
+    ]);
+})->middleware('throttle:60,1');
 
 Route::get('/register', function () {
     $representativeSchools = Office::query()
@@ -261,6 +276,7 @@ Route::middleware(['auth', 'ensure-auth', 'no-cache'])->group(function () {
     Route::post('/api/office/documents/{id}/accept', [RepresentativeController::class, 'accept'])->middleware('throttle:20,1');
     Route::post('/api/representative/documents/{id}/accept', [RepresentativeController::class, 'accept'])->middleware('throttle:20,1');
     Route::post('/api/office/documents/receive-by-reference', [RepresentativeController::class, 'receiveByReference'])->middleware('throttle:20,1');
+    Route::post('/api/office/documents/bulk-status', [RepresentativeController::class, 'bulkUpdateStatus'])->middleware('throttle:20,1');
     Route::post('/api/office/documents/{id}/status', [RepresentativeController::class, 'updateStatus'])->middleware('throttle:20,1');
     Route::post('/api/representative/documents/{id}/status', [RepresentativeController::class, 'updateStatus'])->middleware('throttle:20,1');
     Route::get('/office/search', [RepresentativeController::class, 'search'])
@@ -296,6 +312,7 @@ Route::middleware(['auth', 'ensure-auth', 'no-cache'])->group(function () {
         Route::get('/ict/documents', [AdminController::class, 'ictDocuments'])->name('ict.documents')->middleware('throttle:60,1');
         Route::post('/api/ict/receive-by-reference', [AdminController::class, 'ictReceiveByReference'])->middleware('throttle:20,1');
         Route::post('/api/ict/documents/{id}/accept', [AdminController::class, 'ictAccept'])->middleware('throttle:20,1');
+        Route::post('/api/ict/documents/bulk-status', [AdminController::class, 'ictBulkUpdateStatus'])->middleware('throttle:20,1');
         Route::post('/api/ict/documents/{id}/status', [AdminController::class, 'ictUpdateStatus'])->middleware('throttle:20,1');
         Route::get('/api/ict-stats', [AdminController::class, 'ictStatsJson'])->middleware('throttle:60,1');
     });

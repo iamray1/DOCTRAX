@@ -129,7 +129,7 @@
         .modal-err{font-size:12px;color:#dc2626;margin-top:6px;display:none}
         .modal-err.show{display:block}
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js" defer></script>
 </head>
@@ -147,6 +147,27 @@
     $isHandler = !$document->current_handler_id
         || (int)$document->current_handler_id === (int)$user->id;
     $canAccept = $canAct && $document->status === 'submitted';
+    $canUpdateStatus = $canAct && $isHandler && (!$document->isExternal() || $user->isRecords());
+    $isOfficeToOfficeTransaction = $document->isInternalOfficeSubmission();
+    $isDirectOfficeToOfficeEnd = $isOfficeToOfficeTransaction && in_array($document->status, ['received','in_review','on_hold'], true);
+    $canEndTransaction = $canUpdateStatus && $document->canCompleteTransactionFromCurrentStatus();
+    $backSource = request()->query('from');
+    $queueBackParams = array_filter([
+        'page' => trim((string) request()->query('page', '')),
+        'queue_search' => trim((string) request()->query('queue_search', '')),
+        'queue_status' => trim((string) request()->query('queue_status', '')),
+    ], fn ($value) => $value !== '');
+    $queueBackSuffix = $queueBackParams ? '?' . http_build_query($queueBackParams) : '';
+    if ($backSource === 'reports') {
+        $backHref = '/office/search';
+        $backLabel = 'Back to Reports';
+    } elseif ($backSource === 'ict-queue' || ($user->isSuperAdmin() && $backSource !== 'office-queue')) {
+        $backHref = '/ict/documents' . $queueBackSuffix . '#document-queue';
+        $backLabel = 'Back to ICT Document Queue';
+    } else {
+        $backHref = '/office/dashboard' . $queueBackSuffix . '#document-queue';
+        $backLabel = 'Back to Document Queue';
+    }
 @endphp
 
 <!-- Mobile top bar -->
@@ -224,11 +245,7 @@
 </div>
 
 <div class="main">
-    @if(request()->query('from') === 'reports')
-    <a href="/office/search" class="back-link" aria-label="Back to Reports" title="Back to Reports" style="display:inline-flex;align-items:center;justify-content:center;gap:0;padding:0;border:none;background:transparent;border-radius:0;box-shadow:none;color:#0f172a;text-decoration:none;line-height:1.2;width:auto;"><span aria-hidden="true" style="width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;border-radius:999px;background:linear-gradient(135deg,#0f4fd6 0%,#1f8ef1 100%);color:#fff;box-shadow:none;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M5 12l14 0"></path><path d="M5 12l6 6"></path><path d="M5 12l6 -6"></path></svg></span></a>
-    @else
-    <a href="/office/dashboard" class="back-link" aria-label="Back to Dashboard" title="Back to Dashboard" style="display:inline-flex;align-items:center;justify-content:center;gap:0;padding:0;border:none;background:transparent;border-radius:0;box-shadow:none;color:#0f172a;text-decoration:none;line-height:1.2;width:auto;"><span aria-hidden="true" style="width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;border-radius:999px;background:linear-gradient(135deg,#0f4fd6 0%,#1f8ef1 100%);color:#fff;box-shadow:none;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M5 12l14 0"></path><path d="M5 12l6 6"></path><path d="M5 12l6 -6"></path></svg></span></a>
-    @endif
+    <a href="{{ $backHref }}" class="back-link" aria-label="{{ $backLabel }}" title="{{ $backLabel }}" style="display:inline-flex;align-items:center;justify-content:center;gap:0;padding:0;border:none;background:transparent;border-radius:0;box-shadow:none;color:#0f172a;text-decoration:none;line-height:1.2;width:auto;"><span aria-hidden="true" style="width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;border-radius:999px;background:linear-gradient(135deg,#0f4fd6 0%,#1f8ef1 100%);color:#fff;box-shadow:none;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M5 12l14 0"></path><path d="M5 12l6 6"></path><path d="M5 12l6 -6"></path></svg></span></a>
 
     <div class="two-col">
         <!-- Left: Document info + timeline -->
@@ -436,8 +453,11 @@
                                     };
                                 @endphp
                                 <div class="tl-item{{ $isVoided ? ' voided' : '' }}">
-                                    @if($tlLog->performer)
-                                        <div class="tl-action">{{ $tlLog->performer->name }}@if($isVoided) <span class="tl-void-badge">VOIDED</span>@endif</div>
+                                    @php
+                                        $tlPerformerName = $tlLog->performer?->name ?: ($tlLog->action === 'submitted' ? ($document->sender_name ?? null) : null);
+                                    @endphp
+                                    @if($tlPerformerName)
+                                        <div class="tl-action">{{ $tlPerformerName }}@if($isVoided) <span class="tl-void-badge">VOIDED</span>@endif</div>
                                     @elseif($isVoided)
                                         <div class="tl-action"><span class="tl-void-badge">VOIDED</span></div>
                                     @endif
@@ -487,7 +507,7 @@
                             Only the assigned handler can update its status.
                         </div>
                     @else
-                        @if(in_array($document->status, ['in_review','on_hold']) && (!$document->isExternal() || $user->isRecords()))
+                        @if($canUpdateStatus && in_array($document->status, ['in_review','on_hold']))
                             {{-- Update status --}}
                             <div class="action-section">
                                 <h3><i class="fas fa-tag" style="margin-right:5px"></i>Update Status</h3>
@@ -500,11 +520,11 @@
                         @endif
 
                         {{-- End Transaction --}}
-                        @if(!in_array($document->status, ['completed','returned','cancelled','archived']))
+                        @if($canEndTransaction)
                             <div class="action-section">
                                 <h3>End Transaction</h3>
                                 <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
-                                    End this transaction and mark the document as completed.
+                                    {{ $isDirectOfficeToOfficeEnd ? 'End this office-to-office transaction once your office has finished processing it.' : 'End this transaction once the recipient has claimed the document.' }}
                                 </p>
                                 <button class="btn" style="background:#ea580c;color:#fff" onclick="openEndModal()">
                                     End Transaction
@@ -512,7 +532,14 @@
                             </div>
                         @endif
 
-                        @if(!$canAccept && in_array($document->status, ['completed','returned','cancelled','archived']))
+                        @if(!$canUpdateStatus && $document->isExternal() && !$user->isRecords() && in_array($document->status, ['in_review','on_hold','for_pickup','returned'], true))
+                            <div class="alert-info">
+                                <i class="fas fa-info-circle" style="margin-right:5px"></i>
+                                Outside-submitted documents can only have status updates from Records Section.
+                            </div>
+                        @endif
+
+                        @if(!$canAccept && in_array($document->status, ['completed','cancelled','archived']))
                             <p style="color:var(--text-muted);font-size:13px;text-align:center;padding:10px 0">
                                 No actions available for the current status.
                             </p>
@@ -531,7 +558,7 @@ var docId = {{ $document->id }};
 var STATUS_REMARKS = {
     'for_pickup': ['Document is ready for pickup.'],
     'returned':   ['Returned due to incomplete requirements.','Returned for correction — please resubmit.'],
-    'completed':  ['Document picked up by recipient.','Document claimed by authorized representative.','Transaction completed successfully.'],
+    'completed':  ['Document picked up by recipient.','Document claimed by authorized representative.'],
 };
 function updateStatusRemarks(){
     var status = document.getElementById('newStatus').value;
@@ -570,6 +597,7 @@ async function confirmUpdateStatus(){
 function openEndModal(){
     document.getElementById('endRemarksSelect').value='';
     document.getElementById('endRemarks').value=''; document.getElementById('endRemarks').style.display='none';
+    hideErr('endError');
     document.getElementById('endModal').classList.add('show');
 }
 function closeEndModal(){
@@ -579,9 +607,9 @@ async function confirmEnd(){
     var remarks = getRemarksValue('endRemarksSelect','endRemarks');
     var btn = document.getElementById('confirmEndBtn');
     btn.disabled = true;
-    var res = await apiFetch('/api/office/documents/'+docId+'/status', {status:'completed',remarks:remarks||'Transaction completed successfully.'});
+    var res = await apiFetch('/api/office/documents/'+docId+'/status', {status:'completed',remarks:remarks||null});
     if(res.success){ location.reload(); }
-    else{ alert(res.message||'Failed to end transaction.'); btn.disabled = false; closeEndModal(); }
+    else{ showErr('endError', res.message||'Failed to end transaction.'); btn.disabled = false; }
 }
 
 function handleRemarksDropdown(selectId, textareaId){
@@ -636,17 +664,17 @@ function logout(){
                 <h3>End Transaction</h3>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom:14px">Are you sure you want to end this transaction? This will mark the document as <strong style="color:#15803d">Completed</strong>.</p>
+                <p style="margin-bottom:14px">{{ $isDirectOfficeToOfficeEnd ? 'Has your office finished processing this office-to-office document?' : 'Has the recipient actually claimed this document?' }} This will end the transaction and mark the document as <strong style="color:#15803d">Completed</strong>.</p>
                 <label class="modal-label">Remarks <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
                 <select class="modal-field" id="endRemarksSelect" onchange="handleRemarksDropdown('endRemarksSelect','endRemarks')">
                     <option value="">Select a remark…</option>
                     <option value="Document processed and completed.">Document processed and completed.</option>
                     <option value="Request approved and completed.">Request approved and completed.</option>
                     <option value="Action taken and transaction closed.">Action taken and transaction closed.</option>
-                    <option value="Transaction completed successfully.">Transaction completed successfully.</option>
                     <option value="__custom">Custom Remark…</option>
                 </select>
                 <textarea class="modal-field" id="endRemarks" placeholder="Type your custom remark..." style="min-height:70px;resize:vertical;display:none;margin-top:8px" data-no-capitalize></textarea>
+                <div class="modal-err" id="endError"></div>
             </div>
             <div class="modal-foot">
                 <button class="modal-btn" onclick="closeEndModal()">Cancel</button>
@@ -671,7 +699,6 @@ function logout(){
                     <option value="">Select status...</option>
                     <option value="for_pickup">For Pickup (Ready to Claim)</option>
                     <option value="returned">Return to Sender</option>
-                    <option value="completed">Complete Transaction</option>
                 </select>
                 <label class="modal-label" style="margin-top:12px">Remarks <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
                 <select class="modal-field" id="statusRemarksSelect" onchange="handleRemarksDropdown('statusRemarksSelect','statusRemarks')">

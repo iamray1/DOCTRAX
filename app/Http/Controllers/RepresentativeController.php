@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Document;
 use App\Models\Office;
 use App\Models\RoutingLog;
+use App\Services\ActivationService;
+use App\Support\SubmissionNotifications;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -54,7 +56,17 @@ class RepresentativeController extends Controller
         });
     }
 
-    public function dashboard()
+    private function excludeLatestOutboundHandoff($query, Office $office)
+    {
+        return $query->whereDoesntHave('latestRoutingLog', function ($log) use ($office) {
+            $log->where('from_office_id', $office->id)
+                ->whereNotNull('to_office_id')
+                ->where('to_office_id', '!=', $office->id)
+                ->whereIn('action', ['forwarded', 'processing']);
+        });
+    }
+
+    public function dashboard(Request $request)
     {
         $this->authorizeRep();
         $user = $this->rep();
@@ -76,30 +88,48 @@ class RepresentativeController extends Controller
         // Queue shows documents this account personally received/handles, including processed rows
         // so the dashboard status filter can show documents completed/returned by this user.
         // Own submissions stay in My Documents, even after they are received by the office.
-        $incoming = Document::with(['submittedToOffice', 'currentOffice', 'routingLogs'])
+        $queueSearch = trim(strip_tags((string) $request->get('queue_search', '')));
+        $queueStatus = trim((string) $request->get('queue_status', ''));
+        $statusForQuery = $queueStatus === 'processed' ? 'completed' : $queueStatus;
+
+        $incoming = Document::with(['user.office', 'submittedToOffice', 'currentOffice', 'routingLogs'])
             ->where('current_office_id', $office->id)
             ->where('current_handler_id', $user->id)
+            ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
             ->where(function ($q) use ($user) {
                 $q->whereNull('user_id')
                   ->orWhere('user_id', '!=', $user->id);
             })
             ->whereIn('status', $queueStatuses)
+            ->when($queueSearch !== '', function ($query) use ($queueSearch) {
+                $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $queueSearch);
+                $query->where(function ($q) use ($escaped) {
+                    $q->where('reference_number', 'like', "%{$escaped}%")
+                      ->orWhere('tracking_number', 'like', "%{$escaped}%")
+                      ->orWhere('subject', 'like', "%{$escaped}%")
+                      ->orWhere('sender_name', 'like', "%{$escaped}%")
+                      ->orWhere('type', 'like', "%{$escaped}%");
+                });
+            })
+            ->when($statusForQuery !== '' && in_array($statusForQuery, $queueStatuses, true), fn ($query) => $query->where('status', $statusForQuery))
             ->orderByRaw("CASE 
                 WHEN status = 'received' THEN 1
                 WHEN status = 'in_review' THEN 2
                 WHEN status = 'for_pickup' THEN 3
-                WHEN status = 'on_hold' THEN 4
-                WHEN status = 'completed' THEN 5
-                WHEN status = 'returned' THEN 6
+                WHEN status = 'returned' THEN 4
+                WHEN status = 'on_hold' THEN 5
+                WHEN status = 'completed' THEN 6
                 ELSE 7
             END")
             ->latest('last_action_at')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         $stats = [
             'incoming' => Document::query()
                 ->where('current_office_id', $office->id)
                 ->where('current_handler_id', $user->id)
+                ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
                 ->where(function ($q) use ($user) {
                     $q->whereNull('user_id')
                       ->orWhere('user_id', '!=', $user->id);
@@ -108,6 +138,7 @@ class RepresentativeController extends Controller
                 ->count(),
             'received' => Document::where('current_office_id', $office->id)
                 ->where('current_handler_id', $user->id)
+                ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
                 ->where(function ($q) use ($user) {
                     $q->whereNull('user_id')
                       ->orWhere('user_id', '!=', $user->id);
@@ -115,19 +146,21 @@ class RepresentativeController extends Controller
                 ->where('status', 'received')->count(),
             'in_review' => Document::where('current_office_id', $office->id)
                 ->where('current_handler_id', $user->id)
+                ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
                 ->where(function ($q) use ($user) {
                     $q->whereNull('user_id')
                       ->orWhere('user_id', '!=', $user->id);
                 })
                 ->where('status', 'in_review')->count(),
-            // Count documents this specific office user finalized (completed/returned).
+            // Count documents this specific office user finalized (completed only).
             'processed' => RoutingLog::query()
                 ->where('performed_by', $user->id)
-                ->whereIn('action', ['completed', 'returned'])
+                ->where('action', 'completed')
                 ->distinct('document_id')
                 ->count('document_id'),
             'for_pickup' => Document::where('current_office_id', $office->id)
                 ->where('current_handler_id', $user->id)
+                ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
                 ->where(function ($q) use ($user) {
                     $q->whereNull('user_id')
                       ->orWhere('user_id', '!=', $user->id);
@@ -136,9 +169,14 @@ class RepresentativeController extends Controller
         ];
 
         $documents = $incoming;
+        app(ActivationService::class)->linkGuestDocumentsForUser($user);
+        $submissionNotificationData = SubmissionNotifications::forUser($user);
 
         return response()
-            ->view('office.dashboard', compact('user', 'office', 'documents', 'stats'))
+            ->view('office.dashboard', array_merge(
+                compact('user', 'office', 'documents', 'stats'),
+                $submissionNotificationData
+            ))
             ->header('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=()');
     }
 
@@ -152,7 +190,7 @@ class RepresentativeController extends Controller
             'submittedToOffice',
             'currentOffice',
             'currentHandler',
-            'user',
+            'user.office',
             'routingLogs.fromOffice',
             'routingLogs.toOffice',
             'routingLogs.performer',
@@ -206,7 +244,7 @@ class RepresentativeController extends Controller
         }
 
         return DB::transaction(function () use ($lookupInput, $office, $user, $request) {
-            $document = Document::with('currentHandler')->where(function ($q) use ($lookupInput) {
+            $document = Document::with(['currentHandler', 'user.office'])->where(function ($q) use ($lookupInput) {
                 $q->whereRaw('UPPER(reference_number) = ?', [$lookupInput])
                   ->orWhereRaw('UPPER(tracking_number) = ?', [$lookupInput]);
             })->lockForUpdate()->first();
@@ -277,15 +315,14 @@ class RepresentativeController extends Controller
             ]);
         }
 
-        // Check if document needs to go through Records first (only for public submissions)
-        $submittedByOfficeAccount = (bool) optional($document->user)->isOfficeAccount();
-        $submittedBySuperAdmin = (bool) optional($document->user)->isSuperAdmin();
+        // Check if document needs to go through Records first (only for public submissions).
+        $submittedInternally = $document->isInternalOfficeSubmission();
         $isInitialOfficeIntake = is_null($document->current_office_id);
         $isRecordsOffice = $user->isRecords();
 
         // Allow any office to receive documents that are already in circulation (current_office_id is set)
-        // OR if submitted by office account/superadmin OR if this is Records office
-        if ($isInitialOfficeIntake && !$submittedByOfficeAccount && !$submittedBySuperAdmin && !$isRecordsOffice) {
+        // OR if submitted internally by an office/superadmin OR if this is Records office.
+        if ($isInitialOfficeIntake && !$submittedInternally && !$isRecordsOffice) {
             // For public submissions on initial intake, only Records can receive
             // But if document is already forwarded/in circulation, any office can receive
             return response()->json([
@@ -349,7 +386,7 @@ class RepresentativeController extends Controller
         $user = $this->rep();
         $office = $user->office;
 
-        $document = Document::findOrFail($id);
+        $document = Document::with(['user.office', 'currentHandler'])->findOrFail($id);
 
         if ($document->current_office_id !== $office->id) {
             return response()->json(['success' => false, 'message' => 'This document is not at your office.'], 403);
@@ -363,11 +400,48 @@ class RepresentativeController extends Controller
             ], 409);
         }
 
+        if ($document->isExternal() && !$user->isRecords()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Outside-submitted documents can only have status updates from Records Section.',
+            ], 403);
+        }
+
         if (!$document->current_handler_id) {
             $document->current_handler_id = $user->id;
         }
 
         $newStatus = $request->status;
+        if (in_array($document->status, ['completed', 'cancelled', 'archived'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This document is already closed.',
+            ], 422);
+        }
+
+        if ($document->status === $newStatus) {
+            $statusLabel = Document::STATUSES[$newStatus] ?? ucfirst(str_replace('_', ' ', $newStatus));
+
+            return response()->json([
+                'success' => false,
+                'message' => "This document is already {$statusLabel}.",
+            ], 422);
+        }
+
+        if ($newStatus === 'completed' && !$document->canCompleteTransactionFromCurrentStatus()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only For Pickup, For Return, or active office-to-office documents can be ended.',
+            ], 422);
+        }
+
+        if ($document->status === 'returned' && $newStatus !== 'completed') {
+            return response()->json([
+                'success' => false,
+                'message' => 'For Return documents can only be ended.',
+            ], 422);
+        }
+
         $document->status = $newStatus;
         $document->last_action_at = now();
         $document->save();
@@ -387,6 +461,126 @@ class RepresentativeController extends Controller
             'message' => 'Document status updated to ' . Document::STATUSES[$newStatus] . '.',
             'status' => $newStatus,
         ]);
+    }
+
+    public function bulkUpdateStatus(Request $request)
+    {
+        $this->authorizeRep();
+
+        $request->validate([
+            'document_ids' => 'required|array|min:1',
+            'document_ids.*' => 'integer',
+            'status' => 'required|in:completed,for_pickup,returned',
+            'remarks' => 'nullable|string|max:1000',
+        ]);
+
+        $user = $this->rep();
+        $office = $user->office;
+        if (!$office) {
+            return response()->json(['success' => false, 'message' => 'No office is assigned to your account.'], 403);
+        }
+
+        $ids = collect($request->input('document_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Select at least one document.'], 422);
+        }
+
+        $newStatus = (string) $request->input('status');
+        $remarks = $request->input('remarks') ?: null;
+        $documents = Document::with(['user.office', 'currentHandler'])
+            ->whereIn('id', $ids->all())
+            ->get()
+            ->keyBy('id');
+
+        $updated = 0;
+        $failures = [];
+
+        foreach ($ids as $id) {
+            $document = $documents->get($id);
+
+            if (!$document) {
+                $failures[] = ['id' => $id, 'message' => 'Document not found.'];
+                continue;
+            }
+
+            $label = $document->reference_number ?: ($document->tracking_number ?: ('Document #' . $document->id));
+
+            if ((int) $document->current_office_id !== (int) $office->id) {
+                $failures[] = ['id' => $id, 'message' => "{$label} is not at your office."];
+                continue;
+            }
+
+            if ($document->current_handler_id && (int) $document->current_handler_id !== (int) $user->id) {
+                $handlerName = optional($document->currentHandler)->name ?: 'another office user';
+                $failures[] = ['id' => $id, 'message' => "{$label} is tagged to {$handlerName}."];
+                continue;
+            }
+
+            if ($document->isExternal() && !$user->isRecords()) {
+                $failures[] = ['id' => $id, 'message' => "{$label} can only have status updates from Records Section."];
+                continue;
+            }
+
+            if (in_array($document->status, ['completed', 'cancelled', 'archived'], true)) {
+                $failures[] = ['id' => $id, 'message' => "{$label} is already closed."];
+                continue;
+            }
+
+            if ($document->status === $newStatus) {
+                $statusLabel = Document::STATUSES[$newStatus] ?? ucfirst(str_replace('_', ' ', $newStatus));
+                $failures[] = ['id' => $id, 'message' => "{$label} is already {$statusLabel}."];
+                continue;
+            }
+
+            if ($newStatus === 'completed' && !$document->canCompleteTransactionFromCurrentStatus()) {
+                $failures[] = ['id' => $id, 'message' => "{$label} must be For Pickup, For Return, or an active office-to-office transaction before ending."];
+                continue;
+            }
+
+            if ($document->status === 'returned' && $newStatus !== 'completed') {
+                $failures[] = ['id' => $id, 'message' => "{$label} is For Return and can only be ended."];
+                continue;
+            }
+
+            if (!$document->current_handler_id) {
+                $document->current_handler_id = $user->id;
+            }
+
+            $document->status = $newStatus;
+            $document->last_action_at = now();
+            $document->save();
+
+            RoutingLog::create([
+                'document_id' => $document->id,
+                'performed_by' => $user->id,
+                'from_office_id' => null,
+                'to_office_id' => $office->id,
+                'action' => $newStatus,
+                'status_after' => $newStatus,
+                'remarks' => $remarks,
+            ]);
+
+            $updated++;
+        }
+
+        $statusLabel = Document::STATUSES[$newStatus] ?? ucfirst($newStatus);
+        $message = $updated . ' document(s) updated to ' . $statusLabel . '.';
+        if ($failures) {
+            $message .= ' ' . count($failures) . ' skipped.';
+        }
+
+        return response()->json([
+            'success' => $updated > 0,
+            'message' => $updated > 0 ? $message : 'No documents were updated.',
+            'updated_count' => $updated,
+            'failed_count' => count($failures),
+            'failures' => $failures,
+        ], $updated > 0 ? 200 : 422);
     }
 
     private function escapeLike(string $value): string
@@ -546,7 +740,7 @@ class RepresentativeController extends Controller
         if ($status !== '') {
             $statusGroups = [
                 'pending'   => ['received', 'in_review', 'on_hold'],
-                'processed' => ['completed', 'for_pickup', 'returned'],
+                'processed' => ['completed'],
             ];
             if (isset($statusGroups[$status])) {
                 $query->whereIn('status', $statusGroups[$status]);
@@ -603,8 +797,8 @@ class RepresentativeController extends Controller
             ->selectRaw(
                 "COUNT(*) as total,
                 SUM(CASE WHEN status IN (?, ?) THEN 1 ELSE 0 END) as processing,
-                SUM(CASE WHEN status IN (?, ?, ?) THEN 1 ELSE 0 END) as processed",
-                ['received', 'in_review', 'completed', 'for_pickup', 'returned']
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as processed",
+                ['received', 'in_review', 'completed']
             )
             ->first();
 
@@ -645,7 +839,7 @@ class RepresentativeController extends Controller
 
         $statusGroups = [
             'pending'   => ['submitted', 'received', 'in_review', 'on_hold'],
-            'processed' => ['completed', 'for_pickup', 'returned'],
+            'processed' => ['completed'],
         ];
         $reportStatusOptions = [
             'pending'   => 'Pending',
@@ -675,7 +869,7 @@ class RepresentativeController extends Controller
                 $q->whereIn('status', ['submitted', 'in_review', 'on_hold'])
             ])
             ->withCount(['handledDocuments as handled_processed_count' => fn ($q) =>
-                $q->whereIn('status', ['completed', 'for_pickup', 'returned'])
+                $q->whereIn('status', ['completed'])
             ]);
 
         $users = $usersQuery
@@ -742,7 +936,7 @@ class RepresentativeController extends Controller
         if ($status !== '') {
             $statusGroups = [
                 'pending'   => ['submitted', 'received', 'in_review', 'on_hold'],
-                'processed' => ['completed', 'for_pickup', 'returned'],
+                'processed' => ['completed'],
             ];
             if (isset($statusGroups[$status])) {
                 $query->whereIn('status', $statusGroups[$status]);
@@ -789,7 +983,7 @@ class RepresentativeController extends Controller
             'stats' => [
                 'total_docs'  => $docs->count(),
                 'pending'     => $docs->whereIn('status', ['submitted', 'received', 'in_review', 'on_hold'])->count(),
-                'processed'   => $docs->whereIn('status', ['completed', 'for_pickup', 'returned'])->count(),
+                'processed'   => $docs->whereIn('status', ['completed'])->count(),
                 'actions'     => $actionsCount,
             ],
             'documents' => $docsData,
@@ -839,7 +1033,7 @@ class RepresentativeController extends Controller
         if ($status !== '') {
             $statusGroups = [
                 'pending'   => ['submitted', 'received', 'in_review', 'on_hold'],
-                'processed' => ['completed', 'for_pickup', 'returned'],
+                'processed' => ['completed'],
             ];
             if (isset($statusGroups[$status])) {
                 $query->whereIn('status', $statusGroups[$status]);
@@ -929,6 +1123,7 @@ class RepresentativeController extends Controller
             'incoming' => Document::query()
                 ->where('current_office_id', $office->id)
                 ->where('current_handler_id', $user->id)
+                ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
                 ->where(function ($q) use ($user) {
                     $q->whereNull('user_id')
                       ->orWhere('user_id', '!=', $user->id);
@@ -937,6 +1132,7 @@ class RepresentativeController extends Controller
                 ->count(),
             'in_review' => Document::where('current_office_id', $office->id)
                 ->where('current_handler_id', $user->id)
+                ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
                 ->where(function ($q) use ($user) {
                     $q->whereNull('user_id')
                       ->orWhere('user_id', '!=', $user->id);
@@ -944,19 +1140,21 @@ class RepresentativeController extends Controller
                 ->whereIn('status', ['received', 'in_review'])->count(),
             'processed' => RoutingLog::query()
                 ->where('performed_by', $user->id)
-                ->whereIn('action', ['completed', 'returned'])
+                ->where('action', 'completed')
                 ->distinct('document_id')
                 ->count('document_id'),
             'completed' => Document::where('current_office_id', $office->id)
                 ->where('current_handler_id', $user->id)
+                ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
                 ->where(function ($q) use ($user) {
                     $q->whereNull('user_id')
                       ->orWhere('user_id', '!=', $user->id);
                 })
-                ->whereIn('status', ['completed', 'for_pickup'])
+                ->whereIn('status', ['completed'])
                 ->count(),
             'for_pickup' => Document::where('current_office_id', $office->id)
                 ->where('current_handler_id', $user->id)
+                ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
                 ->where(function ($q) use ($user) {
                     $q->whereNull('user_id')
                       ->orWhere('user_id', '!=', $user->id);

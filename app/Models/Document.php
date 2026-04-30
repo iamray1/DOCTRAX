@@ -90,7 +90,7 @@ class Document extends Model
         'on_hold'    => 'On Hold',
         'completed'  => 'Completed',
         'for_pickup' => 'For Pickup',
-        'returned'   => 'Returned',
+        'returned'   => 'For Return',
         'cancelled'  => 'Cancelled',
         'archived'   => 'Archived',
     ];
@@ -103,7 +103,7 @@ class Document extends Model
         'in_review'  => 'Processing',
         'completed'  => 'Completed',
         'for_pickup' => 'For Pickup',
-        'returned'   => 'Returned',
+        'returned'   => 'For Return',
         'archived'   => 'Archived',
     ];
 
@@ -126,17 +126,13 @@ class Document extends Model
 
     public function statusLabelWithOffice(): string
     {
-        if (in_array($this->status, ['completed', 'returned'])) {
+        if ($this->status === 'completed') {
             $lastLog = $this->routingLogs
-                ->where('action', $this->status === 'returned' ? 'returned' : 'completed')
+                ->where('action', 'completed')
                 ->last();
             
             $lastOffice = $lastLog?->fromOffice?->name ?? $this->currentOffice?->name ?? 'Office';
             $statusText = 'Transaction Completed - ' . $lastOffice;
-            
-            if ($this->status === 'returned' && $lastLog?->remarks) {
-                $statusText .= ' (' . $lastLog->remarks . ')';
-            }
             
             return $statusText;
         }
@@ -185,17 +181,44 @@ class Document extends Model
         return $this->hasMany(RoutingLog::class)->orderBy('created_at', 'asc');
     }
 
+    public function latestRoutingLog()
+    {
+        return $this->hasOne(RoutingLog::class)->latestOfMany();
+    }
+
     /**
-     * Check if this document is an external document (submitted by an office account or superadmin).
-     * External documents follow a simpler workflow: receive → forward only.
-     * Internal documents (from regular users) have full status workflow.
+     * Internal documents are office-to-office submissions from office accounts or superadmins.
+     */
+    public function isInternalOfficeSubmission(): bool
+    {
+        if ($this->user) {
+            return $this->user->isOfficeAccount() || $this->user->isSuperAdmin();
+        }
+
+        $legacySenderOffice = trim((string) ($this->sender_office ?? ''));
+        $legacyRecipientOffice = trim((string) ($this->recipient_office ?? ''));
+
+        return !$this->user_id
+            && empty($this->sender_email)
+            && $legacySenderOffice !== ''
+            && $legacyRecipientOffice !== '';
+    }
+
+    /**
+     * External documents come from outside the office-to-office workflow.
      */
     public function isExternal(): bool
     {
-        if (!$this->user) {
-            return false;
+        return !$this->isInternalOfficeSubmission();
+    }
+
+    public function canCompleteTransactionFromCurrentStatus(): bool
+    {
+        if (in_array($this->status, ['for_pickup', 'returned'], true)) {
+            return true;
         }
-        
-        return $this->user->isOfficeAccount() || $this->user->isSuperAdmin();
+
+        return $this->isInternalOfficeSubmission()
+            && in_array($this->status, ['received', 'in_review', 'on_hold'], true);
     }
 }

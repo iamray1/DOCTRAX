@@ -146,7 +146,7 @@
         .modal-btn.success{background:#16a34a;color:#fff;border-color:#16a34a}
         .modal-btn.success:hover{background:#15803d}
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js" defer></script>
 </head>

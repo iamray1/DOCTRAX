@@ -1331,8 +1331,13 @@
         window.__docTraxIdleLogoutMs = IDLE_LOGOUT_TIMEOUT;
 
         var idleTimer = null;
+        var lastActivityAt = Date.now();
+        var idleLogoutStarted = false;
 
         function logoutForIdle() {
+            if (idleLogoutStarted) return;
+            idleLogoutStarted = true;
+
             if (typeof window.performLogout === 'function') {
                 window.performLogout();
                 return;
@@ -1346,21 +1351,37 @@
             fallbackLogout();
         }
 
-        function resetIdleTimer() {
+        function scheduleIdleTimer() {
             if (idleTimer) clearTimeout(idleTimer);
-            idleTimer = setTimeout(logoutForIdle, IDLE_LOGOUT_TIMEOUT);
+            var remaining = Math.max(0, IDLE_LOGOUT_TIMEOUT - (Date.now() - lastActivityAt));
+            idleTimer = setTimeout(logoutForIdle, remaining);
+        }
+
+        function markActivity() {
+            lastActivityAt = Date.now();
+            scheduleIdleTimer();
+        }
+
+        function handleResume() {
+            if (Date.now() - lastActivityAt >= IDLE_LOGOUT_TIMEOUT) {
+                logoutForIdle();
+                return;
+            }
+
+            markActivity();
         }
 
         ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click', 'input'].forEach(function (eventName) {
-            document.addEventListener(eventName, resetIdleTimer, { passive: true });
+            document.addEventListener(eventName, markActivity, { passive: true });
         });
 
-        window.addEventListener('focus', resetIdleTimer);
+        window.addEventListener('focus', handleResume);
+        window.addEventListener('pageshow', handleResume);
         document.addEventListener('visibilitychange', function () {
-            if (!document.hidden) resetIdleTimer();
+            if (!document.hidden) handleResume();
         });
 
-        resetIdleTimer();
+        scheduleIdleTimer();
     }
 
     if (document.readyState === 'loading') {

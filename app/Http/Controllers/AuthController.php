@@ -356,6 +356,8 @@ class AuthController extends Controller
             $request->session()->regenerate();
 
             $authed = Auth::user();
+            $this->activationService->linkGuestDocumentsForUser($authed);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Login successful',

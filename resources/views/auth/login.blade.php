@@ -13,7 +13,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/auth.css">
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js" defer></script>
     <style>
@@ -139,15 +139,65 @@
         const passwordInput = document.getElementById('password');
         const passwordGroup = document.getElementById('passwordGroup');
         const submitBtn = document.getElementById('submitBtn');
+        const csrfRefreshAfterMs = 10 * 60 * 1000;
+        let csrfRefreshedAt = Date.now();
+        let csrfRefreshPromise = null;
 
         function getCsrfToken() {
             const tokenNode = document.querySelector('meta[name="csrf-token"]');
             return tokenNode ? tokenNode.getAttribute('content') : '';
         }
 
+        function setCsrfToken(token) {
+            const tokenNode = document.querySelector('meta[name="csrf-token"]');
+            if (tokenNode && token) {
+                tokenNode.setAttribute('content', token);
+                csrfRefreshedAt = Date.now();
+            }
+        }
+
+        async function refreshAuthSession(force) {
+            if (!force && Date.now() - csrfRefreshedAt < csrfRefreshAfterMs) {
+                return true;
+            }
+
+            if (csrfRefreshPromise) {
+                return csrfRefreshPromise;
+            }
+
+            csrfRefreshPromise = fetch('/api/session/refresh', {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                cache: 'no-store'
+            })
+                .then(async function(response) {
+                    if (!response.ok) {
+                        throw new Error('SESSION_REFRESH_FAILED');
+                    }
+
+                    const data = await response.json();
+                    if (!data || !data.csrf_token) {
+                        throw new Error('SESSION_REFRESH_INVALID');
+                    }
+
+                    setCsrfToken(data.csrf_token);
+                    return true;
+                })
+                .catch(function(error) {
+                    console.warn('Session refresh failed:', error);
+                    return false;
+                })
+                .finally(function() {
+                    csrfRefreshPromise = null;
+                });
+
+            return csrfRefreshPromise;
+        }
+
         function redirectToFreshLogin() {
             const url = new URL('/login', window.location.origin);
-            url.searchParams.set('session', 'expired');
+            url.searchParams.set('fresh', Date.now().toString());
             if (nextPath) {
                 url.searchParams.set('next', nextPath);
             }
@@ -156,7 +206,6 @@
 
         async function parseAuthResponse(response) {
             if (response.status === 419) {
-                redirectToFreshLogin();
                 throw new Error('SESSION_EXPIRED');
             }
 
@@ -175,6 +224,39 @@
             }
         }
 
+        async function postAuthJson(url, payload) {
+            await refreshAuthSession(false);
+
+            const send = function() {
+                return fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken()
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(payload)
+                });
+            };
+
+            let response = await send();
+
+            if (response.status === 419) {
+                const refreshed = await refreshAuthSession(true);
+                if (refreshed) {
+                    response = await send();
+                }
+            }
+
+            if (response.status === 419) {
+                redirectToFreshLogin();
+                throw new Error('SESSION_EXPIRED');
+            }
+
+            return parseAuthResponse(response);
+        }
+
         function getSafeNextPath() {
             const next = new URLSearchParams(window.location.search).get('next');
             if (!next) return null;
@@ -191,6 +273,23 @@
 
         let step = 1; // 1: Email check, 2: Password
         let confirmedEmail = '';
+
+        window.addEventListener('pageshow', function(event) {
+            refreshAuthSession(!!event.persisted);
+        });
+        window.addEventListener('focus', function() {
+            refreshAuthSession(false);
+        });
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                refreshAuthSession(false);
+            }
+        });
+        [emailInput, passwordInput].forEach(function(input) {
+            input.addEventListener('focus', function() {
+                refreshAuthSession(false);
+            });
+        });
 
         // Back button resets the form to step 1
         const backLink = document.querySelector('.auth-header a[href="/"]');
@@ -236,17 +335,7 @@
                 submitBtn.innerHTML = '<span class="loading-dots"><span></span></span>';
 
                 try {
-                    const response = await fetch('/api/check-email', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': getCsrfToken()
-                        },
-                        credentials: 'same-origin',
-                        body: JSON.stringify({ email: emailVal })
-                    });
-                    const data = await parseAuthResponse(response);
+                    const data = await postAuthJson('/api/check-email', { email: emailVal });
 
                     if (data.exists) {
                         if (data.pending) {
@@ -299,20 +388,10 @@
                 submitBtn.disabled = true;
 
                 try {
-                    const response = await fetch('/api/login', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': getCsrfToken()
-                        },
-                        credentials: 'same-origin',
-                        body: JSON.stringify({
-                            email: confirmedEmail,
-                            password: passwordInput.value
-                        })
+                    const data = await postAuthJson('/api/login', {
+                        email: confirmedEmail,
+                        password: passwordInput.value
                     });
-                    const data = await parseAuthResponse(response);
 
                     if (data.success) {
                         window.location.href = nextPath || '/dashboard';

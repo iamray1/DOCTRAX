@@ -163,6 +163,10 @@
         .filter-row{display:flex;gap:8px;align-items:center}
         .search-wrap{position:relative;display:flex;align-items:center;flex:1;min-width:0}
         .search-wrap i{position:absolute;left:11px;color:#94a3b8;font-size:13px;pointer-events:none;z-index:1}
+        .search-wrap .queue-search-input{padding-right:38px}
+        .queue-search-clear{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:20px;height:20px;border:none;border-radius:999px;background:#e2e8f0;color:#64748b;display:none;align-items:center;justify-content:center;cursor:pointer;font-family:'Poppins',sans-serif;font-size:14px;line-height:1;padding:0;z-index:3;transition:all .15s}
+        .queue-search-clear:hover{background:#cbd5e1;color:#334155}
+        .queue-search-clear.show{display:inline-flex}
         .filters input{padding:8px 12px 8px 34px;font-family:'Poppins',sans-serif;font-size:13px;border:1.5px solid var(--border);border-radius:8px;outline:none;transition:border-color .2s,box-shadow .2s;width:100%;color:var(--text-dark);background:#fff}
         .filters input::placeholder{color:#94a3b8;font-size:12px}
         .filters input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,86,179,.1)}
@@ -170,6 +174,15 @@
         .filters select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,86,179,.1)}
         .btn-clear{padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;background:#f8fafc;color:var(--text-muted);font-size:12px;font-family:'Poppins',sans-serif;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px;white-space:nowrap}
         .btn-clear:hover{background:#e2e8f0;color:var(--text-dark)}
+        .bulk-actions{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;max-width:100%}
+        .bulk-count{font-size:11px;font-weight:600;color:var(--text-muted);background:#f8fafc;border:1px solid var(--border);border-radius:999px;padding:6px 10px;white-space:nowrap;flex:0 0 auto}
+        .bulk-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border-radius:8px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:700;font-family:'Poppins',sans-serif;cursor:pointer;transition:all .15s;white-space:nowrap;flex:0 0 auto;line-height:1;min-height:32px}
+        .bulk-btn:hover:not(:disabled){background:#dbeafe;border-color:#93c5fd}
+        .bulk-btn.warning{border-color:#fed7aa;background:#fff7ed;color:#c2410c}
+        .bulk-btn.warning:hover:not(:disabled){background:#ffedd5;border-color:#fdba74}
+        .bulk-btn.neutral{border-color:var(--border);background:#fff;color:var(--text-muted)}
+        .bulk-btn.neutral:hover:not(:disabled){background:#f8fafc;color:var(--text-dark)}
+        .bulk-btn:disabled{opacity:.48;cursor:not-allowed}
 
         /* ─── Table ─── */
         table{width:100%;border-collapse:collapse}
@@ -201,16 +214,20 @@
         .table-doc-count{font-size:11px;color:#94a3b8;font-weight:500}
         .queue-panel .table-head{padding:14px 20px}
         .queue-panel .table-head-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:0 0 auto}
-        .queue-panel .filters{display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;flex:1 1 520px;min-width:0}
-        .queue-panel .filter-row{display:contents}
-        .queue-panel .search-wrap{flex:1 1 340px;max-width:460px}
-        .queue-panel .filters select{flex:0 0 180px;min-width:180px}
+        .queue-panel .filters{display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:nowrap;flex:1 1 760px;min-width:0}
+        .queue-panel .filter-row{display:flex;align-items:center;gap:8px;min-width:0}
+        .queue-panel .filter-row.filter-search{flex:1 1 320px}
+        .queue-panel .filter-row.filter-status{flex:0 0 160px}
+        .queue-panel .filter-row.bulk-actions{flex:0 0 auto}
+        .queue-panel .search-wrap{flex:1 1 320px;max-width:none}
+        .queue-panel .filters select{flex:1 1 160px;min-width:0}
         .queue-panel .btn-clear{display:none}
         .queue-panel table{width:100%;table-layout:fixed}
         .queue-panel .table-card-scroll{overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable}
         .queue-panel th{padding:10px 10px;background:#fff}
         .queue-panel td{padding:10px 10px;border-bottom:1px solid #f1f5f9}
         .queue-panel tr:last-child td{border-bottom:none}
+        .queue-panel .col-select{width:44px}
         .queue-panel .col-ref{width:15%}
         .queue-panel .col-track{width:18%}
         .queue-panel .col-subject{width:23%}
@@ -228,23 +245,30 @@
         .queue-panel .td-cta{white-space:nowrap;text-align:center}
         .queue-panel .td-cta .btn-manage{justify-content:center;margin-bottom:0}
         .queue-panel .td-action{width:44px;text-align:center}
+        .td-select{text-align:center;width:44px}
+        .bulk-doc-check,.bulk-select-all{width:15px;height:15px;accent-color:var(--primary);cursor:pointer}
+        .bulk-doc-check:disabled{cursor:not-allowed;opacity:.35}
         .mob-cards{display:none;padding:12px}
-        .mob-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.04);cursor:pointer;transition:border-color .15s,box-shadow .15s}
+        .mob-card{width:100%;min-width:0;overflow:hidden;background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.04);cursor:pointer;transition:border-color .15s,box-shadow .15s}
         .mob-card + .mob-card{margin-top:10px}
         .mob-card:hover{border-color:var(--primary);box-shadow:0 2px 8px rgba(0,86,179,.08)}
         .mob-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px}
-        .mob-card-ids{min-width:0}
-        .mob-card-ref{font-size:11.5px;font-weight:700;color:var(--primary);font-family:monospace;line-height:1.25}
-        .mob-card-track{font-size:10px;color:var(--text-muted);font-family:monospace;margin-top:2px;line-height:1.25}
+        .mob-card-top-actions{display:inline-flex;align-items:center;gap:6px;flex-shrink:0}
+        .mob-card-top-actions .bulk-doc-check{flex:0 0 auto;margin-top:2px}
+        .mob-card-ids{flex:1 1 auto;min-width:0;overflow:hidden}
+        .mob-card-ref{font-size:11.5px;font-weight:700;color:var(--primary);font-family:monospace;line-height:1.25;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+        .mob-card-track{font-size:10px;color:var(--text-muted);font-family:monospace;margin-top:2px;line-height:1.25;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
         .mob-card-arrow{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;color:#94a3b8;font-size:11px;flex-shrink:0;background:#f8fafc}
-        .mob-card-subject{font-size:13.5px;font-weight:600;color:var(--text-dark);margin-bottom:8px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-        .mob-card-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-        .mob-card-status{display:inline-flex;align-items:center;gap:5px;min-width:0}
-        .mob-card-date{font-size:10.5px;color:var(--text-muted);display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+        .mob-card-subject{font-size:13.5px;font-weight:600;color:var(--text-dark);margin-bottom:8px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;word-break:break-word}
+        .mob-card-meta{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+        .mob-card-status{display:inline-flex;align-items:center;gap:5px;min-width:0;max-width:100%;flex:1 1 180px;flex-wrap:wrap}
+        .mob-card-meta > .badge,.mob-card-status .badge{max-width:100%;min-height:0;justify-content:flex-start;text-align:left;white-space:normal;line-height:1.25;padding:4px 8px;overflow-wrap:anywhere;word-break:break-word}
+        .mob-card-date{font-size:10.5px;color:var(--text-muted);display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex:0 0 auto;line-height:1.4}
         .mob-card-actions{display:flex;gap:8px;margin-top:10px}
         .mob-card-actions .btn-manage{justify-content:center;font-size:11px}
-        .mob-card-row{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text-muted)}
-        .mob-card-row i{font-size:11px;opacity:.75;flex-shrink:0}
+        .mob-card-row{display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.4}
+        .mob-card-row i{font-size:11px;opacity:.75;flex:0 0 auto;margin-top:3px}
+        .mob-card-row .cell-ellipsis{min-width:0;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;word-break:break-word}
         .mob-card.hidden-row{display:none}
 
         /* ─── Drawer ─── */
@@ -296,11 +320,19 @@
         .modal h3{font-size:15px;font-weight:700;color:var(--text-dark);margin-bottom:8px}
         .modal p{font-size:13px;color:var(--text-muted);margin-bottom:20px;line-height:1.6}
         .modal-btns{display:flex;gap:10px;justify-content:flex-end}
-        .modal-btns button{padding:9px 20px;border-radius:9px;font-size:13px;font-weight:600;font-family:'Poppins',sans-serif;cursor:pointer;border:none;transition:background .2s}
+        .modal-btns button{padding:9px 20px;border-radius:9px;font-size:13px;font-weight:600;font-family:'Poppins',sans-serif;cursor:pointer;border:none;transition:background .2s;white-space:nowrap}
         .btn-cancel-modal{background:#f1f5f9;color:var(--text-dark)}
         .btn-cancel-modal:hover{background:#e2e8f0}
         .btn-confirm-modal{background:#16a34a;color:#fff}
         .btn-confirm-modal:hover{background:#15803d}
+        .modal-label{font-size:11px;font-weight:600;color:#334155;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
+        .modal-field{width:100%;box-sizing:border-box;padding:9px 12px;font-family:'Poppins',sans-serif;font-size:13px;border:1.5px solid var(--border);border-radius:8px;outline:none;transition:border-color .2s;color:var(--text-dark);background:#fff}
+        .modal-field:focus{border-color:var(--primary)}
+        .modal-err{font-size:12px;color:#dc2626;margin-top:6px;display:none}
+        .modal-err.show{display:block}
+        .queue-toast{position:fixed;top:22px;right:22px;z-index:1300;background:#fff;border:1px solid var(--border);border-left:4px solid #16a34a;border-radius:10px;padding:13px 16px;box-shadow:0 14px 36px rgba(15,23,42,.16);font-size:13px;font-weight:600;color:var(--text-dark);max-width:min(360px,calc(100vw - 32px));white-space:pre-line;transform:translateX(calc(100% + 36px));opacity:0;transition:transform .22s ease,opacity .22s ease}
+        .queue-toast.show{transform:translateX(0);opacity:1}
+        .queue-toast.error{border-left-color:#dc2626}
         .btn{padding:10px 18px;border-radius:9px;font-size:13px;font-weight:600;font-family:'Poppins',sans-serif;cursor:pointer;border:none;transition:background .2s;display:inline-flex;align-items:center;justify-content:center;gap:7px}
         .btn:disabled{opacity:.6;cursor:not-allowed}
         .btn-primary{background:var(--primary);color:#fff;width:100%}
@@ -345,33 +377,52 @@
             .stat-num{font-size:24px}
             .stat-label{font-size:10px;margin-bottom:6px}
             .site-footer{flex-direction:column;gap:6px;text-align:center;padding:16px 5%}
-            .dashboard-table-card.has-list{max-height:min(68vh,560px)}
+            .dashboard-table-card.has-list{max-height:none}
             .table-head{flex-direction:column;align-items:stretch;gap:10px;padding:14px 16px}
             .filters{gap:6px}
-            .queue-panel .filters{flex-direction:column;align-items:stretch;justify-content:stretch;flex-basis:auto}
-            .queue-panel .filter-row{display:flex;gap:6px;align-items:stretch}
+            .queue-panel .filters{flex-direction:column;align-items:stretch;justify-content:stretch;flex:0 1 auto;width:100%}
+            .queue-panel .filter-row{display:flex;gap:6px;align-items:stretch;width:100%;flex:0 0 auto;min-height:0}
+            .queue-panel .filter-row.filter-search,
+            .queue-panel .filter-row.filter-status,
+            .queue-panel .filter-row.bulk-actions{flex:0 0 auto}
             .queue-panel .search-wrap{flex:1 1 100%;max-width:none}
             .queue-panel .filters select{flex:1 1 auto;min-width:0}
+            .bulk-actions{width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));justify-content:stretch;overflow:visible}
+            .bulk-actions .bulk-btn,
+            .bulk-actions .bulk-count{width:100%;min-width:0}
             .filters input{font-size:11px;padding:6px 8px 6px 26px}
             .filters input::placeholder{font-size:10px}
             .filters select{font-size:11px;padding:6px 22px 6px 8px;min-width:100px}
             .dashboard-table-card.has-list .table-card-scroll{display:none!important}
-            .dashboard-table-card.has-list .mob-cards{display:block!important;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px}
+            .dashboard-table-card.has-list .mob-cards{display:block!important;flex:none;min-height:0;overflow:visible;overscroll-behavior:auto;-webkit-overflow-scrolling:touch;padding:10px}
             .mob-cards{display:block;padding:10px}
             .table-card{border-radius:10px}
-            .mob-card-actions .btn-manage{font-size:10.5px}
+            .mob-card{padding:11px}
+            .mob-card-actions .btn-manage{width:100%;min-height:38px;font-size:10.5px}
         }
         @media(max-width:1024px){
+            .dashboard-table-card.has-list{max-height:none}
             .dashboard-table-card.has-list .table-card-scroll{display:none!important}
-            .dashboard-table-card.has-list .mob-cards{display:block!important;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+            .dashboard-table-card.has-list .mob-cards{display:block!important;flex:none;min-height:0;overflow:visible;overscroll-behavior:auto;-webkit-overflow-scrolling:touch}
         }
         @media(max-width:480px){
             .stats-grid{grid-template-columns:1fr}
+            .mob-card-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start}
+            .mob-card-status{flex:initial}
             .mob-card-actions{flex-direction:column}
+            .bulk-actions{grid-template-columns:minmax(62px,1fr) minmax(48px,.72fr) minmax(70px,1fr) minmax(70px,1fr);gap:5px}
+            .bulk-actions .bulk-btn,
+            .bulk-actions .bulk-count{padding:7px 5px}
+            .bulk-actions .bulk-btn{font-size:10px;gap:4px}
+            .bulk-actions .bulk-label{font-size:0}
+            .bulk-actions .bulk-label::after{content:attr(data-short);font-size:10px}
+            .bulk-actions .bulk-count{font-size:0;text-align:center}
+            .bulk-actions .bulk-count::after{content:attr(data-count) " sel";font-size:10px}
         }
+        @include('partials.submission-notifications-styles')
     </style>
     <script src="/js/auth-guard.js"></script>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js"></script>
 </head>
@@ -440,16 +491,19 @@
                 <h1>Welcome back, {{ $user->name }}!</h1>
                 <p>{{ $user->isSuperAdmin() ? 'Information and Communications Technology Unit' : ($office?->name ?? 'Office') }} &mdash; here's your document queue.</p>
             </div>
-            <div class="live-clock">
-                <div class="clock-time-display">
-                    <span id="c-h">--</span>:<span id="c-m">--</span>:<span class="seconds" id="c-s">--</span>
-                    <span class="period" id="c-p">--</span>
+            <div class="submission-header-actions">
+                <div class="live-clock">
+                    <div class="clock-time-display">
+                        <span id="c-h">--</span>:<span id="c-m">--</span>:<span class="seconds" id="c-s">--</span>
+                        <span class="period" id="c-p">--</span>
+                    </div>
+                    <div class="clock-sep"></div>
+                    <div class="clock-date-display">
+                        <span class="day" id="c-day">Loading...</span>
+                        <span id="c-date"></span>
+                    </div>
                 </div>
-                <div class="clock-sep"></div>
-                <div class="clock-date-display">
-                    <span class="day" id="c-day">Loading...</span>
-                    <span id="c-date"></span>
-                </div>
+                @include('partials.submission-notifications')
             </div>
         </div>
     </div>
@@ -500,26 +554,35 @@
     </div>
 
     <!-- Table Card -->
-    <div class="table-card dashboard-table-card queue-panel{{ $documents->count() ? ' has-list' : '' }}">
+    <div class="table-card dashboard-table-card queue-panel{{ $documents->count() ? ' has-list' : '' }}" id="document-queue">
         <div class="table-head">
             <div class="table-head-left">
                 <span class="table-title">Document Queue</span>
                 <span class="table-doc-count">{{ \App\Support\UiNumber::compact($documents->count()) }} showing</span>
             </div>
             <div class="filters">
-                <div class="filter-row">
+                <div class="filter-row filter-search">
                     <div class="search-wrap">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="tblSearch" placeholder="Search tracking, document control, subject, sender, type…" data-clearable data-no-capitalize oninput="filterTable()">
+                        <input type="text" id="tblSearch" class="queue-search-input" placeholder="Search tracking, document control, subject, sender, type…" data-no-clearable data-no-capitalize oninput="filterTable()">
+                        <button type="button" class="queue-search-clear" id="queueSearchClear" aria-label="Clear search" title="Clear search">&times;</button>
                     </div>
                 </div>
-                <div class="filter-row">
+                <div class="filter-row filter-status">
                     <select id="tblStatus" onchange="filterTable()">
                         <option value="">All Statuses</option>
                         <option value="in_review">Processing</option>
+                        <option value="for_pickup">For Pick up</option>
+                        <option value="returned">For Return</option>
                         <option value="processed">Processed</option>
                     </select>
                     <button class="btn-clear" onclick="document.getElementById('tblSearch').value='';document.getElementById('tblStatus').value='';filterTable()"><i class="fas fa-rotate-left"></i> Clear</button>
+                </div>
+                <div class="filter-row bulk-actions">
+                    <button type="button" class="bulk-btn neutral" id="bulkSelectVisibleBtn" onclick="toggleVisibleSelection()"><i class="fas fa-check-square"></i><span class="bulk-label" data-short="All">Select All</span></button>
+                    <span class="bulk-count" id="bulkSelectedCount" data-count="0">0 selected</span>
+                    <button type="button" class="bulk-btn" id="bulkStatusBtn" onclick="openBulkStatusModal()" disabled><i class="fas fa-tags"></i><span class="bulk-label" data-short="Status">Update Status</span></button>
+                    <button type="button" class="bulk-btn warning" id="bulkEndBtn" onclick="openBulkEndModal()" disabled><i class="fas fa-check-circle"></i><span class="bulk-label" data-short="End">End Transaction</span></button>
                 </div>
             </div>
         </div>
@@ -528,6 +591,7 @@
         <div class="table-scroll table-card-scroll">
         <table id="docTable">
             <colgroup>
+                <col class="col-select">
                 <col class="col-ref">
                 <col class="col-track">
                 <col class="col-subject">
@@ -538,6 +602,7 @@
             </colgroup>
             <thead>
                 <tr>
+                    <th class="td-select"><input type="checkbox" class="bulk-select-all" id="selectAllDocs" onchange="toggleSelectAllDocs(this)" title="Select all visible documents"></th>
                     <th>Tracking #</th>
                     <th>Document Control #</th>
                     <th>Subject</th>
@@ -554,9 +619,21 @@
                     $canActOnDoc = $user->office_id
                         && (((int) $doc->current_office_id === (int) $user->office_id)
                             || ($doc->status === 'submitted' && (int) $doc->submitted_to_office_id === (int) $user->office_id));
-                    $canManageDoc = $canActOnDoc && in_array($doc->status, ['in_review', 'for_pickup']);
+                    $canHandleDoc = !$doc->current_handler_id || (int) $doc->current_handler_id === (int) $user->id;
+                    $canStatusUpdateDoc = !$doc->isExternal() || $user->isRecords();
+                    $bulkDisabledTitle = !$canStatusUpdateDoc
+                        ? 'Only Records Section can update outside-submitted documents'
+                        : (!$canHandleDoc ? 'Only the assigned handler can update this document' : 'This document is not eligible for bulk status update');
+                    $canManageDoc = $canActOnDoc && $canHandleDoc && $canStatusUpdateDoc && in_array($doc->status, ['in_review', 'for_pickup', 'returned'], true);
+                    $canBulkAct = ($canActOnDoc && $canHandleDoc) || (!$user->office_id && (int) $doc->current_handler_id === (int) $user->id);
+                    $canBulkSelect = $canBulkAct && $canStatusUpdateDoc && in_array($doc->status, ['received', 'in_review', 'on_hold', 'for_pickup', 'returned'], true);
+                    $canBulkEnd = $canBulkSelect && $doc->canCompleteTransactionFromCurrentStatus();
+                    $endRemarksType = $doc->isInternalOfficeSubmission() ? 'office' : 'release';
                 @endphp
                 <tr class="doc-row" data-search="{{ strtolower(trim(($doc->reference_number ?? '').' '.($doc->tracking_number ?? '').' '.$doc->subject.' '.$sender.' '.($doc->type ?? ''))) }}" data-status="{{ $doc->status }}" onclick='openDocDetail("{{ $doc->reference_number ?: $doc->tracking_number }}")'>
+                    <td class="td-select" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
+                    </td>
                     <td class="t-ref"><div class="cell-ellipsis" title="{{ $doc->reference_number ?: 'N/A' }}">{{ $doc->reference_number ?: 'N/A' }}</div></td>
                     <td class="t-track"><div class="cell-ellipsis" title="{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}">{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div></td>
                     <td class="t-subject" style="max-width:200px"><div class="cell-ellipsis" style="font-weight:600" title="{{ $doc->subject }}">{{ $doc->subject }}</div></td>
@@ -569,7 +646,7 @@
                     </td>
                     <td class="td-cta" onclick="event.stopPropagation()">
                         @if($canManageDoc)
-                            <a class="btn-manage" href="/office/documents/{{ $doc->id }}" title="Manage document">
+                            <a class="btn-manage" href="/office/documents/{{ $doc->id }}?from=ict-queue" title="Manage document">
                                 <i class="fas fa-pen"></i> Manage
                             </a>
                         @endif
@@ -587,7 +664,16 @@
                 $canActOnDoc = $user->office_id
                     && (((int) $doc->current_office_id === (int) $user->office_id)
                         || ($doc->status === 'submitted' && (int) $doc->submitted_to_office_id === (int) $user->office_id));
-                $canManageDoc = $canActOnDoc && in_array($doc->status, ['in_review', 'for_pickup']);
+                $canHandleDoc = !$doc->current_handler_id || (int) $doc->current_handler_id === (int) $user->id;
+                $canStatusUpdateDoc = !$doc->isExternal() || $user->isRecords();
+                $bulkDisabledTitle = !$canStatusUpdateDoc
+                    ? 'Only Records Section can update outside-submitted documents'
+                    : (!$canHandleDoc ? 'Only the assigned handler can update this document' : 'This document is not eligible for bulk status update');
+                $canManageDoc = $canActOnDoc && $canHandleDoc && $canStatusUpdateDoc && in_array($doc->status, ['in_review', 'for_pickup', 'returned'], true);
+                $canBulkAct = ($canActOnDoc && $canHandleDoc) || (!$user->office_id && (int) $doc->current_handler_id === (int) $user->id);
+                $canBulkSelect = $canBulkAct && $canStatusUpdateDoc && in_array($doc->status, ['received', 'in_review', 'on_hold', 'for_pickup', 'returned'], true);
+                $canBulkEnd = $canBulkSelect && $doc->canCompleteTransactionFromCurrentStatus();
+                $endRemarksType = $doc->isInternalOfficeSubmission() ? 'office' : 'release';
             @endphp
             <div class="mob-card" data-search="{{ strtolower(trim(($doc->reference_number ?? '').' '.($doc->tracking_number ?? '').' '.$doc->subject.' '.$sender.' '.($doc->type ?? ''))) }}" data-status="{{ $doc->status }}" onclick='openDocDetail("{{ $doc->reference_number ?: $doc->tracking_number }}")'>
                 <div class="mob-card-top">
@@ -595,7 +681,10 @@
                         <div class="mob-card-ref">{{ $doc->reference_number ?: 'N/A' }}</div>
                         <div class="mob-card-track">Document Control #: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
                     </div>
-                    <span class="mob-card-arrow"><i class="fas fa-chevron-right"></i></span>
+                    <span class="mob-card-top-actions">
+                        <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onclick="event.stopPropagation()" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
+                        <span class="mob-card-arrow"><i class="fas fa-chevron-right"></i></span>
+                    </span>
                 </div>
                 <div class="mob-card-subject">{{ $doc->subject }}</div>
                 <div class="mob-card-meta">
@@ -608,7 +697,7 @@
                 </div>
                 @if($canManageDoc)
                 <div class="mob-card-actions">
-                    <a class="btn-manage" href="/office/documents/{{ $doc->id }}" onclick="event.stopPropagation()" title="Manage document">
+                    <a class="btn-manage" href="/office/documents/{{ $doc->id }}?from=ict-queue" onclick="event.stopPropagation()" title="Manage document">
                         <i class="fas fa-pen"></i> Manage
                     </a>
                 </div>
@@ -676,7 +765,58 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="bulkStatusModal" onclick="if(event.target===this)closeBulkStatusModal()">
+    <div class="modal" style="width:420px">
+        <h3><i class="fas fa-tags" style="color:#d97706;margin-right:6px"></i>Confirm Status Update</h3>
+        <p><span id="bulkStatusCount">0</span> selected document(s) will be updated after you confirm.</p>
+        <div style="margin-bottom:12px">
+            <label class="modal-label">New Status <span style="color:#dc2626">*</span></label>
+            <select class="modal-field" id="bulkNewStatus" onchange="updateBulkStatusRemarks()">
+                <option value="">Select status...</option>
+                <option value="for_pickup">For Pick up</option>
+                <option value="returned">For Return</option>
+            </select>
+        </div>
+        <div style="margin-bottom:14px">
+            <label class="modal-label">Remarks <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+            <select class="modal-field" id="bulkStatusRemarksSelect" onchange="handleBulkRemarksDropdown('bulkStatusRemarksSelect','bulkStatusRemarks')">
+                <option value="">Select a remark...</option>
+            </select>
+            <textarea class="modal-field" id="bulkStatusRemarks" placeholder="Type your custom remark..." style="min-height:70px;resize:vertical;display:none;margin-top:8px" data-no-capitalize></textarea>
+            <div class="modal-err" id="bulkStatusError"></div>
+        </div>
+        <div class="modal-btns">
+            <button class="btn-cancel-modal" onclick="closeBulkStatusModal()">Cancel</button>
+            <button class="btn-confirm-modal" id="confirmBulkStatusBtn" onclick="confirmBulkStatus()"><i class="fas fa-save"></i> Confirm Update</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="bulkEndModal" onclick="if(event.target===this)closeBulkEndModal()">
+    <div class="modal" style="width:420px">
+        <h3><i class="fas fa-check-circle" style="color:#0056b3;margin-right:6px"></i>Confirm End Transaction</h3>
+        <p><span id="bulkEndCount">0</span> selected document(s) will be marked as completed after you confirm.</p>
+        <div style="margin-bottom:14px">
+            <label class="modal-label">Remarks <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+            <select class="modal-field" id="bulkEndRemarksSelect" onchange="handleBulkRemarksDropdown('bulkEndRemarksSelect','bulkEndRemarks')">
+                <option value="">Select a remark...</option>
+                <option value="Document picked up by recipient.">Document picked up by recipient.</option>
+                <option value="Document claimed by authorized representative.">Document claimed by authorized representative.</option>
+                <option value="__custom">Custom Remark...</option>
+            </select>
+            <textarea class="modal-field" id="bulkEndRemarks" placeholder="Type your custom remark..." style="min-height:70px;resize:vertical;display:none;margin-top:8px" data-no-capitalize></textarea>
+            <div class="modal-err" id="bulkEndError"></div>
+        </div>
+        <div class="modal-btns">
+            <button class="btn-cancel-modal" onclick="closeBulkEndModal()">Cancel</button>
+            <button class="btn-confirm-modal" id="confirmBulkEndBtn" onclick="confirmBulkEnd()"><i class="fas fa-check"></i> End Transaction</button>
+        </div>
+    </div>
+</div>
+
 </div><!-- end .main -->
+
+<div class="queue-toast" id="queueToast" role="status" aria-live="polite"></div>
 
     <footer class="site-footer">
         <div class="footer-left">
@@ -689,6 +829,501 @@
 
 <script>
 var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+var currentUserId = {{ (int) $user->id }};
+var queueServerFilterReady = false;
+var queueServerState = {
+    search: @json(trim((string) request()->query('queue_search', ''))),
+    status: @json(trim((string) request()->query('queue_status', '')))
+};
+var BULK_STATUS_REMARKS = {
+    for_pickup: ['Document is ready for pickup.'],
+    returned: ['Returned due to incomplete requirements.', 'Returned for correction - please resubmit.']
+};
+var BULK_END_REMARKS = {
+    office: [
+        'Document processed and completed.',
+        'Request approved and completed.',
+        'Action taken and transaction closed.'
+    ],
+    release: [
+        'Document picked up by recipient.',
+        'Document claimed by authorized representative.'
+    ],
+    mixed: [
+        'Document processed and completed.',
+        'Action taken and transaction closed.'
+    ]
+};
+
+function getQueueFilterState(){
+    var search = document.getElementById('tblSearch');
+    var status = document.getElementById('tblStatus');
+    return {
+        search: search ? search.value.trim() : '',
+        status: status ? status.value : ''
+    };
+}
+
+function queueStateMatchesServer(state){
+    state = state || getQueueFilterState();
+    return (state.search || '') === (queueServerState.search || '')
+        && (state.status || '') === (queueServerState.status || '');
+}
+
+function getQueueFilterTargetUrl(state){
+    state = state || getQueueFilterState();
+    var url = new URL(window.location.href);
+    url.searchParams.delete('page');
+    if (state.search) url.searchParams.set('queue_search', state.search);
+    else url.searchParams.delete('queue_search');
+    if (state.status) url.searchParams.set('queue_status', state.status);
+    else url.searchParams.delete('queue_status');
+    return url.pathname + url.search + url.hash;
+}
+
+function scheduleQueueServerFilter(){
+    if (!queueServerFilterReady) return;
+    var state = getQueueFilterState();
+    clearTimeout(window._queueServerFilterTimer);
+    if (queueStateMatchesServer(state)) return;
+    window._queueServerFilterTimer = setTimeout(function(){
+        var latestState = getQueueFilterState();
+        if (queueStateMatchesServer(latestState)) return;
+        window.location.assign(getQueueFilterTargetUrl(latestState));
+    }, 450);
+}
+
+function setQueuePaginationForFilter(disabled){
+    document.querySelectorAll('.pg-shared__link').forEach(function(link){
+        if (disabled) {
+            if (!link.dataset.filterHref) link.dataset.filterHref = link.getAttribute('href') || '';
+            link.removeAttribute('href');
+            link.setAttribute('aria-disabled', 'true');
+            link.style.pointerEvents = 'none';
+            link.style.opacity = '.55';
+        } else if (link.dataset.filterHref) {
+            link.setAttribute('href', link.dataset.filterHref);
+            delete link.dataset.filterHref;
+            link.removeAttribute('aria-disabled');
+            link.style.pointerEvents = '';
+            link.style.opacity = '';
+        }
+    });
+}
+
+function syncQueueFilterUrl(){
+    if (!window.history || !window.history.replaceState) return;
+
+    var state = getQueueFilterState();
+    var url = new URL(window.location.href);
+    if (state.search) url.searchParams.set('queue_search', state.search);
+    else url.searchParams.delete('queue_search');
+    if (state.status) url.searchParams.set('queue_status', state.status);
+    else url.searchParams.delete('queue_status');
+
+    var nextUrl = url.pathname + url.search + url.hash;
+    if (nextUrl !== window.location.pathname + window.location.search + window.location.hash) {
+        window.history.replaceState(window.history.state, '', nextUrl);
+    }
+}
+
+function updateManageLinks(){
+    var state = getQueueFilterState();
+    var currentParams = new URLSearchParams(window.location.search);
+    document.querySelectorAll('.btn-manage[href*="/office/documents/"]').forEach(function(link){
+        var url = new URL(link.getAttribute('href'), window.location.origin);
+        if (currentParams.has('page')) url.searchParams.set('page', currentParams.get('page') || '1');
+        else url.searchParams.delete('page');
+        if (state.search) url.searchParams.set('queue_search', state.search);
+        else url.searchParams.delete('queue_search');
+        if (state.status) url.searchParams.set('queue_status', state.status);
+        else url.searchParams.delete('queue_status');
+        link.setAttribute('href', url.pathname + url.search);
+    });
+}
+
+function restoreQueueFilterState(){
+    var params = new URLSearchParams(window.location.search);
+    var search = document.getElementById('tblSearch');
+    var status = document.getElementById('tblStatus');
+    if (search && params.has('queue_search')) search.value = params.get('queue_search') || '';
+    if (status && params.has('queue_status')) status.value = params.get('queue_status') || '';
+}
+
+function updateQueueSearchClear(){
+    var search = document.getElementById('tblSearch');
+    var btn = document.getElementById('queueSearchClear');
+    if (search && btn) btn.classList.toggle('show', search.value.length > 0);
+}
+
+function clearQueueSearch(){
+    var search = document.getElementById('tblSearch');
+    if (!search) return;
+    search.value = '';
+    search.focus();
+    filterTable();
+}
+window.clearQueueSearch = clearQueueSearch;
+
+document.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('#queueSearchClear') : null;
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    clearQueueSearch();
+});
+
+function getBulkChecks(){
+    return Array.prototype.slice.call(document.querySelectorAll('.bulk-doc-check'));
+}
+
+function isBulkCheckVisible(chk){
+    var row = chk.closest('tr.doc-row');
+    if (row) return row.style.display !== 'none' && row.offsetParent !== null;
+    var card = chk.closest('.mob-card');
+    if (card) return card.style.display !== 'none' && !card.classList.contains('hidden-row') && card.offsetParent !== null;
+    return chk.offsetParent !== null;
+}
+
+function uniqueChecks(checks){
+    var seen = {};
+    return checks.filter(function(chk){
+        if (seen[chk.value]) return false;
+        seen[chk.value] = true;
+        return true;
+    });
+}
+
+function getVisibleBulkChecks(){
+    return uniqueChecks(getBulkChecks().filter(function(chk){
+        return !chk.disabled && isBulkCheckVisible(chk);
+    }));
+}
+
+function getSelectedBulkChecks(){
+    return uniqueChecks(getBulkChecks().filter(function(chk){
+        return chk.checked && !chk.disabled && isBulkCheckVisible(chk);
+    }));
+}
+
+function getSelectedDocIds(){
+    return getSelectedBulkChecks().map(function(chk){ return parseInt(chk.value, 10); }).filter(Boolean);
+}
+
+function selectedAllHaveStatus(status){
+    var selected = getSelectedBulkChecks();
+    return selected.length > 0 && selected.every(function(chk){
+        return (chk.dataset.status || '') === status;
+    });
+}
+
+function selectedCanOnlyEnd(){
+    return selectedAllHaveStatus('for_pickup') || selectedAllHaveStatus('returned');
+}
+
+function selectedEndRemarksType(){
+    var selected = getSelectedBulkChecks();
+    var types = {};
+    selected.forEach(function(chk){
+        types[chk.dataset.endRemarks || 'release'] = true;
+    });
+    var keys = Object.keys(types);
+    return keys.length === 1 ? keys[0] : 'mixed';
+}
+
+function selectedStatusCount(){
+    var statuses = {};
+    getSelectedBulkChecks().forEach(function(chk){
+        statuses[chk.dataset.status || ''] = true;
+    });
+    return Object.keys(statuses).length;
+}
+
+function canBulkUpdateSelected(){
+    var selected = getSelectedBulkChecks();
+    return selected.length > 0 && selectedStatusCount() === 1 && !selectedCanOnlyEnd();
+}
+
+function refreshBulkStatusOptions(){
+    var select = document.getElementById('bulkNewStatus');
+    if (!select) return;
+
+    Array.prototype.slice.call(select.options).forEach(function(option){
+        if (!option.value) return;
+        if (!option.dataset.label) option.dataset.label = option.textContent;
+
+        var alreadyCurrent = selectedAllHaveStatus(option.value);
+        option.disabled = alreadyCurrent;
+        option.textContent = alreadyCurrent
+            ? option.dataset.label + ' (already current)'
+            : option.dataset.label;
+
+        if (alreadyCurrent && select.value === option.value) {
+            select.value = '';
+        }
+    });
+}
+
+function syncBulkCheck(docId, checked){
+    getBulkChecks().forEach(function(chk){
+        if (chk.value === String(docId) && !chk.disabled) chk.checked = checked;
+    });
+}
+
+function handleBulkCheckChange(chk){
+    syncBulkCheck(chk.value, chk.checked);
+    updateBulkState();
+}
+
+function toggleSelectAllDocs(master){
+    getVisibleBulkChecks().forEach(function(chk){
+        syncBulkCheck(chk.value, master.checked);
+    });
+    updateBulkState();
+}
+
+function toggleVisibleSelection(){
+    var visible = getVisibleBulkChecks();
+    var shouldSelect = !visible.length || !visible.every(function(chk){ return chk.checked; });
+    visible.forEach(function(chk){
+        syncBulkCheck(chk.value, shouldSelect);
+    });
+    updateBulkState();
+}
+
+function bulkButtonHtml(iconClass, label, shortLabel){
+    return '<i class="' + iconClass + '"></i><span class="bulk-label" data-short="' + shortLabel + '">' + label + '</span>';
+}
+
+function updateBulkState(){
+    var selected = getSelectedBulkChecks();
+    var selectedCount = selected.length;
+    var endEligibleCount = selected.filter(function(chk){ return chk.dataset.canEnd === '1'; }).length;
+    var countEl = document.getElementById('bulkSelectedCount');
+    var statusBtn = document.getElementById('bulkStatusBtn');
+    var endBtn = document.getElementById('bulkEndBtn');
+    var selectVisibleBtn = document.getElementById('bulkSelectVisibleBtn');
+    var selectAll = document.getElementById('selectAllDocs');
+    var visible = getVisibleBulkChecks();
+
+    if (countEl) {
+        countEl.textContent = selectedCount + ' selected';
+        countEl.dataset.count = selectedCount;
+    }
+    if (statusBtn) {
+        statusBtn.disabled = !canBulkUpdateSelected();
+        statusBtn.title = selectedCount > 0 && selectedCanOnlyEnd()
+            ? 'These selected documents can only be ended.'
+            : (selectedCount > 0 && selectedStatusCount() > 1
+                ? 'Select documents with the same status only'
+                : '');
+    }
+    if (endBtn) {
+        endBtn.disabled = selectedCount === 0 || endEligibleCount !== selectedCount;
+        endBtn.title = selectedCount > 0 && endEligibleCount !== selectedCount
+            ? 'Select eligible office-to-office, For Pick up, or For Return documents only'
+            : '';
+    }
+    if (selectVisibleBtn) {
+        var allVisibleSelected = visible.length > 0 && visible.every(function(chk){ return chk.checked; });
+        selectVisibleBtn.innerHTML = allVisibleSelected
+            ? bulkButtonHtml('fas fa-square', 'Clear', 'Clear')
+            : bulkButtonHtml('fas fa-check-square', 'Select All', 'All');
+        selectVisibleBtn.disabled = visible.length === 0;
+    }
+    if (selectAll) {
+        selectAll.checked = visible.length > 0 && visible.every(function(chk){ return chk.checked; });
+        selectAll.indeterminate = visible.some(function(chk){ return chk.checked; }) && !selectAll.checked;
+    }
+}
+
+function handleBulkRemarksDropdown(selectId, textareaId){
+    var sel = document.getElementById(selectId);
+    var ta = document.getElementById(textareaId);
+    if (!sel || !ta) return;
+    if (sel.value === '__custom') { ta.style.display = ''; ta.value = ''; ta.focus(); }
+    else { ta.style.display = 'none'; ta.value = ''; }
+}
+
+function getBulkRemarksValue(selectId, textareaId){
+    var sel = document.getElementById(selectId);
+    var ta = document.getElementById(textareaId);
+    if (!sel) return '';
+    return sel.value === '__custom' && ta ? ta.value.trim() : sel.value;
+}
+
+function showBulkErr(id, msg){
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+}
+
+function hideBulkErr(id){
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = '';
+    el.classList.remove('show');
+}
+
+function showQueueToast(message, type){
+    var toast = document.getElementById('queueToast');
+    if (!toast) return;
+    toast.textContent = message || '';
+    toast.className = 'queue-toast ' + (type === 'error' ? 'error ' : '') + 'show';
+    clearTimeout(window._queueToastTimer);
+    window._queueToastTimer = setTimeout(function(){
+        toast.classList.remove('show');
+    }, 3200);
+}
+
+function updateBulkStatusRemarks(){
+    refreshBulkStatusOptions();
+    var status = document.getElementById('bulkNewStatus').value;
+    var sel = document.getElementById('bulkStatusRemarksSelect');
+    var ta = document.getElementById('bulkStatusRemarks');
+    if (!sel || !ta) return;
+    ta.style.display = 'none';
+    ta.value = '';
+    sel.innerHTML = '<option value="">Select a remark...</option>';
+    (BULK_STATUS_REMARKS[status] || []).forEach(function(remark){
+        var opt = document.createElement('option');
+        opt.value = remark;
+        opt.textContent = remark;
+        sel.appendChild(opt);
+    });
+    var custom = document.createElement('option');
+    custom.value = '__custom';
+    custom.textContent = 'Custom Remark...';
+    sel.appendChild(custom);
+    sel.value = '';
+}
+
+function updateBulkEndRemarks(){
+    var remarksType = selectedEndRemarksType();
+    var remarks = BULK_END_REMARKS[remarksType] || BULK_END_REMARKS.release;
+    var sel = document.getElementById('bulkEndRemarksSelect');
+    var ta = document.getElementById('bulkEndRemarks');
+    if (!sel || !ta) return;
+
+    ta.style.display = 'none';
+    ta.value = '';
+    sel.innerHTML = '<option value="">Select a remark...</option>';
+    remarks.forEach(function(remark){
+        var opt = document.createElement('option');
+        opt.value = remark;
+        opt.textContent = remark;
+        sel.appendChild(opt);
+    });
+    var custom = document.createElement('option');
+    custom.value = '__custom';
+    custom.textContent = 'Custom Remark...';
+    sel.appendChild(custom);
+    sel.value = '';
+}
+
+function openBulkStatusModal(){
+    var selected = getSelectedBulkChecks();
+    if (!selected.length) { showQueueToast('Please select at least one document.', 'error'); return; }
+    if (selectedCanOnlyEnd()) { showQueueToast('Selected documents can only be ended.', 'error'); return; }
+    if (!canBulkUpdateSelected()) { showQueueToast('Select documents with the same status only.', 'error'); return; }
+    document.getElementById('bulkStatusCount').textContent = selected.length;
+    document.getElementById('bulkNewStatus').value = '';
+    refreshBulkStatusOptions();
+    updateBulkStatusRemarks();
+    hideBulkErr('bulkStatusError');
+    document.getElementById('bulkStatusModal').classList.add('open');
+}
+
+function closeBulkStatusModal(){
+    document.getElementById('bulkStatusModal').classList.remove('open');
+}
+
+function openBulkEndModal(){
+    var selected = getSelectedBulkChecks();
+    var endEligible = selected.filter(function(chk){ return chk.dataset.canEnd === '1'; });
+    if (!selected.length) { showQueueToast('Please select at least one document.', 'error'); return; }
+    if (endEligible.length !== selected.length) {
+        showQueueToast('Select eligible office-to-office, For Pick up, or For Return documents only.', 'error');
+        return;
+    }
+    document.getElementById('bulkEndCount').textContent = selected.length;
+    updateBulkEndRemarks();
+    hideBulkErr('bulkEndError');
+    document.getElementById('bulkEndModal').classList.add('open');
+}
+
+function closeBulkEndModal(){
+    document.getElementById('bulkEndModal').classList.remove('open');
+}
+
+function summarizeBulkResponse(data){
+    var msg = data.message || 'Bulk action finished.';
+    if (data.failures && data.failures.length) {
+        msg += '\n\n' + data.failures.slice(0, 4).map(function(f){ return '- ' + f.message; }).join('\n');
+        if (data.failures.length > 4) msg += '\n- More skipped documents not shown.';
+    }
+    return msg;
+}
+
+async function postBulkStatus(status, remarks){
+    var ids = getSelectedDocIds();
+    var res = await fetch('/api/ict/documents/bulk-status', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},
+        body: JSON.stringify({document_ids: ids, status: status, remarks: remarks || null})
+    });
+    return await res.json();
+}
+
+async function confirmBulkStatus(){
+    var status = document.getElementById('bulkNewStatus').value;
+    var remarks = getBulkRemarksValue('bulkStatusRemarksSelect', 'bulkStatusRemarks');
+    if (!status) { showBulkErr('bulkStatusError', 'Please select a new status.'); return; }
+    if (selectedAllHaveStatus(status)) { showBulkErr('bulkStatusError', 'Selected document(s) already have that status.'); return; }
+    hideBulkErr('bulkStatusError');
+    var btn = document.getElementById('confirmBulkStatusBtn');
+    btn.disabled = true;
+    try {
+        var data = await postBulkStatus(status, remarks);
+        if (data.success) {
+            closeBulkStatusModal();
+            showQueueToast(summarizeBulkResponse(data), 'success');
+            setTimeout(function(){ location.reload(); }, 900);
+        } else {
+            showBulkErr('bulkStatusError', summarizeBulkResponse(data));
+            btn.disabled = false;
+        }
+    } catch (e) {
+        showBulkErr('bulkStatusError', 'Network error. Please try again.');
+        btn.disabled = false;
+    }
+}
+
+async function confirmBulkEnd(){
+    var selected = getSelectedBulkChecks();
+    if (!selected.length || selected.some(function(chk){ return chk.dataset.canEnd !== '1'; })) {
+        showBulkErr('bulkEndError', 'Select eligible office-to-office, For Pick up, or For Return documents only.');
+        return;
+    }
+    var remarks = getBulkRemarksValue('bulkEndRemarksSelect', 'bulkEndRemarks');
+    var btn = document.getElementById('confirmBulkEndBtn');
+    btn.disabled = true;
+    try {
+        var data = await postBulkStatus('completed', remarks);
+        if (data.success) {
+            closeBulkEndModal();
+            showQueueToast(summarizeBulkResponse(data), 'success');
+            setTimeout(function(){ location.reload(); }, 900);
+        } else {
+            showBulkErr('bulkEndError', summarizeBulkResponse(data));
+            btn.disabled = false;
+        }
+    } catch (e) {
+        showBulkErr('bulkEndError', 'Network error. Please try again.');
+        btn.disabled = false;
+    }
+}
 
     // ─── Sidebar ───
     window.toggleSidebar = function() {
@@ -865,15 +1500,15 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
             body: JSON.stringify({status:'completed',remarks:remarks})
         }).then(function(r){return r.json();}).then(function(d) {
             if (d.success) {
-                alert('Transaction ended successfully.');
                 closeIctPickupModal();
+                showQueueToast('Transaction ended successfully.', 'success');
                 setTimeout(function(){ location.reload(); }, 600);
             } else {
-                alert(d.message || 'Could not end transaction.');
+                showQueueToast(d.message || 'Could not end transaction.', 'error');
                 btn.disabled = false;
             }
         }).catch(function() {
-            alert('Network error.');
+            showQueueToast('Network error.', 'error');
             btn.disabled = false;
         });
     };
@@ -893,7 +1528,7 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
             var ds = (tr.getAttribute('data-search') || '').toLowerCase();
             var dstat = (tr.getAttribute('data-status') || '').toLowerCase();
             var statusMatch = !s || (s === 'processed'
-                ? ['completed', 'for_pickup', 'returned'].indexOf(dstat) !== -1
+                ? dstat === 'completed'
                 : dstat === s);
             var show = (!q || ds.indexOf(q) > -1) && statusMatch;
             tr.style.display = show ? '' : 'none';
@@ -903,7 +1538,7 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
             var ds = (card.getAttribute('data-search') || '').toLowerCase();
             var dstat = (card.getAttribute('data-status') || '').toLowerCase();
             var statusMatch = !s || (s === 'processed'
-                ? ['completed', 'for_pickup', 'returned'].indexOf(dstat) !== -1
+                ? dstat === 'completed'
                 : dstat === s);
             var show = (!q || ds.indexOf(q) > -1) && statusMatch;
             card.classList.toggle('hidden-row', !show);
@@ -912,7 +1547,16 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
         if (nr) nr.style.display = (visible === 0 && rows.length > 0) ? 'block' : 'none';
         var nrMobile = document.getElementById('noResultsMobile');
         if (nrMobile) nrMobile.style.display = (visible === 0 && cards.length > 0) ? 'block' : 'none';
+        setQueuePaginationForFilter(!!(q || s) && !queueStateMatchesServer());
+        updateQueueSearchClear();
+        syncQueueFilterUrl();
+        updateManageLinks();
+        updateBulkState();
+        scheduleQueueServerFilter();
     };
+    restoreQueueFilterState();
+    filterTable();
+    queueServerFilterReady = true;
 
     // ─── Document Drawer ───
     window.openDocDetail = function(trackingNumber) {
@@ -1020,10 +1664,19 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
             });
         }
 
+        var currentHandlerId = doc.current_handler_id ? parseInt(doc.current_handler_id, 10) : null;
+        var directOfficeEnd = doc.is_external === false && ['received','in_review','on_hold'].indexOf(doc.status) !== -1;
+        var canEndFromDrawer = (['for_pickup','returned'].indexOf(doc.status) !== -1 || directOfficeEnd)
+            && doc.is_external === false
+            && (!currentHandlerId || currentHandlerId === currentUserId);
+        var endCopy = directOfficeEnd
+            ? 'End this office-to-office transaction once your office has finished processing it.'
+            : 'This document is ready for release or return. End the transaction once the recipient has actually claimed it.';
+
         document.getElementById('drawerBody').innerHTML =
             '<div class="drawer-tl-head"><i class="fas fa-history"></i> Routing History</div>' +
             '<div class="drawer-timeline"><div class="tl">' + tlHtml + '</div></div>' +
-            (doc.status === 'for_pickup' ? '<div style="padding:20px"><div class="action-section" style="border-top:1px solid var(--border);padding-top:16px"><h3 style="font-size:13px;font-weight:600;color:var(--text-dark);margin-bottom:8px">End Transaction</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">This document is ready for release. End the transaction once the recipient has actually claimed it.</p><button class="btn btn-primary" onclick="openIctPickupModal(' + escapeAttr(doc.id) + ')">End Transaction</button></div></div>' : '');
+            (canEndFromDrawer ? '<div style="padding:20px"><div class="action-section" style="border-top:1px solid var(--border);padding-top:16px"><h3 style="font-size:13px;font-weight:600;color:var(--text-dark);margin-bottom:8px">End Transaction</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">' + escapeHtml(endCopy) + '</p><button class="btn btn-primary" onclick="openIctPickupModal(' + escapeAttr(doc.id) + ')">End Transaction</button></div></div>' : '');
     }
 
     // ─── Live Stats (silent update every 30s) ───
@@ -1484,5 +2137,6 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
         });
     })();
     </script>
+    @include('partials.submission-notifications-script')
 </body>
 </html>

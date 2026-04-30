@@ -92,6 +92,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 28px;
+            position: relative;
+            z-index: 350;
         }
 
         .greeting-section h1 {
@@ -585,6 +587,7 @@
         .pill.processing,
         .pill.completed,
         .pill.other { background: #fff7ed; color: #c2410c; }
+        .pill.returned { background: #fef2f2; color: #dc2626; }
 
         .t-date { font-size: 12px; color: #94a3b8; }
 
@@ -736,36 +739,57 @@
         @keyframes blink-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.35}}
         .blink-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#ea580c;animation:blink-pulse 1.2s ease-in-out infinite;vertical-align:middle;flex-shrink:0}
         .pill.for_pickup{background:#fff7ed;color:#c2410c;font-weight:700}
-        .pickup-alert strong{color:#9a3412}
+        .top-actions{display:flex;align-items:stretch;gap:10px;position:relative}
+        .top-actions .live-clock{flex-shrink:0}
+        .notification-wrap{position:relative;flex-shrink:0;z-index:1;display:flex}
+        .notification-wrap.open{z-index:20}
+        @keyframes notif-bell-ring{0%{transform:rotate(0)}14%{transform:rotate(16deg)}28%{transform:rotate(-14deg)}42%{transform:rotate(10deg)}56%{transform:rotate(-7deg)}70%{transform:rotate(4deg)}100%{transform:rotate(0)}}
+        @keyframes notif-badge-pop{0%,100%{transform:scale(1)}45%{transform:scale(1.16)}}
+        .notif-btn{position:relative;width:58px;min-height:100%;border:1px solid var(--border);border-radius:8px;background:var(--white);color:var(--text-dark);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:background .15s,border-color .15s,color .15s,box-shadow .15s}
+        .notif-btn:hover i{animation:notif-bell-ring .72s ease both;transform-origin:50% 8%}
+        .notif-btn:hover .notif-badge{animation:notif-badge-pop .42s ease both}
+        .notification-wrap.open .notif-btn{background:#f8faff;border-color:rgba(0,86,179,.35);color:var(--primary);box-shadow:0 3px 12px rgba(15,23,42,.06)}
+        .notif-badge{position:absolute;top:-7px;right:-7px;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:#ea580c;color:#fff;border:2px solid var(--bg);font-size:10px;font-weight:800;line-height:1;display:flex;align-items:center;justify-content:center}
+        .notif-panel{position:absolute;top:calc(100% + 10px);right:0;width:min(370px,calc(100vw - 32px));background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 18px 50px rgba(15,23,42,.18);z-index:20;opacity:0;transform:translateY(-6px);pointer-events:none;overflow:hidden;transition:opacity .16s ease,transform .16s ease}
+        .notification-wrap.open .notif-panel{opacity:1;transform:translateY(0);pointer-events:auto}
+        .notif-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #eef2f7}
+        .notif-title{font-size:14px;font-weight:800;color:var(--text-dark)}
+        .notif-count{background:#fff7ed;color:#c2410c;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap}
+        .notif-list{max-height:min(52vh,390px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}
+        .notif-list::-webkit-scrollbar{width:8px}
+        .notif-list::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+        .notif-list::-webkit-scrollbar-track{background:transparent}
+        .notif-item{display:flex;gap:11px;padding:13px 16px;text-decoration:none;color:inherit;border-bottom:1px solid #f1f5f9;background:#fff;transition:background .15s}
+        .notif-item:last-child{border-bottom:0}
+        .notif-item:hover,.notif-item:focus{background:#f8faff;outline:none}
+        .notif-icon{width:32px;height:32px;border-radius:8px;background:#fff7ed;color:#c2410c;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px}
+        .notif-icon.returned{background:#fef2f2;color:#dc2626}
+        .notif-body{min-width:0;flex:1}
+        .notif-top{display:flex;align-items:center;gap:8px;min-width:0;margin-bottom:2px}
+        .notif-ref{font-family:monospace;font-size:12px;font-weight:800;color:var(--primary);letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+        .notif-status{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border-radius:999px;background:#fff7ed;color:#c2410c;font-size:10px;font-weight:800;white-space:nowrap;flex-shrink:0}
+        .notif-status.returned{background:#fef2f2;color:#dc2626}
+        .notif-subject{font-size:13px;font-weight:700;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .notif-meta{display:flex;align-items:center;gap:8px;margin-top:4px;color:#64748b;font-size:11px;min-width:0}
+        .notif-meta span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .notif-view{display:inline-flex;align-items:center;gap:5px;margin-top:7px;color:var(--primary);font-size:11px;font-weight:800}
+        .notif-empty{padding:24px 16px;text-align:center;color:var(--text-muted);font-size:13px}
+        .notif-empty i{display:block;margin-bottom:8px;font-size:24px;color:#cbd5e1}
+        .notif-footer{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 16px;border-top:1px solid #eef2f7;text-decoration:none;color:var(--primary);font-size:12px;font-weight:800;background:#fbfdff}
+        .notif-footer:hover{background:#f1f7ff}
 
-        /* ─── Pickup banner ─── */
-        .pickup-banner{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:20px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
-        .pickup-banner-title{font-size:17px;font-weight:700;color:var(--text-dark);margin-bottom:14px;display:flex;align-items:center;gap:9px}
-        .pickup-banner-title i{color:#16a34a;font-size:18px}
-        .pickup-banner-title .pickup-count{background:#dcfce7;color:#15803d;font-size:12px;font-weight:700;padding:2px 9px;border-radius:20px;margin-left:2px}
-        .pickup-doc-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#f8fafc;border:1.5px solid var(--border);border-radius:10px;margin-bottom:8px;transition:border-color .15s,box-shadow .15s}
-        .pickup-doc-item:last-child{margin-bottom:0}
-        .pickup-doc-item:hover{border-color:#bbf7d0;box-shadow:0 2px 8px rgba(22,163,74,.08)}
-        .pickup-doc-ref{font-size:12px;font-weight:700;color:var(--primary);font-family:monospace;letter-spacing:.5px}
-        .pickup-doc-subject{font-size:13px;color:var(--text-dark);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
-        .btn-confirm-sm{padding:8px 16px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif;white-space:nowrap;transition:all .2s;flex-shrink:0;box-shadow:0 2px 6px rgba(22,163,74,.2)}
-        .btn-confirm-sm:hover{background:linear-gradient(135deg,#15803d,#166534);box-shadow:0 3px 10px rgba(22,163,74,.3)}
-        .btn-confirm-sm:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none}
+        @media (max-width: 768px){
+            .top-actions{width:100%;align-items:stretch}
+            .top-actions .live-clock{flex:1;width:auto;min-width:0;padding:10px 12px;gap:10px}
+            .notif-btn{width:50px;min-height:100%}
+            .notif-panel{right:0}
+        }
 
-        /* ─── Pickup modal ─── */
-        .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:center;justify-content:center;padding:16px}
-        .modal-backdrop.show{display:flex}
-        .modal-box{background:#fff;border-radius:16px;max-width:420px;width:100%;padding:28px 24px;box-shadow:0 20px 60px rgba(0,0,0,.2);text-align:center;animation:modalIn .18s ease}
-        @keyframes modalIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
-        .modal-icon-wrap{display:none}
-        .modal-box h3{font-size:17px;font-weight:700;color:var(--text-dark);margin-bottom:8px}
-        .modal-box p{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:22px;text-align:left}
-        .modal-actions{display:flex;gap:10px;justify-content:center}
-        .modal-actions button{padding:9px 20px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif;border:1.5px solid var(--border);background:#fff;color:var(--text-dark);transition:all .2s}
-        .modal-actions button:hover{background:#f1f5f9}
-        .modal-actions .modal-confirm{background:#ea580c;color:#fff;border-color:#ea580c}
-        .modal-actions .modal-confirm:hover{background:#c2410c}
-        .modal-actions .modal-confirm:disabled{opacity:.6;cursor:not-allowed}
+        @media (max-width: 420px){
+            .top-actions .clock-sep,
+            .top-actions .clock-date-display{display:none}
+        }
+        @include('partials.submission-notifications-styles')
 
         /* ─── Recent document drawer ─── */
         .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:400;opacity:0;pointer-events:none;transition:opacity .25s}
@@ -810,7 +834,7 @@
             .drawer{width:100%;max-width:100%}
         }
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js" defer></script>
 </head>
@@ -881,16 +905,20 @@
                 <p>{{ $dashboardContextLabel }} &mdash; here's your document overview.</p>
             </div>
 
-            <div class="live-clock">
-                <div class="clock-time-display">
-                    <span id="c-h">--</span>:<span id="c-m">--</span>:<span class="seconds" id="c-s">--</span>
-                    <span class="period" id="c-p">--</span>
+            <div class="top-actions">
+                <div class="live-clock">
+                    <div class="clock-time-display">
+                        <span id="c-h">--</span>:<span id="c-m">--</span>:<span class="seconds" id="c-s">--</span>
+                        <span class="period" id="c-p">--</span>
+                    </div>
+                    <div class="clock-sep"></div>
+                    <div class="clock-date-display">
+                        <span class="day" id="c-day">Loading...</span>
+                        <span id="c-date"></span>
+                    </div>
                 </div>
-                <div class="clock-sep"></div>
-                <div class="clock-date-display">
-                    <span class="day" id="c-day">Loading...</span>
-                    <span id="c-date"></span>
-                </div>
+
+                @include('partials.submission-notifications')
             </div>
         </div>
 
@@ -918,28 +946,6 @@
                 </div>
             </div>
         </div>
-        {{-- ─── For Pickup Banner ─── --}}
-        @if(!empty($pickupDocs) && $pickupDocs->isNotEmpty())
-        <div class="pickup-banner anim">
-            <div class="pickup-banner-title">
-                Ready for Pickup <span class="pickup-count">{{ \App\Support\UiNumber::compact($pickupDocs->count()) }}</span>
-            </div>
-            <div class="pickup-doc-list">
-                @foreach($pickupDocs as $pDoc)
-                <div class="pickup-doc-item">
-                    <div class="pickup-doc-info">
-                        <div class="pickup-doc-ref">{{ $pDoc->reference_number }}</div>
-                        <div class="pickup-doc-subject">{{ $pDoc->subject }}</div>
-                    </div>
-                    <button class="btn-confirm-sm"
-                            onclick='openRecentDocDetail(@json($pDoc->reference_number ?: ($pDoc->tracking_number ?: "")), @json($pDoc->tracking_number ?: ($pDoc->reference_number ?: "")))'>
-                        View Details
-                    </button>
-                </div>
-                @endforeach
-            </div>
-        </div>
-        @endif
         <!-- Grid -->
         <div class="grid">
 
@@ -987,12 +993,13 @@
                                         'submitted', 'received' => 'pending',
                                         'in_review', 'on_hold' => 'processing',
                                         'completed', 'for_pickup' => 'completed',
+                                        'returned' => 'returned',
                                         default => 'other',
                                     };
                                 @endphp
                                 <span style="display:inline-flex;align-items:center;gap:5px">
                                     <span class="pill {{ $sc }}">{{ $doc->statusLabel() }}</span>
-                                    @if($doc->status === 'for_pickup')
+                                    @if(in_array($doc->status, ['for_pickup', 'returned'], true))
                                         <span class="blink-dot"></span>
                                     @endif
                                 </span>
@@ -1022,6 +1029,7 @@
                                     'submitted', 'received' => 'pending',
                                     'in_review', 'on_hold' => 'processing',
                                     'completed', 'for_pickup' => 'completed',
+                                    'returned' => 'returned',
                                     default => 'other',
                                 };
                             @endphp
@@ -1152,8 +1160,8 @@
         </div>
         <div class="drawer-action-bar" id="drawerActionBar" style="display:none">
             <div class="pickup-notice">
-                <i class="fas fa-box-open"></i>
-                <span>Your document is ready for pickup. Please coordinate with the releasing office.</span>
+                <i class="fas fa-box-open" id="drawerActionIcon"></i>
+                <span id="drawerActionText">Your document is ready for pickup. Please coordinate with the releasing office.</span>
             </div>
         </div>
     </div>
@@ -1178,6 +1186,36 @@
             document.body.style.overflow = '';
         }
         window.closeDrawer = closeDrawer;
+
+        function closeNotifications() {
+            var wrap = document.getElementById('pickupNotification');
+            var toggle = document.getElementById('pickupNotificationToggle');
+            if (!wrap) return;
+            wrap.classList.remove('open');
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        }
+
+        (function initNotifications() {
+            var wrap = document.getElementById('pickupNotification');
+            var toggle = document.getElementById('pickupNotificationToggle');
+            var panel = document.getElementById('pickupNotificationPanel');
+            if (!wrap || !toggle) return;
+
+            toggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var isOpen = wrap.classList.toggle('open');
+                toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+
+            if (panel) {
+                panel.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            }
+
+            document.addEventListener('click', closeNotifications);
+        })();
 
         function dotClass(status) {
             if (status === 'cancelled' || status === 'returned') return 'c-danger';
@@ -1211,7 +1249,16 @@
             document.getElementById('drTrack').textContent = '';
 
             var actionBar = document.getElementById('drawerActionBar');
-            if (doc.status === 'for_pickup' && _currentDrawerRef) {
+            if (['for_pickup', 'returned'].indexOf(doc.status) !== -1 && _currentDrawerRef) {
+                var actionText = document.getElementById('drawerActionText');
+                var actionIcon = document.getElementById('drawerActionIcon');
+                if (doc.status === 'returned') {
+                    if (actionIcon) actionIcon.className = 'fas fa-undo-alt';
+                    if (actionText) actionText.textContent = 'Your document is ready for return. Please coordinate with the releasing office to claim it.';
+                } else {
+                    if (actionIcon) actionIcon.className = 'fas fa-box-open';
+                    if (actionText) actionText.textContent = 'Your document is ready for pickup. Please coordinate with the releasing office.';
+                }
                 actionBar.style.display = '';
             } else {
                 actionBar.style.display = 'none';
@@ -1435,9 +1482,11 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeDrawer();
+                closeNotifications();
             }
         });
     })();
     </script>
+    @include('partials.submission-notifications-script')
 </body>
 </html>

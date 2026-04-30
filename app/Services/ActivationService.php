@@ -6,6 +6,8 @@ use App\Models\ActivationToken;
 use App\Models\Document;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ActivationService
@@ -80,15 +82,57 @@ class ActivationService
         $user->activation_ip     = $ip;
         $user->save();
 
-        // Link any guest-submitted documents that used this email
-        // before the user had an account.
-        // Use query builder (not Eloquent update) since user_id is guarded.
-        \Illuminate\Support\Facades\DB::table('documents')
-            ->where('sender_email', $user->email)
-            ->whereNull('user_id')
-            ->update(['user_id' => $user->id]);
+        $this->linkGuestDocumentsForUser($user);
 
         return $user;
+    }
+
+    /**
+     * Link guest-submitted documents to the authenticated account that owns
+     * the same normalized email address.
+     */
+    public function linkGuestDocumentsForUser(User $user): int
+    {
+        if (!$user->isActive()) {
+            return 0;
+        }
+
+        $email = strtolower(trim((string) $user->email));
+        if ($email === '') {
+            return 0;
+        }
+
+        $documents = Document::query()
+            ->whereNull('user_id')
+            ->whereRaw('LOWER(TRIM(sender_email)) = ?', [$email])
+            ->get(['id', 'current_office_id', 'submitted_to_office_id']);
+
+        if ($documents->isEmpty()) {
+            return 0;
+        }
+
+        DB::table('documents')
+            ->whereIn('id', $documents->pluck('id')->all())
+            ->update([
+                'user_id' => $user->id,
+                'updated_at' => now(),
+            ]);
+
+        Cache::forget('user_stats_' . $user->id);
+
+        $officeIds = $documents
+            ->flatMap(fn (Document $document) => [
+                $document->current_office_id,
+                $document->submitted_to_office_id,
+            ])
+            ->filter()
+            ->unique();
+
+        foreach ($officeIds as $officeId) {
+            Cache::forget('office_stats_' . $officeId);
+        }
+
+        return $documents->count();
     }
 
     /**

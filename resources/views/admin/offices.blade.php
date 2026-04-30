@@ -311,7 +311,7 @@
             .toast{right:12px;left:12px;max-width:none}
         }
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js" defer></script>
 </head>
@@ -795,6 +795,7 @@
         var csrf = '{{ csrf_token() }}';
         var officeDocumentTypesByOffice = @json($officeDocumentTypesByOffice ?? []);
         var baseDocumentTypeOptionsByOffice = @json($baseDocumentTypeOptionsByOffice ?? []);
+        var docTypeRequestPending = false;
 
         function escapeHtml(str) {
             if (!str) return '';
@@ -1366,6 +1367,40 @@
             return String(value || '').replace(/\s+/g, ' ').trim();
         }
 
+        function parseJsonResponse(response) {
+            return response.json().catch(function () {
+                return {
+                    success: false,
+                    message: response.status === 429
+                        ? 'Too many attempts. Please wait a moment before trying again.'
+                        : 'Request failed. Please try again.'
+                };
+            });
+        }
+
+        function setDocTypePanelLocked(locked) {
+            docTypeRequestPending = !!locked;
+
+            var addBtn = document.getElementById('addDocTypeBtn');
+            if (addBtn) addBtn.disabled = docTypeRequestPending;
+
+            document.querySelectorAll('[data-doc-type-toggle]').forEach(function (btn) {
+                btn.disabled = docTypeRequestPending;
+            });
+        }
+
+        function setBusyButton(buttonEl, busyHtml) {
+            if (!buttonEl) return;
+            if (!buttonEl.dataset.idleHtml) buttonEl.dataset.idleHtml = buttonEl.innerHTML;
+            buttonEl.innerHTML = busyHtml;
+        }
+
+        function restoreBusyButton(buttonEl) {
+            if (!buttonEl || !buttonEl.dataset.idleHtml) return;
+            buttonEl.innerHTML = buttonEl.dataset.idleHtml;
+            delete buttonEl.dataset.idleHtml;
+        }
+
         function getOfficeDocumentTypes(officeId) {
             var key = String(officeId || '');
             if (!officeDocumentTypesByOffice[key] || !Array.isArray(officeDocumentTypesByOffice[key])) {
@@ -1456,6 +1491,11 @@
             var addBtn = document.getElementById('addDocTypeBtn');
             if (!officeSelect || !nameInput || !addBtn) return;
 
+            if (docTypeRequestPending) {
+                showToast('Please wait for the current document type action to finish.', 'error');
+                return;
+            }
+
             var officeId = officeSelect.value;
             var name = normalizeDocTypeName(nameInput.value);
 
@@ -1471,16 +1511,16 @@
                 return;
             }
 
-            addBtn.disabled = true;
+            setDocTypePanelLocked(true);
+            setBusyButton(addBtn, '<i class="fas fa-spinner fa-spin"></i> Adding...');
 
             fetch('/api/admin/offices/document-types', {
                 method: 'POST',
                 headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN':csrf, 'Accept':'application/json' },
                 body: JSON.stringify({ office_id: parseInt(officeId, 10), name: name })
             })
-            .then(function (r) { return r.json(); })
+            .then(parseJsonResponse)
             .then(function (data) {
-                addBtn.disabled = false;
                 if (!data.success) {
                     showToast(data.message || 'Failed to add document type.', 'error');
                     return;
@@ -1505,12 +1545,20 @@
                 showToast(data.message || 'Document type saved.', 'success');
             })
             .catch(function () {
-                addBtn.disabled = false;
                 showToast('Something went wrong.', 'error');
+            })
+            .finally(function () {
+                restoreBusyButton(addBtn);
+                setDocTypePanelLocked(false);
             });
         };
 
         function toggleOfficeDocumentType(id, isActive, buttonEl) {
+            if (docTypeRequestPending) {
+                showToast('Please wait for the current document type action to finish.', 'error');
+                return;
+            }
+
             var located = findOfficeDocumentTypeById(id);
             if (!located) {
                 showToast('Document type not found. Please reload the page.', 'error');
@@ -1522,16 +1570,16 @@
                 if (!confirmed) return;
             }
 
-            if (buttonEl) buttonEl.disabled = true;
+            setDocTypePanelLocked(true);
+            setBusyButton(buttonEl, '<i class="fas fa-spinner fa-spin"></i> Saving...');
 
             fetch('/api/admin/offices/document-types/' + id, {
                 method: 'PUT',
                 headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN':csrf, 'Accept':'application/json' },
                 body: JSON.stringify({ is_active: !!isActive })
             })
-            .then(function (r) { return r.json(); })
+            .then(parseJsonResponse)
             .then(function (data) {
-                if (buttonEl) buttonEl.disabled = false;
                 if (!data.success) {
                     showToast(data.message || 'Failed to update document type.', 'error');
                     return;
@@ -1555,8 +1603,11 @@
                 showToast(data.message || 'Document type updated.', 'success');
             })
             .catch(function () {
-                if (buttonEl) buttonEl.disabled = false;
                 showToast('Something went wrong.', 'error');
+            })
+            .finally(function () {
+                restoreBusyButton(buttonEl);
+                setDocTypePanelLocked(false);
             });
         }
 
@@ -1570,6 +1621,7 @@
             docTypeListEl.addEventListener('click', function (event) {
                 var btn = event.target.closest('[data-doc-type-toggle]');
                 if (!btn) return;
+                if (btn.disabled) return;
 
                 var id = parseInt(btn.getAttribute('data-id') || '', 10);
                 var nextActive = btn.getAttribute('data-next-active') === '1';

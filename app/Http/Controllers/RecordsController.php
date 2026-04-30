@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Document;
 use App\Models\Office;
 use App\Models\RoutingLog;
+use App\Services\ActivationService;
+use App\Support\SubmissionNotifications;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -94,9 +96,9 @@ class RecordsController extends Controller
                     "COUNT(*) as total,
                     SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as submitted,
                     SUM(CASE WHEN status IN (?, ?) THEN 1 ELSE 0 END) as received,
-                    SUM(CASE WHEN status IN (?, ?) THEN 1 ELSE 0 END) as completed,
+                    SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as completed,
                     SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as archived",
-                    ['submitted', 'received', 'in_review', 'completed', 'for_pickup', 'archived']
+                    ['submitted', 'received', 'in_review', 'completed', 'archived']
                 )
                 ->first();
 
@@ -137,8 +139,13 @@ class RecordsController extends Controller
         $stats = $this->recordsStats();
 
         $statusOptions = self::STATUS_FILTER_OPTIONS;
+        app(ActivationService::class)->linkGuestDocumentsForUser($user);
+        $submissionNotificationData = SubmissionNotifications::forUser($user);
 
-        return view('records.index', compact('user', 'documents', 'stats', 'search', 'status', 'statusOptions'));
+        return view('records.index', array_merge(
+            compact('user', 'documents', 'stats', 'search', 'status', 'statusOptions'),
+            $submissionNotificationData
+        ));
     }
 
     /**
@@ -189,10 +196,17 @@ class RecordsController extends Controller
         ]);
 
         $user = Auth::user();
+        if (!$user->isRecords()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Records Section can end outside-submitted document transactions.',
+            ], 403);
+        }
+
         $document = Document::findOrFail($id);
 
-        if ($document->status !== 'for_pickup') {
-            return response()->json(['success' => false, 'message' => 'Only documents marked For Pickup can be ended.'], 422);
+        if (!in_array($document->status, ['for_pickup', 'returned'], true)) {
+            return response()->json(['success' => false, 'message' => 'Only documents marked For Pickup or Return to Sender can be ended.'], 422);
         }
 
         $document->status = 'completed';
@@ -221,7 +235,7 @@ class RecordsController extends Controller
         match ($status) {
             'submitted' => $query->where('status', 'submitted'),
             'processing' => $query->whereIn('status', ['received', 'in_review', 'on_hold']),
-            'completed' => $query->whereIn('status', ['completed', 'for_pickup', 'returned']),
+            'completed' => $query->whereIn('status', ['completed']),
             'archived' => $query->where('status', 'archived'),
             default => null,
         };

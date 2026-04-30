@@ -289,7 +289,7 @@
         .records-reminder-btn{font-family:'Poppins',sans-serif;font-size:12px;font-weight:600;border-radius:9px;padding:9px 14px;cursor:pointer;background:#0056b3;border:1.5px solid #0056b3;color:#fff}
         .records-reminder-btn:hover{background:#004494;border-color:#004494}
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="{{ asset('js/request-utils.js') }}?v={{ filemtime(public_path('js/request-utils.js')) }}" defer></script>
 </head>

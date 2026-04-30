@@ -676,6 +676,7 @@
             .s-num{font-size:22px}
             .s-label{font-size:10px}
         }
+        @include('partials.submission-notifications-styles')
 
         /* Badge colors for office docs */
         .badge-submitted,
@@ -780,7 +781,7 @@
         .badge-for_pickup,
         .badge-completed{background:#fff7ed;color:#c2410c}
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js"></script>
 </head>
@@ -864,16 +865,19 @@
                 <p>{!! $adminQueueCopy !!}</p>
             </div>
 
-            <div class="live-clock">
-                <div class="clock-time-display">
-                    <span id="c-h">--</span>:<span id="c-m">--</span>:<span class="seconds" id="c-s">--</span>
-                    <span class="period" id="c-p">--</span>
+            <div class="submission-header-actions">
+                <div class="live-clock">
+                    <div class="clock-time-display">
+                        <span id="c-h">--</span>:<span id="c-m">--</span>:<span class="seconds" id="c-s">--</span>
+                        <span class="period" id="c-p">--</span>
+                    </div>
+                    <div class="clock-sep"></div>
+                    <div class="clock-date-display">
+                        <span class="day" id="c-day">Loading...</span>
+                        <span id="c-date"></span>
+                    </div>
                 </div>
-                <div class="clock-sep"></div>
-                <div class="clock-date-display">
-                    <span class="day" id="c-day">Loading...</span>
-                    <span id="c-date"></span>
-                </div>
+                @include('partials.submission-notifications')
             </div>
         </div>
 
@@ -1993,5 +1997,6 @@
         document.addEventListener('keydown', handleScannerKeydown);
     })();
     </script>
+    @include('partials.submission-notifications-script')
 </body>
 </html>

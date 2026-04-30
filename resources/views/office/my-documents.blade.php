@@ -265,7 +265,7 @@
             .my-docs-panel .mob-cards{display:block;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px}
         }
     </style>
-    <script src="/js/spa.js" defer></script>
+    <script src="{{ asset('js/spa.js') }}?v={{ filemtime(public_path('js/spa.js')) }}" defer></script>
     <script src="/js/form-utils.js" defer></script>
     <script src="/js/request-utils.js" defer></script>
 </head>
@@ -347,13 +347,13 @@
     </div>
 
     <!-- Search & Filter -->
-    <div class="search-card">
+    <form class="search-card" method="GET" action="/my-documents" data-live-search data-live-debounce="700" data-live-min-interval="1200">
         <div class="search-wrap">
             <i class="fas fa-search"></i>
-            <input type="text" id="searchInput" placeholder="Search by tracking #, document control #, subject, or type..." data-clearable data-no-capitalize
+            <input type="text" id="searchInput" name="search" placeholder="Search by tracking #, document control #, subject, or type..." data-clearable data-no-capitalize
                    value="{{ $search }}" oninput="filterDocs()">
         </div>
-        <select class="status-select" id="statusFilter" onchange="filterDocs(true)">
+        <select class="status-select" id="statusFilter" name="status" onchange="filterDocs(true)">
             <option value="">All Statuses</option>
             @foreach(\App\Models\Document::FILTER_STATUSES as $key => $label)
                 @if($key === 'received')
@@ -363,7 +363,7 @@
             @endforeach
         </select>
         <span class="search-count" id="resultCount"></span>
-    </div>
+    </form>
 
     <!-- Documents Table -->
     <div class="table-card list-table-card my-docs-panel{{ $documents->count() ? ' has-list' : '' }}">
@@ -531,8 +531,8 @@
     </div>
     <div class="drawer-action-bar" id="drawerActionBar" style="display:none">
         <div class="pickup-notice">
-            <i class="fas fa-box-open"></i>
-            Your document is ready for pickup. Please coordinate with the releasing office.
+            <i class="fas fa-box-open" id="drawerActionIcon"></i>
+            <span id="drawerActionText">Your document is ready for pickup. Please coordinate with the releasing office.</span>
         </div>
     </div>
 
@@ -576,14 +576,13 @@
 <script type="application/json" id="docsData">@json($docDrawerData)</script>
 
 <script>
-var _searchTimer = null;
-var _lastSearchSyncAt = 0;
-var SEARCH_URL_SYNC_DELAY = 700;
-var SEARCH_URL_MIN_INTERVAL = 1200;
-
 function filterDocs(immediate) {
-    var q      = document.getElementById('searchInput').value.toLowerCase().trim();
-    var status = document.getElementById('statusFilter').value;
+    var searchInput = document.getElementById('searchInput');
+    var statusInput = document.getElementById('statusFilter');
+    if (!searchInput || !statusInput) return;
+
+    var q      = searchInput.value.toLowerCase().trim();
+    var status = statusInput.value;
     var rows   = document.querySelectorAll('#docsTable tbody tr.doc-row');
     var cards  = document.querySelectorAll('.my-docs-panel .mob-card[data-ref]');
     var shown  = 0;
@@ -618,43 +617,8 @@ function filterDocs(immediate) {
         }
     }
 
-    scheduleFilterSync(q, status, !!immediate);
 }
-
-function syncFiltersToUrl(q, status) {
-    var params = new URLSearchParams();
-    if (q)      params.set('search', q);
-    if (status) params.set('status', status);
-
-    var newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
-    if (newUrl !== window.location.pathname + window.location.search) {
-        window.location.href = newUrl;
-    }
-}
-
-function scheduleFilterSync(q, status, immediate) {
-    clearTimeout(_searchTimer);
-
-    var runSync = function() {
-        var now = Date.now();
-        var remaining = SEARCH_URL_MIN_INTERVAL - (now - _lastSearchSyncAt);
-
-        if (remaining > 0) {
-            _searchTimer = setTimeout(runSync, remaining);
-            return;
-        }
-
-        _lastSearchSyncAt = Date.now();
-        syncFiltersToUrl(q, status);
-    };
-
-    if (immediate) {
-        runSync();
-        return;
-    }
-
-    _searchTimer = setTimeout(runSync, SEARCH_URL_SYNC_DELAY);
-}
+window.filterDocs = filterDocs;
 
 function logout() {
     var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -796,9 +760,18 @@ function renderDrawer(doc) {
     document.getElementById('drRef').textContent = 'TN · ' + ref;
     document.getElementById('drTrack').textContent = (trackingNo && trackingNo !== ref) ? ('Document Control # ' + trackingNo) : '';
 
-    // Show/hide pickup notice
+    // Show/hide release/return notice
     var actionBar = document.getElementById('drawerActionBar');
-    if (doc.status === 'for_pickup') {
+    if (['for_pickup', 'returned'].indexOf(doc.status) !== -1) {
+        var actionText = document.getElementById('drawerActionText');
+        var actionIcon = document.getElementById('drawerActionIcon');
+        if (doc.status === 'returned') {
+            if (actionIcon) actionIcon.className = 'fas fa-undo-alt';
+            if (actionText) actionText.textContent = 'Your document is ready for return. Please coordinate with the releasing office to claim it.';
+        } else {
+            if (actionIcon) actionIcon.className = 'fas fa-box-open';
+            if (actionText) actionText.textContent = 'Your document is ready for pickup. Please coordinate with the releasing office.';
+        }
         actionBar.style.display = '';
     } else {
         actionBar.style.display = 'none';
