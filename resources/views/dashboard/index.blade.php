@@ -42,7 +42,7 @@
         }
 
         /* ─── Sidebar (matches office/admin dashboard) ─── */
-        .sidebar{position:fixed;top:0;left:0;width:240px;height:100vh;background:#0056b3;display:flex;flex-direction:column;z-index:200;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
+        .sidebar{position:fixed;top:0;left:0;width:240px;height:100vh;background:#0056b3;display:flex;flex-direction:column;z-index:1200;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
         .sidebar.open{transform:translateX(0)}
         .sb-brand{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.12);text-align:center}
         .sb-brand img{width:64px;height:64px;margin-bottom:8px}
@@ -72,7 +72,7 @@
         .mob-brand .brand-subtitle{font-size:clamp(10px,2.4vw,11px);font-weight:500;opacity:.88;text-transform:uppercase;letter-spacing:2.4px;line-height:1.1}
         .mob-brand h1{font-size:clamp(18px,4.8vw,22px);font-weight:700;margin:0;line-height:1.08}
         .mob-brand .brand-caption{font-size:clamp(11px,2.9vw,13px);font-weight:300;opacity:.9;line-height:1.18}
-        .mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:199}
+        .mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1100}
         .mob-overlay.open{display:block}
 
         /* ─── Main Content Area ─── */
