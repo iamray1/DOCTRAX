@@ -410,9 +410,9 @@
             .mob-card-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start}
             .mob-card-status{flex:initial}
             .mob-card-actions{flex-direction:column}
-            .bulk-actions{grid-template-columns:minmax(62px,1fr) minmax(48px,.72fr) minmax(70px,1fr) minmax(70px,1fr);gap:5px}
+            .bulk-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:stretch}
             .bulk-actions .bulk-btn,
-            .bulk-actions .bulk-count{padding:7px 5px}
+            .bulk-actions .bulk-count{flex:1 1 calc(50% - 6px);min-width:0;padding:7px 6px}
             .bulk-actions .bulk-btn{font-size:10px;gap:4px}
             .bulk-actions .bulk-label{font-size:0}
             .bulk-actions .bulk-label::after{content:attr(data-short);font-size:10px}
