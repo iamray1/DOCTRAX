@@ -175,7 +175,7 @@
         .queue-panel .td-cta{white-space:nowrap;text-align:center}
         .queue-panel .td-cta .btn-manage{justify-content:center}
         .td-select{text-align:center;width:44px}
-        .bulk-doc-check,.bulk-select-all{width:15px;height:15px;accent-color:var(--primary);cursor:pointer}
+        .bulk-doc-check{width:15px;height:15px;accent-color:var(--primary);cursor:pointer}
         .bulk-doc-check:disabled{cursor:not-allowed;opacity:.35}
         .mob-cards{display:none;padding:12px}
         .mob-card{width:100%;min-width:0;overflow:hidden;background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.04);cursor:pointer;transition:border-color .15s,box-shadow .15s}
@@ -532,7 +532,7 @@
                     </select>
                 </div>
                 <div class="filter-row bulk-actions">
-                    <button type="button" class="bulk-btn neutral" id="bulkSelectVisibleBtn" onclick="toggleVisibleSelection()"><i class="fas fa-check-square"></i><span class="bulk-label" data-short="All">Select All</span></button>
+                    <button type="button" class="bulk-btn neutral" id="bulkSelectVisibleBtn" onclick="clearBulkSelection()" disabled><i class="fas fa-square"></i><span class="bulk-label" data-short="Clear">Clear Selection</span></button>
                     <span class="bulk-count" id="bulkSelectedCount" data-count="0">0 selected</span>
                     <button type="button" class="bulk-btn" id="bulkStatusBtn" onclick="openBulkStatusModal()" disabled><i class="fas fa-tags"></i><span class="bulk-label" data-short="Status">Update Status</span></button>
                     <button type="button" class="bulk-btn warning" id="bulkEndBtn" onclick="openBulkEndModal()" disabled><i class="fas fa-check-circle"></i><span class="bulk-label" data-short="End">End Transaction</span></button>
@@ -561,7 +561,7 @@
                 </colgroup>
                 <thead>
                     <tr>
-                        <th class="td-select"><input type="checkbox" class="bulk-select-all" id="selectAllDocs" onchange="toggleSelectAllDocs(this)" title="Select all visible documents"></th>
+                        <th class="td-select"></th>
                         <th>Tracking #</th>
                         <th>Document Control #</th>
                         <th>Subject</th>
@@ -1067,18 +1067,9 @@ function handleBulkCheckChange(chk){
     updateBulkState();
 }
 
-function toggleSelectAllDocs(master){
-    getVisibleBulkChecks().forEach(function(chk){
-        syncBulkCheck(chk.value, master.checked);
-    });
-    updateBulkState();
-}
-
-function toggleVisibleSelection(){
-    var visible = getVisibleBulkChecks();
-    var shouldSelect = !visible.length || !visible.every(function(chk){ return chk.checked; });
-    visible.forEach(function(chk){
-        syncBulkCheck(chk.value, shouldSelect);
+function clearBulkSelection(){
+    getBulkChecks().forEach(function(chk){
+        if (!chk.disabled && chk.checked) syncBulkCheck(chk.value, false);
     });
     updateBulkState();
 }
@@ -1095,8 +1086,6 @@ function updateBulkState(){
     var statusBtn = document.getElementById('bulkStatusBtn');
     var endBtn = document.getElementById('bulkEndBtn');
     var selectVisibleBtn = document.getElementById('bulkSelectVisibleBtn');
-    var selectAll = document.getElementById('selectAllDocs');
-    var visible = getVisibleBulkChecks();
 
     if (countEl) {
         countEl.textContent = selectedCount + ' selected';
@@ -1117,15 +1106,8 @@ function updateBulkState(){
             : '';
     }
     if (selectVisibleBtn) {
-        var allVisibleSelected = visible.length > 0 && visible.every(function(chk){ return chk.checked; });
-        selectVisibleBtn.innerHTML = allVisibleSelected
-            ? bulkButtonHtml('fas fa-square', 'Clear', 'Clear')
-            : bulkButtonHtml('fas fa-check-square', 'Select All', 'All');
-        selectVisibleBtn.disabled = visible.length === 0;
-    }
-    if (selectAll) {
-        selectAll.checked = visible.length > 0 && visible.every(function(chk){ return chk.checked; });
-        selectAll.indeterminate = visible.some(function(chk){ return chk.checked; }) && !selectAll.checked;
+        selectVisibleBtn.innerHTML = bulkButtonHtml('fas fa-square', 'Clear Selection', 'Clear');
+        selectVisibleBtn.disabled = selectedCount === 0;
     }
 }
 

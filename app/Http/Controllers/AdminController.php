@@ -22,6 +22,7 @@ use Illuminate\Support\Str;
 class AdminController extends Controller
 {
     private const TRANSFER_NON_BLOCKING_STATUSES = ['submitted', 'completed', 'returned', 'cancelled', 'archived'];
+    private const LIVE_STATS_CACHE_SECONDS = 45;
 
     public function __construct(
         private ActivationService $activationService
@@ -1594,6 +1595,33 @@ class AdminController extends Controller
     /**
      * ICT Unit — live stats JSON.
      */
+    public function ictStatsJson()
+    {
+        $user = Auth::user();
+        if (!$user || !$user->isSuperAdmin()) {
+            abort(403);
+        }
+
+        $office = $user->office;
+        $cacheKey = $office
+            ? 'ict_stats_' . $user->id . '_office_' . $office->id
+            : 'ict_stats_' . $user->id;
+
+        $stats = Cache::remember($cacheKey, self::LIVE_STATS_CACHE_SECONDS, function () use ($user, $office) {
+            if ($office) {
+                return $this->officeQueueStatsForUser($user);
+            }
+
+            return [
+                'active'    => Document::where('current_handler_id', $user->id)->whereNotIn('status', ['completed', 'for_pickup', 'archived', 'cancelled', 'returned'])->count(),
+                'in_review' => Document::where('current_handler_id', $user->id)->whereIn('status', ['received', 'in_review'])->count(),
+                'completed' => Document::where('current_handler_id', $user->id)->whereIn('status', ['completed'])->count(),
+            ];
+        });
+
+        return response()->json($stats);
+    }
+
     public function ictUpdateStatus(Request $request, $id)
     {
         $user = Auth::user();

@@ -23,23 +23,34 @@ class Document extends Model
             Cache::forget('records_stats');
 
             // Per-user cache (submitter)
-            if ($doc->user_id) {
-                Cache::forget('user_stats_' . $doc->user_id);
+            foreach (array_unique(array_filter([$doc->user_id, $doc->getOriginal('user_id')])) as $userId) {
+                Cache::forget('user_stats_' . $userId);
             }
 
             // Per-office cache (current office)
-            if ($doc->current_office_id) {
-                Cache::forget('office_stats_' . $doc->current_office_id);
+            $officeIds = array_unique(array_filter([
+                $doc->current_office_id,
+                $doc->getOriginal('current_office_id'),
+                $doc->submitted_to_office_id,
+                $doc->getOriginal('submitted_to_office_id'),
+            ]));
+
+            foreach ($officeIds as $officeId) {
+                Cache::forget('office_stats_' . $officeId);
             }
 
-            // Per-office cache (submitted-to office)
-            if ($doc->submitted_to_office_id) {
-                Cache::forget('office_stats_' . $doc->submitted_to_office_id);
-            }
+            $handlerIds = array_unique(array_filter([
+                $doc->current_handler_id,
+                $doc->getOriginal('current_handler_id'),
+            ]));
 
-            // ICT handler cache
-            if ($doc->current_handler_id) {
-                Cache::forget('ict_stats_' . $doc->current_handler_id);
+            foreach ($handlerIds as $handlerId) {
+                Cache::forget('ict_stats_' . $handlerId);
+
+                foreach ($officeIds as $officeId) {
+                    Cache::forget('office_stats_user_' . $officeId . '_' . $handlerId);
+                    Cache::forget('ict_stats_' . $handlerId . '_office_' . $officeId);
+                }
             }
         };
 

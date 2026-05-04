@@ -10,10 +10,32 @@ use App\Services\ActivationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use App\Support\SubmissionNotifications;
 
 class DashboardController extends Controller
 {
+    private const LIVE_STATS_CACHE_SECONDS = 45;
+    private const USER_PENDING_STATUSES = ['submitted', 'received', 'in_review', 'for_pickup', 'returned'];
+    private const USER_PICKUP_STATUSES = ['for_pickup', 'returned'];
+    private const MY_DOCUMENT_COLUMNS = [
+        'id',
+        'user_id',
+        'submitted_to_office_id',
+        'current_office_id',
+        'current_handler_id',
+        'tracking_number',
+        'reference_number',
+        'subject',
+        'type',
+        'status',
+        'sender_name',
+        'description',
+        'created_at',
+        'updated_at',
+        'last_action_at',
+    ];
+
     public function __construct(
         private ActivationService $activationService
     ) {}
@@ -34,11 +56,49 @@ class DashboardController extends Controller
             ->header('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=()');
     }
 
-    private function withSubmissionNotifications(User $user, array $data): array
+    private function withSubmissionNotifications(User $user, array $data, bool $syncGuestDocuments = true): array
     {
-        $this->syncGuestDocumentsFor($user);
+        if ($syncGuestDocuments) {
+            $this->syncGuestDocumentsFor($user);
+        }
 
         return array_merge($data, SubmissionNotifications::forUser($user));
+    }
+
+    private function userDocumentStats(User $user, bool $includePickup = false): array
+    {
+        $query = DB::table('documents')
+            ->where('user_id', $user->id)
+            ->selectRaw('COUNT(*) AS total')
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN status IN (?, ?, ?, ?, ?) THEN 1 ELSE 0 END), 0) AS pending',
+                self::USER_PENDING_STATUSES
+            )
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0) AS completed',
+                ['completed']
+            );
+
+        if ($includePickup) {
+            $query->selectRaw(
+                'COALESCE(SUM(CASE WHEN status IN (?, ?) THEN 1 ELSE 0 END), 0) AS for_pickup',
+                self::USER_PICKUP_STATUSES
+            );
+        }
+
+        $row = $query->first();
+
+        $stats = [
+            'total'     => (int) ($row->total ?? 0),
+            'pending'   => (int) ($row->pending ?? 0),
+            'completed' => (int) ($row->completed ?? 0),
+        ];
+
+        if ($includePickup) {
+            $stats['for_pickup'] = (int) ($row->for_pickup ?? 0);
+        }
+
+        return $stats;
     }
 
     public function index()
@@ -124,19 +184,20 @@ class DashboardController extends Controller
 
         // Regular individual user: their own submitted documents
         $this->syncGuestDocumentsFor($user);
-        $myDocs = $user->documents()->with('currentOffice')->latest()->get();
+        $stats = $this->userDocumentStats($user, true);
+        $recentDocs = $user->documents()
+            ->select(self::MY_DOCUMENT_COLUMNS)
+            ->with(['currentOffice:id,name'])
+            ->latest()
+            ->limit(10)
+            ->get();
 
         return view('dashboard.index', $this->withSubmissionNotifications($user, [
             'user'  => $user,
-            'stats' => [
-                'total'      => $myDocs->count(),
-                'pending'    => $myDocs->whereIn('status', ['submitted', 'received', 'in_review', 'for_pickup', 'returned'])->count(),
-                'completed'  => $myDocs->whereIn('status', ['completed'])->count(),
-                'for_pickup' => $myDocs->whereIn('status', ['for_pickup', 'returned'])->count(),
-            ],
-            'recentDocs'  => $myDocs->take(10),
-            'pickupDocs'  => $myDocs->whereIn('status', ['for_pickup', 'returned'])->values(),
-        ]));
+            'stats' => $stats,
+            'recentDocs'  => $recentDocs,
+            'pickupDocs'  => collect(),
+        ], false));
     }
 
     public function myDocuments(Request $request)
@@ -144,7 +205,10 @@ class DashboardController extends Controller
         $user = Auth::user();
         $this->syncGuestDocumentsFor($user);
 
-        $query = $user->documents()->with(['currentOffice', 'submittedToOffice'])->latest();
+        $query = $user->documents()
+            ->select(self::MY_DOCUMENT_COLUMNS)
+            ->with(['currentOffice:id,name', 'submittedToOffice:id,name'])
+            ->latest();
 
         $search = trim((string) $request->get('search', ''));
         $search = strip_tags($search);
@@ -163,15 +227,22 @@ class DashboardController extends Controller
             $query->where('status', $status);
         }
 
-        $documents = $query->paginate(15)->withQueryString();
-
         if ($user->isAdmin()) {
+            $documents = $query->paginate(15)->withQueryString();
+
             return view('admin.my-documents', compact('user', 'documents', 'search', 'status'));
         }
 
         if ($user->isRepresentative() && $user->office_id) {
+            $documents = $query
+                ->with(['currentHandler:id,name'])
+                ->paginate(15)
+                ->withQueryString();
+
             return view('office.my-documents', compact('user', 'documents', 'search', 'status'));
         }
+
+        $documents = $query->paginate(15)->withQueryString();
 
         return view('dashboard.documents', compact('user', 'documents', 'search', 'status'));
     }
@@ -181,15 +252,11 @@ class DashboardController extends Controller
     public function userStatsJson()
     {
         $user = Auth::user();
-        $this->syncGuestDocumentsFor($user);
 
-        $stats = Cache::remember('user_stats_' . $user->id, 15, function () use ($user) {
-            $base = $user->documents();
-            return [
-                'total'     => (clone $base)->count(),
-                'pending'   => (clone $base)->whereIn('status', ['submitted', 'received', 'in_review', 'for_pickup', 'returned'])->count(),
-                'completed' => (clone $base)->whereIn('status', ['completed'])->count(),
-            ];
+        $stats = Cache::remember('user_stats_' . $user->id, self::LIVE_STATS_CACHE_SECONDS, function () use ($user) {
+            $this->syncGuestDocumentsFor($user);
+
+            return $this->userDocumentStats($user);
         });
         return response()->json($stats);
     }
@@ -198,7 +265,7 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         if (!$user || (!$user->isAdmin() && !$user->isSuperAdmin())) abort(403);
-        $stats = Cache::remember('admin_stats', 15, function () {
+        $stats = Cache::remember('admin_stats', self::LIVE_STATS_CACHE_SECONDS, function () {
             return [
                 'total_users'    => User::where('role', 'user')->count(),
                 'total_documents'=> Document::count(),

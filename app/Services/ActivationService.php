@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\ActivationToken;
-use App\Models\Document;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -102,7 +101,7 @@ class ActivationService
             return 0;
         }
 
-        $documents = Document::query()
+        $documents = DB::table('documents')
             ->whereNull('user_id')
             ->whereRaw('LOWER(TRIM(sender_email)) = ?', [$email])
             ->get(['id', 'current_office_id', 'submitted_to_office_id']);
@@ -121,7 +120,7 @@ class ActivationService
         Cache::forget('user_stats_' . $user->id);
 
         $officeIds = $documents
-            ->flatMap(fn (Document $document) => [
+            ->flatMap(fn ($document) => [
                 $document->current_office_id,
                 $document->submitted_to_office_id,
             ])
@@ -130,7 +129,10 @@ class ActivationService
 
         foreach ($officeIds as $officeId) {
             Cache::forget('office_stats_' . $officeId);
+            Cache::forget('office_stats_user_' . $officeId . '_' . $user->id);
+            Cache::forget('ict_stats_' . $user->id . '_office_' . $officeId);
         }
+        Cache::forget('ict_stats_' . $user->id);
 
         return $documents->count();
     }

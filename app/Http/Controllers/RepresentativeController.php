@@ -9,6 +9,7 @@ use App\Services\ActivationService;
 use App\Support\SubmissionNotifications;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -17,6 +18,7 @@ class RepresentativeController extends Controller
     private const REPORT_SEARCH_MAX_LENGTH = 100;
     private const REPORT_IDENTIFIER_SEARCH_MIN_LENGTH = 6;
     private const REPORT_EXPORT_LIMIT = 500;
+    private const LIVE_STATS_CACHE_SECONDS = 45;
 
     private function rep()
     {
@@ -1116,51 +1118,54 @@ class RepresentativeController extends Controller
         $user = $this->rep();
         $office = $user->office;
 
-        $isRecordsOffice = $user->isRecords();
-
-        // Fresh stats every request — no cache, queries are lightweight and stats must be real-time
-        $stats = [
-            'incoming' => Document::query()
-                ->where('current_office_id', $office->id)
-                ->where('current_handler_id', $user->id)
-                ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
-                ->where(function ($q) use ($user) {
-                    $q->whereNull('user_id')
-                      ->orWhere('user_id', '!=', $user->id);
-                })
-                ->whereIn('status', ['received', 'in_review'])
-                ->count(),
-            'in_review' => Document::where('current_office_id', $office->id)
-                ->where('current_handler_id', $user->id)
-                ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
-                ->where(function ($q) use ($user) {
-                    $q->whereNull('user_id')
-                      ->orWhere('user_id', '!=', $user->id);
-                })
-                ->whereIn('status', ['received', 'in_review'])->count(),
-            'processed' => RoutingLog::query()
-                ->where('performed_by', $user->id)
-                ->where('action', 'completed')
-                ->distinct('document_id')
-                ->count('document_id'),
-            'completed' => Document::where('current_office_id', $office->id)
-                ->where('current_handler_id', $user->id)
-                ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
-                ->where(function ($q) use ($user) {
-                    $q->whereNull('user_id')
-                      ->orWhere('user_id', '!=', $user->id);
-                })
-                ->whereIn('status', ['completed'])
-                ->count(),
-            'for_pickup' => Document::where('current_office_id', $office->id)
-                ->where('current_handler_id', $user->id)
-                ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
-                ->where(function ($q) use ($user) {
-                    $q->whereNull('user_id')
-                      ->orWhere('user_id', '!=', $user->id);
-                })
-                ->where('status', 'for_pickup')->count(),
-        ];
+        $stats = Cache::remember(
+            'office_stats_user_' . $office->id . '_' . $user->id,
+            self::LIVE_STATS_CACHE_SECONDS,
+            function () use ($office, $user) {
+                return [
+                    'incoming' => Document::query()
+                        ->where('current_office_id', $office->id)
+                        ->where('current_handler_id', $user->id)
+                        ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
+                        ->where(function ($q) use ($user) {
+                            $q->whereNull('user_id')
+                              ->orWhere('user_id', '!=', $user->id);
+                        })
+                        ->whereIn('status', ['received', 'in_review'])
+                        ->count(),
+                    'in_review' => Document::where('current_office_id', $office->id)
+                        ->where('current_handler_id', $user->id)
+                        ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
+                        ->where(function ($q) use ($user) {
+                            $q->whereNull('user_id')
+                              ->orWhere('user_id', '!=', $user->id);
+                        })
+                        ->whereIn('status', ['received', 'in_review'])->count(),
+                    'processed' => RoutingLog::query()
+                        ->where('performed_by', $user->id)
+                        ->where('action', 'completed')
+                        ->distinct('document_id')
+                        ->count('document_id'),
+                    'completed' => Document::where('current_office_id', $office->id)
+                        ->where('current_handler_id', $user->id)
+                        ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
+                        ->where(function ($q) use ($user) {
+                            $q->whereNull('user_id')
+                              ->orWhere('user_id', '!=', $user->id);
+                        })
+                        ->whereIn('status', ['completed'])
+                        ->count(),
+                    'for_pickup' => Document::where('current_office_id', $office->id)
+                        ->where('current_handler_id', $user->id)
+                        ->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
+                        ->where(function ($q) use ($user) {
+                            $q->whereNull('user_id')
+                              ->orWhere('user_id', '!=', $user->id);
+                        })
+                        ->where('status', 'for_pickup')->count(),
+                ];
+            }
+        );
 
         // User-specific flag (not cached by office)
         $stats['has_reports_access'] = auth()->user()->hasReportsAccess();

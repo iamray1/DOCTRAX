@@ -93,7 +93,7 @@
             align-items: center;
             margin-bottom: 28px;
             position: relative;
-            z-index: 350;
+            z-index: 50;
         }
 
         .greeting-section h1 {
