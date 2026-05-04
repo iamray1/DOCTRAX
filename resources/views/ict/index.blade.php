@@ -379,26 +379,33 @@
             .site-footer{flex-direction:column;gap:6px;text-align:center;padding:16px 5%}
             .dashboard-table-card.has-list{max-height:none}
             .table-head{flex-direction:column;align-items:stretch;gap:10px;padding:14px 16px}
-            .filters{gap:6px}
+            .filters{gap:6px;flex-wrap:wrap;min-width:0;justify-content:stretch;flex-basis:auto}
             .queue-panel .filters{flex-direction:column;align-items:stretch;justify-content:stretch;flex:0 1 auto;width:100%}
-            .queue-panel .filter-row{display:flex;gap:6px;align-items:stretch;width:100%;flex:0 0 auto;min-height:0}
+            .queue-panel .filter-row{width:100%;flex:0 0 auto;min-height:0}
             .queue-panel .filter-row.filter-search,
             .queue-panel .filter-row.filter-status,
             .queue-panel .filter-row.bulk-actions{flex:0 0 auto}
+            .search-wrap{flex:1 1 100%;max-width:none}
             .queue-panel .search-wrap{flex:1 1 100%;max-width:none}
-            .queue-panel .filters select{flex:1 1 auto;min-width:0}
+            .queue-panel .filters select{flex:1 1 100%;min-width:0}
             .bulk-actions{width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));justify-content:stretch;overflow:visible}
             .bulk-actions .bulk-btn,
             .bulk-actions .bulk-count{width:100%;min-width:0}
             .filters input{font-size:11px;padding:6px 8px 6px 26px}
             .filters input::placeholder{font-size:10px}
-            .filters select{font-size:11px;padding:6px 22px 6px 8px;min-width:100px}
+            .filters select{font-size:11px;padding:7px 24px 7px 8px;min-width:0;flex:1 1 100%}
             .dashboard-table-card.has-list .table-card-scroll{display:none!important}
             .dashboard-table-card.has-list .mob-cards{display:block!important;flex:none;min-height:0;overflow:visible;overscroll-behavior:auto;-webkit-overflow-scrolling:touch;padding:10px}
             .mob-cards{display:block;padding:10px}
             .table-card{border-radius:10px}
             .mob-card{padding:11px}
             .mob-card-actions .btn-manage{width:100%;min-height:38px;font-size:10.5px}
+        }
+        @media(max-width:640px){
+            .bulk-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:stretch}
+            .bulk-actions .bulk-btn,
+            .bulk-actions .bulk-count{flex:1 1 calc(50% - 6px);min-width:0;padding:7px 6px}
+            .bulk-actions .bulk-btn{font-size:10px;gap:4px}
         }
         @media(max-width:1024px){
             .dashboard-table-card.has-list{max-height:none}
