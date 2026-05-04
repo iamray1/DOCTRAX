@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\Office;
 use App\Models\RoutingLog;
 use App\Services\ActivationService;
+use App\Services\DocumentStatusEmailService;
 use App\Support\SubmissionNotifications;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -502,72 +503,77 @@ class RepresentativeController extends Controller
         $updated = 0;
         $failures = [];
 
-        foreach ($ids as $id) {
-            $document = $documents->get($id);
+        DocumentStatusEmailService::beginBulkEmailCapture();
+        try {
+            foreach ($ids as $id) {
+                $document = $documents->get($id);
 
-            if (!$document) {
-                $failures[] = ['id' => $id, 'message' => 'Document not found.'];
-                continue;
+                if (!$document) {
+                    $failures[] = ['id' => $id, 'message' => 'Document not found.'];
+                    continue;
+                }
+
+                $label = $document->reference_number ?: ($document->tracking_number ?: ('Document #' . $document->id));
+
+                if ((int) $document->current_office_id !== (int) $office->id) {
+                    $failures[] = ['id' => $id, 'message' => "{$label} is not at your office."];
+                    continue;
+                }
+
+                if ($document->current_handler_id && (int) $document->current_handler_id !== (int) $user->id) {
+                    $handlerName = optional($document->currentHandler)->name ?: 'another office user';
+                    $failures[] = ['id' => $id, 'message' => "{$label} is tagged to {$handlerName}."];
+                    continue;
+                }
+
+                if ($document->isExternal() && !$user->isRecords()) {
+                    $failures[] = ['id' => $id, 'message' => "{$label} can only have status updates from Records Section."];
+                    continue;
+                }
+
+                if (in_array($document->status, ['completed', 'cancelled', 'archived'], true)) {
+                    $failures[] = ['id' => $id, 'message' => "{$label} is already closed."];
+                    continue;
+                }
+
+                if ($document->status === $newStatus) {
+                    $statusLabel = Document::STATUSES[$newStatus] ?? ucfirst(str_replace('_', ' ', $newStatus));
+                    $failures[] = ['id' => $id, 'message' => "{$label} is already {$statusLabel}."];
+                    continue;
+                }
+
+                if ($newStatus === 'completed' && !$document->canCompleteTransactionFromCurrentStatus()) {
+                    $failures[] = ['id' => $id, 'message' => "{$label} must be For Pickup, For Return, or an active office-to-office transaction before ending."];
+                    continue;
+                }
+
+                if ($document->status === 'returned' && $newStatus !== 'completed') {
+                    $failures[] = ['id' => $id, 'message' => "{$label} is For Return and can only be ended."];
+                    continue;
+                }
+
+                if (!$document->current_handler_id) {
+                    $document->current_handler_id = $user->id;
+                }
+
+                $document->status = $newStatus;
+                $document->last_action_at = now();
+                $document->save();
+
+                RoutingLog::create([
+                    'document_id' => $document->id,
+                    'performed_by' => $user->id,
+                    'from_office_id' => null,
+                    'to_office_id' => $office->id,
+                    'action' => $newStatus,
+                    'status_after' => $newStatus,
+                    'remarks' => $remarks,
+                ]);
+
+                $updated++;
             }
-
-            $label = $document->reference_number ?: ($document->tracking_number ?: ('Document #' . $document->id));
-
-            if ((int) $document->current_office_id !== (int) $office->id) {
-                $failures[] = ['id' => $id, 'message' => "{$label} is not at your office."];
-                continue;
-            }
-
-            if ($document->current_handler_id && (int) $document->current_handler_id !== (int) $user->id) {
-                $handlerName = optional($document->currentHandler)->name ?: 'another office user';
-                $failures[] = ['id' => $id, 'message' => "{$label} is tagged to {$handlerName}."];
-                continue;
-            }
-
-            if ($document->isExternal() && !$user->isRecords()) {
-                $failures[] = ['id' => $id, 'message' => "{$label} can only have status updates from Records Section."];
-                continue;
-            }
-
-            if (in_array($document->status, ['completed', 'cancelled', 'archived'], true)) {
-                $failures[] = ['id' => $id, 'message' => "{$label} is already closed."];
-                continue;
-            }
-
-            if ($document->status === $newStatus) {
-                $statusLabel = Document::STATUSES[$newStatus] ?? ucfirst(str_replace('_', ' ', $newStatus));
-                $failures[] = ['id' => $id, 'message' => "{$label} is already {$statusLabel}."];
-                continue;
-            }
-
-            if ($newStatus === 'completed' && !$document->canCompleteTransactionFromCurrentStatus()) {
-                $failures[] = ['id' => $id, 'message' => "{$label} must be For Pickup, For Return, or an active office-to-office transaction before ending."];
-                continue;
-            }
-
-            if ($document->status === 'returned' && $newStatus !== 'completed') {
-                $failures[] = ['id' => $id, 'message' => "{$label} is For Return and can only be ended."];
-                continue;
-            }
-
-            if (!$document->current_handler_id) {
-                $document->current_handler_id = $user->id;
-            }
-
-            $document->status = $newStatus;
-            $document->last_action_at = now();
-            $document->save();
-
-            RoutingLog::create([
-                'document_id' => $document->id,
-                'performed_by' => $user->id,
-                'from_office_id' => null,
-                'to_office_id' => $office->id,
-                'action' => $newStatus,
-                'status_after' => $newStatus,
-                'remarks' => $remarks,
-            ]);
-
-            $updated++;
+        } finally {
+            DocumentStatusEmailService::endBulkEmailCaptureAndSend();
         }
 
         $statusLabel = Document::STATUSES[$newStatus] ?? ucfirst($newStatus);

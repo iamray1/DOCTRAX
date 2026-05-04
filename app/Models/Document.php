@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Services\DocumentStatusEmailService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Document extends Model
@@ -57,6 +59,37 @@ class Document extends Model
         static::created($bustCache);
         static::updated($bustCache);
         static::deleted($bustCache);
+
+        static::updated(function (Document $doc): void {
+            if (! $doc->wasChanged('status') || ! DocumentStatusEmailService::shouldSendForStatus((string) $doc->status)) {
+                return;
+            }
+
+            if (DocumentStatusEmailService::captureModelEmail($doc)) {
+                return;
+            }
+
+            $documentId = (int) $doc->id;
+            $status = (string) $doc->status;
+
+            $sendStatusEmail = function () use ($documentId, $status): void {
+                try {
+                    $freshDocument = Document::with(['user', 'currentOffice', 'submittedToOffice'])->find($documentId);
+
+                    if ($freshDocument && (string) $freshDocument->status === $status) {
+                        app(DocumentStatusEmailService::class)->send($freshDocument);
+                    }
+                } catch (\Throwable $exception) {
+                    report($exception);
+                }
+            };
+
+            try {
+                DB::afterCommit(fn () => DocumentStatusEmailService::sendAfterResponse($sendStatusEmail));
+            } catch (\Throwable $exception) {
+                DocumentStatusEmailService::sendAfterResponse($sendStatusEmail);
+            }
+        });
     }
 
     protected $fillable = [
