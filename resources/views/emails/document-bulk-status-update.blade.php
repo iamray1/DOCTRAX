@@ -67,7 +67,7 @@
                             </table>
 
                             <p style="margin: 0; color: #64748b; font-size: 12px; line-height: 1.6;">
-                                You can also click any reference number above to track that specific document.
+                                You can also click any reference number above to view its tracking details.
                             </p>
                         </td>
                     </tr>

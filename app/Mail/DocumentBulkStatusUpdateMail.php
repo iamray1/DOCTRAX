@@ -30,7 +30,7 @@ class DocumentBulkStatusUpdateMail extends Mailable
         'completed' => [
             'subject' => 'DocTrax Update: Documents Completed',
             'label' => 'Completed',
-            'headline' => 'Your document transactions are completed',
+            'headline' => 'Your documents have been completed',
             'body' => 'The following documents have been marked Completed. These transactions are now recorded as completed in DocTrax.',
         ],
     ];
@@ -84,7 +84,7 @@ class DocumentBulkStatusUpdateMail extends Mailable
     private function subjectLine(): string
     {
         $copy = self::STATUS_COPY[$this->status] ?? [
-            'subject' => 'DocTrax Document Status Update',
+            'subject' => 'DocTrax Update: Documents Updated',
         ];
 
         return $copy['subject'] . ' - ' . $this->documentCount . ' Documents';
