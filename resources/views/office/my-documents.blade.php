@@ -679,6 +679,7 @@ var _csrfNode = document.querySelector('meta[name="csrf-token"]');
 var _csrf = _csrfNode ? _csrfNode.getAttribute('content') : '';
 var docsData = JSON.parse(document.getElementById('docsData').textContent || '{}');
 var showTimePill = {!! json_encode($user->hasReportsAccess()) !!};
+var trackEndpoint = {!! json_encode($user->isOfficeAccount() || $user->isAdmin() ? '/api/internal/track-document' : '/api/track-document') !!};
 
 function openDocDetail(ref, tracking) {
     ref = (ref || '').toString().trim();
@@ -692,7 +693,7 @@ function openDocDetail(ref, tracking) {
     document.getElementById('docDrawer').classList.add('open');
     document.body.style.overflow = 'hidden';
 
-    window.docTraxFetchJson('/api/internal/track-document', {
+    window.docTraxFetchJson(trackEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrf, 'Accept': 'application/json' },
         timeoutMs: 15000,
