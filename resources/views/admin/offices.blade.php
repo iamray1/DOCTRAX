@@ -194,6 +194,7 @@
         .modal-overlay.show { display:flex; }
         #officeStatusModal { z-index:240; }
         #officeActionModal,
+        #docTypeActionModal,
         #officeUsersModal { z-index:260; }
         .modal { background:#fff; border-radius:16px; max-width:480px; width:100%; max-height:min(88vh,720px); display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.2); }
         .modal-head { padding:20px 24px 0; }
@@ -683,6 +684,26 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="docTypeActionModal">
+        <div class="modal">
+            <div class="modal-head">
+                <h3>Deactivate Document Type</h3>
+            </div>
+            <div class="modal-body">
+                <div class="status-modal-row">
+                    <div class="status-modal-copy">
+                        <p class="status-modal-msg">Deactivate <strong id="docTypeActionName"></strong> for this office?</p>
+                        <p class="status-modal-sub">This option will no longer appear in the submit document dropdown for the selected office.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="modal-btn" type="button" onclick="closeDocTypeActionModal()">Cancel</button>
+                <button class="modal-btn danger" type="button" id="confirmDocTypeActionBtn" onclick="confirmDocTypeAction()">Deactivate</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="officeStatusModal">
         <div class="modal" style="max-width:720px;">
             <div class="modal-head">
@@ -796,6 +817,7 @@
         var officeDocumentTypesByOffice = @json($officeDocumentTypesByOffice ?? []);
         var baseDocumentTypeOptionsByOffice = @json($baseDocumentTypeOptionsByOffice ?? []);
         var docTypeRequestPending = false;
+        var pendingDocTypeAction = null;
 
         function escapeHtml(str) {
             if (!str) return '';
@@ -1553,7 +1575,36 @@
             });
         };
 
-        function toggleOfficeDocumentType(id, isActive, buttonEl) {
+        function openDocTypeActionModal(id, isActive, buttonEl, item) {
+            pendingDocTypeAction = {
+                id: id,
+                isActive: isActive,
+                buttonEl: buttonEl
+            };
+
+            var nameEl = document.getElementById('docTypeActionName');
+            if (nameEl) nameEl.textContent = item && item.name ? '"' + item.name + '"' : 'this document type';
+
+            var modal = document.getElementById('docTypeActionModal');
+            if (modal) modal.classList.add('show');
+        }
+
+        window.closeDocTypeActionModal = function () {
+            var modal = document.getElementById('docTypeActionModal');
+            if (modal) modal.classList.remove('show');
+            pendingDocTypeAction = null;
+        };
+
+        window.confirmDocTypeAction = function () {
+            if (!pendingDocTypeAction) return;
+            var action = pendingDocTypeAction;
+            pendingDocTypeAction = null;
+            var modal = document.getElementById('docTypeActionModal');
+            if (modal) modal.classList.remove('show');
+            toggleOfficeDocumentType(action.id, action.isActive, action.buttonEl, true);
+        };
+
+        function toggleOfficeDocumentType(id, isActive, buttonEl, skipModal) {
             if (docTypeRequestPending) {
                 showToast('Please wait for the current document type action to finish.', 'error');
                 return;
@@ -1565,9 +1616,9 @@
                 return;
             }
 
-            if (!isActive) {
-                var confirmed = window.confirm('Deactivate "' + located.item.name + '" for this office?');
-                if (!confirmed) return;
+            if (!isActive && !skipModal) {
+                openDocTypeActionModal(id, isActive, buttonEl, located.item);
+                return;
             }
 
             setDocTypePanelLocked(true);
@@ -1631,6 +1682,13 @@
                 }
 
                 toggleOfficeDocumentType(id, nextActive, btn);
+            });
+        }
+
+        var docTypeActionModalEl = document.getElementById('docTypeActionModal');
+        if (docTypeActionModalEl) {
+            docTypeActionModalEl.addEventListener('click', function (event) {
+                if (event.target === this) closeDocTypeActionModal();
             });
         }
 
