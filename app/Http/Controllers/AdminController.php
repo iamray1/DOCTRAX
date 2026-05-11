@@ -992,12 +992,10 @@ class AdminController extends Controller
                 if ($request->filled('new_office_name') && !$officeId) {
                     $officeName = trim((string) $request->new_office_name);
 
-                    $existingOffice = Office::whereRaw('LOWER(name) = ?', [strtolower($officeName)])->first();
+                    $existingOffice = $this->nonSchoolOfficesQuery()
+                        ->whereRaw('LOWER(name) = ?', [strtolower($officeName)])
+                        ->first();
                     if ($existingOffice) {
-                        if ($existingOffice->is_school) {
-                            throw new \InvalidArgumentException('That name is already used by a school. Create office accounts under non-school offices only.');
-                        }
-
                         if (!$existingOffice->is_active) {
                             throw new \InvalidArgumentException('That office already exists but is inactive. Reactivate it from Office Status first.');
                         }
@@ -1179,8 +1177,16 @@ class AdminController extends Controller
             return response()->json(['success' => false, 'message' => 'Office name is required.'], 422);
         }
 
-        if (Office::whereRaw('LOWER(name) = ?', [strtolower($name)])->exists()) {
-            return response()->json(['success' => false, 'message' => 'A school or office with that name already exists.'], 422);
+        $existingOffice = $this->nonSchoolOfficesQuery()
+            ->whereRaw('LOWER(name) = ?', [strtolower($name)])
+            ->first();
+
+        if ($existingOffice) {
+            $message = $existingOffice->is_active
+                ? 'That office already exists and is available when creating an office account.'
+                : 'That office already exists but is inactive. Reactivate it from Office Status first.';
+
+            return response()->json(['success' => false, 'message' => $message], 422);
         }
 
         $office = Office::create([
