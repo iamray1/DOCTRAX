@@ -148,9 +148,8 @@
         || (int)$document->current_handler_id === (int)$user->id;
     $canAccept = $canAct && $document->status === 'submitted';
     $canUpdateStatus = $canAct && $isHandler && (!$document->isExternal() || $user->isRecords());
-    $isOfficeToOfficeTransaction = $document->isInternalOfficeSubmission();
-    $isDirectOfficeToOfficeEnd = $isOfficeToOfficeTransaction && in_array($document->status, ['received','in_review','on_hold'], true);
-    $canEndTransaction = $canUpdateStatus && $document->canCompleteTransactionFromCurrentStatus();
+    $isDirectOfficeToOfficeEnd = in_array($document->status, ['received','in_review','on_hold'], true);
+    $canEndTransaction = $canAct && $isHandler && $document->canCompleteTransactionFromCurrentStatus();
     $backSource = request()->query('from');
     $queueBackParams = array_filter([
         'page' => trim((string) request()->query('page', '')),
@@ -524,7 +523,7 @@
                             <div class="action-section">
                                 <h3>End Transaction</h3>
                                 <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
-                                    {{ $isDirectOfficeToOfficeEnd ? 'End this office-to-office transaction once your office has finished processing it.' : 'End this transaction once the recipient has claimed the document.' }}
+                                    {{ $isDirectOfficeToOfficeEnd ? 'End this transaction once your office has finished processing it.' : 'End this transaction once the recipient has claimed the document.' }}
                                 </p>
                                 <button class="btn" style="background:#ea580c;color:#fff" onclick="openEndModal()">
                                     End Transaction
@@ -535,7 +534,7 @@
                         @if(!$canUpdateStatus && $document->isExternal() && !$user->isRecords() && in_array($document->status, ['in_review','on_hold','for_pickup','returned'], true))
                             <div class="alert-info">
                                 <i class="fas fa-info-circle" style="margin-right:5px"></i>
-                                Outside-submitted documents can only have status updates from Records Section.
+                                Other status updates for outside-submitted documents can only be done by Records Section.
                             </div>
                         @endif
 
@@ -664,7 +663,7 @@ function logout(){
                 <h3>End Transaction</h3>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom:14px">{{ $isDirectOfficeToOfficeEnd ? 'Has your office finished processing this office-to-office document?' : 'Has the recipient actually claimed this document?' }} This will end the transaction and mark the document as <strong style="color:#15803d">Completed</strong>.</p>
+                <p style="margin-bottom:14px">{{ $isDirectOfficeToOfficeEnd ? 'Has your office finished processing this document?' : 'Has the recipient actually claimed this document?' }} This will end the transaction and mark the document as <strong style="color:#15803d">Completed</strong>.</p>
                 <label class="modal-label">Remarks <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
                 <select class="modal-field" id="endRemarksSelect" onchange="handleRemarksDropdown('endRemarksSelect','endRemarks')">
                     <option value="">Select a remark…</option>

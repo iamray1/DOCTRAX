@@ -258,11 +258,6 @@ class Document extends Model
 
     public function canCompleteTransactionFromCurrentStatus(): bool
     {
-        if (in_array($this->status, ['for_pickup', 'returned'], true)) {
-            return true;
-        }
-
-        return $this->isInternalOfficeSubmission()
-            && in_array($this->status, ['received', 'in_review', 'on_hold'], true);
+        return in_array($this->status, ['received', 'in_review', 'on_hold', 'for_pickup', 'returned'], true);
     }
 }

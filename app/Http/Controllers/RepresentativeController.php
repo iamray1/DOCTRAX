@@ -403,7 +403,9 @@ class RepresentativeController extends Controller
             ], 409);
         }
 
-        if ($document->isExternal() && !$user->isRecords()) {
+        $newStatus = $request->status;
+
+        if ($document->isExternal() && !$user->isRecords() && $newStatus !== 'completed') {
             return response()->json([
                 'success' => false,
                 'message' => 'Outside-submitted documents can only have status updates from Records Section.',
@@ -414,7 +416,6 @@ class RepresentativeController extends Controller
             $document->current_handler_id = $user->id;
         }
 
-        $newStatus = $request->status;
         if (in_array($document->status, ['completed', 'cancelled', 'archived'], true)) {
             return response()->json([
                 'success' => false,
@@ -434,7 +435,7 @@ class RepresentativeController extends Controller
         if ($newStatus === 'completed' && !$document->canCompleteTransactionFromCurrentStatus()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only For Pickup, For Return, or active office-to-office documents can be ended.',
+                'message' => 'Only For Pickup, For Return, or active documents at your office can be ended.',
             ], 422);
         }
 
@@ -526,7 +527,7 @@ class RepresentativeController extends Controller
                     continue;
                 }
 
-                if ($document->isExternal() && !$user->isRecords()) {
+                if ($document->isExternal() && !$user->isRecords() && $newStatus !== 'completed') {
                     $failures[] = ['id' => $id, 'message' => "{$label} can only have status updates from Records Section."];
                     continue;
                 }
@@ -543,7 +544,7 @@ class RepresentativeController extends Controller
                 }
 
                 if ($newStatus === 'completed' && !$document->canCompleteTransactionFromCurrentStatus()) {
-                    $failures[] = ['id' => $id, 'message' => "{$label} must be For Pickup, For Return, or an active office-to-office transaction before ending."];
+                    $failures[] = ['id' => $id, 'message' => "{$label} must be For Pickup, For Return, or active at your office before ending."];
                     continue;
                 }
 
