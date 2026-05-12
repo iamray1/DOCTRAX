@@ -652,6 +652,7 @@
 <script>
 (function() {
     var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    var currentProfileEmail = @json($user->email);
     var officeName = @json($navOfficeName);
 
     // ─── Toast ───
@@ -686,6 +687,42 @@
         }
     }
 
+    function normalizedEmail(value) {
+        return (value || '').trim().toLowerCase();
+    }
+
+    async function getEmailVerificationCodeIfNeeded(email) {
+        if (normalizedEmail(email) === normalizedEmail(currentProfileEmail)) {
+            return null;
+        }
+
+        var response = await fetch('/api/profile/email-verification-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+            body: JSON.stringify({ email: email })
+        });
+        var data = await response.json().catch(function() { return {}; });
+
+        if (!response.ok || !data.success) {
+            if (data.errors) showFieldErrors(data.errors);
+            throw new Error(data.message || 'Verification code could not be sent.');
+        }
+
+        showToast(data.message || 'Verification code sent.', 'success');
+
+        var code = window.prompt('Enter the 6-digit verification code sent to ' + email + '.');
+        if (code === null) {
+            throw new Error('Email change was not verified.');
+        }
+
+        code = code.trim();
+        if (!/^\d{6}$/.test(code)) {
+            throw new Error('Enter the 6-digit verification code sent to your new email.');
+        }
+
+        return code;
+    }
+
     // ─── Toggle Middle Name ───
     window.toggleMiddle = function() {
         var cb    = document.getElementById('noMiddleName');
@@ -705,7 +742,7 @@
     };
 
     // ─── Save Profile ───
-    document.getElementById('profileForm').addEventListener('submit', function(e) {
+    document.getElementById('profileForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         clearErrors();
 
@@ -740,10 +777,25 @@
         var btn = document.getElementById('btnSaveProfile');
         btn.disabled = true;
 
+        var emailVerificationCode = null;
+        try {
+            emailVerificationCode = await getEmailVerificationCodeIfNeeded(emailVal);
+        } catch (error) {
+            btn.disabled = false;
+            setErr('email', error.message);
+            showToast(error.message, 'error');
+            return;
+        }
+
+        var payload = { name: fullName, email: emailVal, mobile: mobileVal || null };
+        if (emailVerificationCode) {
+            payload.email_verification_code = emailVerificationCode;
+        }
+
         fetch('/api/profile', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
-            body: JSON.stringify({ name: fullName, email: emailVal, mobile: mobileVal || null })
+            body: JSON.stringify(payload)
         })
         .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
         .then(function(res) {
@@ -753,6 +805,7 @@
                 var u = res.data.user;
                 document.getElementById('infoEmail').textContent  = u.email;
                 document.getElementById('infoMobile').textContent = u.mobile || 'No number provided';
+                currentProfileEmail = u.email;
                 // Update avatar & sidebar
                 var namePart = u.name.trim();
                 var parts = namePart.split(/\s+/).filter(Boolean);
