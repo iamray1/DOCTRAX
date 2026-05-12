@@ -138,8 +138,8 @@
         .badge-cancelled{background:#fff7ed;color:#c2410c}
         .btn-manage{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:6px 10px;border-radius:7px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif;transition:all .15s;text-decoration:none;white-space:nowrap}
         .btn-manage:hover{background:#dbeafe;border-color:#93c5fd;color:#1e40af}
-        .td-action{width:86px;text-align:right}
-        .row-actions{display:inline-flex;align-items:center;justify-content:flex-end;gap:6px}
+        .td-action{width:44px;text-align:center}
+        .row-actions{display:inline-flex;align-items:center;justify-content:center;gap:6px}
         .row-arrow{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;color:#94a3b8;transition:all .15s}
         tr.doc-row:hover .row-arrow{background:var(--primary);color:#fff}
         .cell-ellipsis{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -164,7 +164,7 @@
         .queue-panel .col-submitted{width:20%}
         .queue-panel .col-status{width:12%}
         .queue-panel .col-cta{width:92px}
-        .queue-panel .col-action{width:86px}
+        .queue-panel .col-action{width:44px}
         .queue-panel .t-ref,.queue-panel .t-track{font-family:monospace;font-size:12px;font-weight:600;white-space:nowrap}
         .queue-panel .t-ref{color:var(--primary)}
         .queue-panel .t-track{color:var(--text-dark)}
@@ -600,12 +600,7 @@
                         <td class="t-status">
                             <span style="display:inline-flex;align-items:center;gap:5px">
                                 @if($doc->status === 'completed')
-                                    @php
-                                        $lastLog = $doc->routingLogs->where('action', 'completed')->last();
-                                        $lastOffice = $lastLog?->fromOffice?->name ?? $doc->currentOffice?->name ?? 'Office';
-                                        $statusText = 'Transaction Completed - ' . $lastOffice;
-                                    @endphp
-                                    <span class="badge badge-{{ $doc->status }}">{{ $statusText }}</span>
+                                    <span class="badge badge-{{ $doc->status }}">TRANSACTION COMPLETED</span>
                                 @else
                                     <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabel() }}</span>
                                 @endif
@@ -667,12 +662,7 @@
                         <div class="mob-card-meta">
                             <span class="mob-card-status">
                                 @if($doc->status === 'completed')
-                                    @php
-                                        $lastLog = $doc->routingLogs->where('action', 'completed')->last();
-                                        $lastOffice = $lastLog?->fromOffice?->name ?? $doc->currentOffice?->name ?? 'Office';
-                                        $statusText = 'Transaction Completed - ' . $lastOffice;
-                                    @endphp
-                                    <span class="badge badge-{{ $doc->status }}">{{ $statusText }}</span>
+                                    <span class="badge badge-{{ $doc->status }}">TRANSACTION COMPLETED</span>
                                 @else
                                     <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabel() }}</span>
                                 @endif

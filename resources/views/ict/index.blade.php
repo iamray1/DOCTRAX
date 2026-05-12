@@ -205,6 +205,8 @@
         .badge-cancelled,
         .badge-archived{background:#fff7ed;color:#c2410c}
         .td-action{text-align:center}
+        .row-arrow{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;color:#94a3b8;transition:all .15s}
+        tr.doc-row:hover .row-arrow{background:var(--primary);color:#fff}
         .btn-view{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:var(--primary);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif;text-decoration:none;transition:background .2s}
         .btn-view:hover{background:var(--primary-dark)}
         .btn-manage{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:6px 10px;border-radius:7px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif;text-decoration:none;transition:all .15s;white-space:nowrap}
@@ -650,7 +652,7 @@
                         <div class="submission-date"><i class="fas fa-calendar-alt"></i>{{ $doc->created_at->format('M d, Y') }}</div>
                     </td>
                     <td class="t-status">
-                        <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabelWithOffice() }}</span>
+                        <span class="badge badge-{{ $doc->status }}">{{ $doc->status === 'completed' ? 'TRANSACTION COMPLETED' : $doc->statusLabel() }}</span>
                     </td>
                     <td class="td-cta" onclick="event.stopPropagation()">
                         @if($canManageDoc)
@@ -697,7 +699,7 @@
                 </div>
                 <div class="mob-card-subject">{{ $doc->subject }}</div>
                 <div class="mob-card-meta">
-                    <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabelWithOffice() }}</span>
+                    <span class="badge badge-{{ $doc->status }}">{{ $doc->status === 'completed' ? 'TRANSACTION COMPLETED' : $doc->statusLabel() }}</span>
                     <span class="mob-card-date"><i class="fas fa-calendar"></i>{{ $doc->created_at->format('M d, Y') }}</span>
                 </div>
                 <div class="mob-card-row">

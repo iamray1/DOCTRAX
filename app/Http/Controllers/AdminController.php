@@ -16,14 +16,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class AdminController extends Controller
 {
     private const TRANSFER_NON_BLOCKING_STATUSES = ['submitted', 'completed', 'returned', 'cancelled', 'archived'];
-    private const LIVE_STATS_CACHE_SECONDS = 45;
 
     public function __construct(
         private ActivationService $activationService
@@ -128,11 +126,11 @@ class AdminController extends Controller
         )->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
             ->whereIn('status', ['received', 'in_review'])->count();
 
-        $completed = $this->applyOfficeQueueVisibility(
-            Document::where('submitted_to_office_id', $office->id),
-            $user
-        )->tap(fn ($query) => $this->excludeLatestOutboundHandoff($query, $office))
-            ->whereIn('status', ['completed'])->count();
+        $completed = RoutingLog::query()
+            ->where('performed_by', $user->id)
+            ->where('action', 'completed')
+            ->distinct('document_id')
+            ->count('document_id');
 
         return [
             'active' => $active,
@@ -1392,7 +1390,11 @@ class AdminController extends Controller
             : [
                 'active'    => Document::where('current_handler_id', $user->id)->whereNotIn('status', ['completed', 'for_pickup', 'archived', 'cancelled', 'returned'])->count(),
                 'in_review' => Document::where('current_handler_id', $user->id)->whereIn('status', ['received', 'in_review'])->count(),
-                'completed' => Document::where('current_handler_id', $user->id)->whereIn('status', ['completed'])->count(),
+                'completed' => RoutingLog::query()
+                    ->where('performed_by', $user->id)
+                    ->where('action', 'completed')
+                    ->distinct('document_id')
+                    ->count('document_id'),
             ];
         $this->activationService->linkGuestDocumentsForUser($user);
         $submissionNotificationData = SubmissionNotifications::forUser($user);
@@ -1610,21 +1612,18 @@ class AdminController extends Controller
         }
 
         $office = $user->office;
-        $cacheKey = $office
-            ? 'ict_stats_' . $user->id . '_office_' . $office->id
-            : 'ict_stats_' . $user->id;
 
-        $stats = Cache::remember($cacheKey, self::LIVE_STATS_CACHE_SECONDS, function () use ($user, $office) {
-            if ($office) {
-                return $this->officeQueueStatsForUser($user);
-            }
-
-            return [
+        $stats = $office
+            ? $this->officeQueueStatsForUser($user)
+            : [
                 'active'    => Document::where('current_handler_id', $user->id)->whereNotIn('status', ['completed', 'for_pickup', 'archived', 'cancelled', 'returned'])->count(),
                 'in_review' => Document::where('current_handler_id', $user->id)->whereIn('status', ['received', 'in_review'])->count(),
-                'completed' => Document::where('current_handler_id', $user->id)->whereIn('status', ['completed'])->count(),
+                'completed' => RoutingLog::query()
+                    ->where('performed_by', $user->id)
+                    ->where('action', 'completed')
+                    ->distinct('document_id')
+                    ->count('document_id'),
             ];
-        });
 
         return response()->json($stats);
     }
