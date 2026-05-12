@@ -503,6 +503,7 @@ class RepresentativeController extends Controller
 
         $updated = 0;
         $failures = [];
+        $emailStatusChanges = [];
 
         DocumentStatusEmailService::beginBulkEmailCapture();
         try {
@@ -572,9 +573,10 @@ class RepresentativeController extends Controller
                 ]);
 
                 $updated++;
+                $emailStatusChanges[(int) $document->id] = $newStatus;
             }
         } finally {
-            DocumentStatusEmailService::endBulkEmailCaptureAndSend();
+            DocumentStatusEmailService::endBulkEmailCaptureAndSend($emailStatusChanges);
         }
 
         $statusLabel = Document::STATUSES[$newStatus] ?? ucfirst($newStatus);

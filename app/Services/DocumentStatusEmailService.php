@@ -56,7 +56,10 @@ class DocumentStatusEmailService
         return true;
     }
 
-    public static function endBulkEmailCaptureAndSend(): void
+    /**
+     * @param array<int, string>|null $statusByDocumentId
+     */
+    public static function endBulkEmailCaptureAndSend(?array $statusByDocumentId = null): void
     {
         if (self::$bulkCaptureDepth > 0) {
             self::$bulkCaptureDepth--;
@@ -66,7 +69,11 @@ class DocumentStatusEmailService
             return;
         }
 
-        $changes = self::$capturedStatusChanges;
+        $changes = $statusByDocumentId ?? self::$capturedStatusChanges;
+        foreach ($changes as $documentId => $status) {
+            $changes[(int) $documentId] = (string) $status;
+        }
+
         self::$capturedStatusChanges = [];
 
         if ($changes !== []) {
