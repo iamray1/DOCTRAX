@@ -736,7 +736,6 @@ class RepresentativeController extends Controller
 
         $search = substr(strip_tags(trim((string) $request->query('search', ''))), 0, self::REPORT_SEARCH_MAX_LENGTH);
         $status = trim((string) $request->query('status', ''));
-        $type = substr(strip_tags(trim((string) $request->query('type', ''))), 0, 120);
         $dateField = trim((string) $request->query('date_field', 'created_at'));
         if (!in_array($dateField, ['created_at', 'last_action_at'], true)) {
             $dateField = 'created_at';
@@ -760,10 +759,6 @@ class RepresentativeController extends Controller
             }
         }
 
-        if ($type !== '') {
-            $query->where('type', $type);
-        }
-
         $this->applyDateRangeFilter($query, $dateField, $dateFrom, $dateTo);
 
         if ($request->query('export') === 'pdf') {
@@ -777,7 +772,7 @@ class RepresentativeController extends Controller
             if ($rows->count() > self::REPORT_EXPORT_LIMIT) {
                 return redirect()
                     ->route('office.search', $request->except('export'))
-                    ->with('error', 'PDF export is limited to ' . self::REPORT_EXPORT_LIMIT . ' rows. Please narrow the report with search, status, type, or date filters first.');
+                    ->with('error', 'PDF export is limited to ' . self::REPORT_EXPORT_LIMIT . ' rows. Please narrow the report with search, status, or date filters first.');
             }
 
             $fileName = 'report-' . ($office ? strtolower(str_replace(' ', '-', $office->name)) . '-' : '') . now()->setTimezone('Asia/Manila')->format('Ymd-His') . '.pdf';
@@ -788,7 +783,6 @@ class RepresentativeController extends Controller
                 'generatedAt'    => now()->setTimezone('Asia/Manila')->format('M d, Y h:i A'),
                 'searchLabel'    => $search !== '' ? $search : 'All',
                 'statusLabel'    => $status !== '' ? (Document::STATUSES[$status] ?? $status) : 'All',
-                'typeLabel'      => $type !== '' ? $type : 'All',
                 'dateFieldLabel' => $dateFieldLabel,
                 'dateFromLabel'  => $dateFrom !== '' ? $dateFrom : 'N/A',
                 'dateToLabel'    => $dateTo !== '' ? $dateTo : 'N/A',
@@ -819,28 +813,9 @@ class RepresentativeController extends Controller
             'processed' => (int) ($statsRow->processed ?? 0),
         ];
 
-        $typesQuery = Document::query()->whereNotNull('type');
-        if ($office) {
-            $officeId = $office->id;
-            $typesQuery->where(function ($q) use ($officeId) {
-                $q->where('current_office_id', $officeId)
-                  ->orWhere('submitted_to_office_id', $officeId)
-                  ->orWhereHas('routingLogs', function ($rl) use ($officeId) {
-                      $rl->where('from_office_id', $officeId)
-                        ->orWhere('to_office_id', $officeId);
-                  });
-            });
-        }
-        $availableTypes = $typesQuery
-            ->select('type')
-            ->distinct()
-            ->orderBy('type')
-            ->pluck('type');
-
         $filters = [
             'search' => $search,
             'status' => $status,
-            'type' => $type,
             'date_field' => $dateField,
             'date_from' => $dateFrom,
             'date_to' => $dateTo,
@@ -893,7 +868,6 @@ class RepresentativeController extends Controller
             'office',
             'documents',
             'reportStats',
-            'availableTypes',
             'filters',
             'reportStatusOptions',
             'panel',

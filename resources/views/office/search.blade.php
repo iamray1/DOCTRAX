@@ -168,7 +168,6 @@
         .filters-row { display: flex; gap: 10px; align-items: center; flex-wrap: nowrap; }
         .filters-row .field-search { flex: 1; min-width: 0; }
         .filters-row .field-select { flex: 0 0 160px; min-width: 0; }
-        .filters-row .field-select-sm { flex: 0 0 140px; min-width: 0; }
         .filters-divider { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
         .btn-date-trigger {
             display: inline-flex; align-items: center; gap: 7px;
@@ -524,7 +523,6 @@
             .filters-row { flex-wrap: wrap; gap: 8px; }
             .filters-row .field-search { flex: 1 1 100%; }
             .filters-row .field-select { flex: 1 1 calc(50% - 4px); }
-            .filters-row .field-select-sm { flex: 1 1 calc(50% - 4px); }
             .filters-row .field { font-size: 12px; padding: 9px 10px; }
             .filters-row .field-search .field { padding-left: 30px; }
             .filters-divider { display: none; }
@@ -725,7 +723,7 @@
 
             <div class="filters-row">
                 <div class="field-search" style="position:relative">
-                    <input class="field" style="padding-left:34px" type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search tracking/document control, subject, sender, type, tagged to..." data-clearable data-no-capitalize>
+                    <input class="field" style="padding-left:34px" type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search tracking/document control, subject, sender, tagged to..." data-clearable data-no-capitalize>
                     <i class="fas fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:12px;pointer-events:none"></i>
                 </div>
 
@@ -733,13 +731,6 @@
                     <option value="">All Statuses</option>
                     @foreach($reportStatusOptions as $key => $label)
                         <option value="{{ $key }}" {{ $filters['status'] === $key ? 'selected' : '' }}>{{ $label }}</option>
-                    @endforeach
-                </select>
-
-                <select class="field field-select-sm" name="type">
-                    <option value="">All Types</option>
-                    @foreach($availableTypes as $docType)
-                        <option value="{{ $docType }}" {{ $filters['type'] === $docType ? 'selected' : '' }}>{{ $docType }}</option>
                     @endforeach
                 </select>
 
