@@ -288,6 +288,7 @@
 
         .badge {
             display: inline-block;
+            max-width: 220px;
             padding: 3px 9px;
             border-radius: 20px;
             font-size: 10px;
@@ -295,6 +296,9 @@
             text-transform: uppercase;
             letter-spacing: .4px;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
         }
 
         .badge-submitted,
@@ -340,7 +344,7 @@
         .mob-doc-ref { font-family: Poppins, sans-serif; font-size: 12px; color: var(--primary); font-weight: 600; letter-spacing: .2px; }
         .mob-doc-subject { font-size: 13px; font-weight: 600; color: var(--text-dark); margin: 6px 0; line-height: 1.4; word-break: break-word; }
         .mob-doc-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
-        .mob-doc-meta .badge { font-size: 9px; }
+        .mob-doc-meta .badge { max-width: min(240px, calc(100% - 116px)); font-size: 9px; }
         .mob-doc-date { font-size: 10px; color: var(--text-muted); }
         .mob-doc-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
         .mob-doc-sender { font-size: 11px; color: var(--text-muted); }
@@ -851,7 +855,7 @@
                         <td style="max-width:200px"><div class="cell-ellipsis" title="{{ $doc->subject }}">{{ $doc->subject }}</div></td>
                         <td><div class="cell-ellipsis" style="max-width:160px" title="{{ $doc->type }}">{{ $doc->type }}</div></td>
                         <td><div class="cell-ellipsis" style="max-width:170px" title="{{ $doc->sender_name }}">{{ $doc->sender_name }}</div></td>
-                        <td><span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabelWithOffice() }}</span></td>
+                        <td><span class="badge badge-{{ $doc->status }}" title="{{ $doc->statusLabelWithOffice() }}">{{ $doc->statusLabelWithOffice() }}</span></td>
                         <td>{{ $doc->currentHandler?->name ?? 'Unassigned' }}</td>
                         <td class="muted-sm">{{ $doc->created_at?->copy()->setTimezone('Asia/Manila')->format('M d, Y h:i A') }}</td>
                         <td class="td-action">
@@ -878,7 +882,7 @@
                         <div style="font-size:11px;color:var(--text-muted);font-family:Poppins,sans-serif;font-weight:500;margin-top:2px">Document Control #: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
                         <div class="mob-doc-subject">{{ $doc->subject }}</div>
                         <div class="mob-doc-meta">
-                            <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabelWithOffice() }}</span>
+                            <span class="badge badge-{{ $doc->status }}" title="{{ $doc->statusLabelWithOffice() }}">{{ $doc->statusLabelWithOffice() }}</span>
                             <span class="mob-doc-date">{{ $doc->last_action_at ? $doc->last_action_at->copy()->setTimezone('Asia/Manila')->format('M d, Y h:i A') : '-' }}</span>
                         </div>
                         <div class="mob-doc-kv">
@@ -1376,7 +1380,7 @@ function renderUserActivity(data) {
             bodyHtml += '<tr class="ua-doc-row" style="border-bottom:1px solid #f1f5f9;cursor:pointer" data-ref="' + escapeHtml(refValue) + '" data-tracking="' + escapeHtml(trackingValue) + '" title="Open document drawer">'
                 + '<td style="padding:9px 14px;font-size:12px;font-family:Poppins,sans-serif;font-weight:600;color:var(--primary)">' + escapeHtml(doc.reference || '-') + '</td>'
                 + '<td style="padding:9px 14px;font-size:12px;color:var(--text-dark);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + escapeHtml(doc.subject) + '">' + escapeHtml(doc.subject) + '</td>'
-                + '<td style="padding:9px 14px"><span class="badge badge-' + escapeHtml(doc.status) + '">' + escapeHtml(doc.status_label) + '</span></td>'
+                + '<td style="padding:9px 14px"><span class="badge badge-' + escapeHtml(doc.status) + '" title="' + escapeHtml(doc.status_label) + '">' + escapeHtml(doc.status_label) + '</span></td>'
                 + '<td style="padding:9px 14px;font-size:11px;color:var(--text-muted);white-space:nowrap">' + escapeHtml(doc.last_action) + '</td>'
                 + '</tr>';
         });

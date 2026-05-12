@@ -83,7 +83,7 @@
         tr:last-child td{border-bottom:none}
         tr:hover td{background:#fafbff}
         tr.doc-row{cursor:pointer}
-        .badge{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+        .badge{display:inline-block;max-width:220px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
         .badge-submitted,
         .badge-received,
         .badge-in_review,
@@ -146,6 +146,7 @@
         .mob-card-arrow{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;color:#94a3b8;font-size:11px;flex-shrink:0;background:#f8fafc}
         .mob-card-subject{font-size:13.5px;font-weight:600;color:var(--text-dark);margin-bottom:8px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
         .mob-card-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+        .mob-card-meta .badge{max-width:min(240px,calc(100% - 112px))}
         .mob-card-date{font-size:10.5px;color:var(--text-muted);display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
         .mob-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
         .mob-card-item{min-width:0;background:#f8fafc;border:1px solid #e8eef6;border-radius:10px;padding:8px 9px}
@@ -480,7 +481,7 @@
                                 @endif
                             </td>
                             <td>
-                                <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabelWithOffice() }}</span>
+                                <span class="badge badge-{{ $doc->status }}" title="{{ $doc->statusLabelWithOffice() }}">{{ $doc->statusLabelWithOffice() }}</span>
                                 @if($doc->status === 'submitted' && $doc->created_at->diffInDays(now()) >= 5)
                                     <div style="font-size:10px;color:#dc2626;margin-top:3px">
                                         <i class="fas fa-exclamation-circle"></i>
@@ -533,7 +534,7 @@
                         </div>
                         <div class="mob-card-subject">{{ $doc->subject }}</div>
                         <div class="mob-card-meta">
-                            <span class="badge badge-{{ $doc->status }}">{{ $doc->statusLabelWithOffice() }}</span>
+                            <span class="badge badge-{{ $doc->status }}" title="{{ $doc->statusLabelWithOffice() }}">{{ $doc->statusLabelWithOffice() }}</span>
                             <span class="mob-card-date"><i class="fas fa-calendar"></i>{{ $doc->created_at->format('M d, Y') }}</span>
                         </div>
                         <div class="mob-card-grid">
