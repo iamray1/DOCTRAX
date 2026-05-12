@@ -9,7 +9,7 @@
     @include('partials.link-preview', [
         'title' => 'DepEd DOCTRAX | Document Tracking System',
         'description' => 'Submit and track documents online through the official DepEd City of San Jose del Monte Document Tracking System.',
-        'image' => asset('images/landingpage.svg'),
+        'image' => asset('images/doctrax-link-preview.png'),
         'url' => url('/')
     ])
     <!-- Preconnect for faster font loading -->
