@@ -15,8 +15,7 @@ class AccountEmailVerificationCodeMail extends Mailable
 
     public function __construct(
         public User $user,
-        public string $code,
-        public string $newEmail
+        public string $code
     ) {}
 
     public function envelope(): Envelope

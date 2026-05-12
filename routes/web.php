@@ -262,6 +262,7 @@ Route::middleware(['auth', 'ensure-auth', 'no-cache'])->group(function () {
     // Profile
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile');
     Route::post('/api/profile/email-verification-code', [ProfileController::class, 'sendEmailVerificationCode'])->middleware('throttle:3,10');
+    Route::post('/api/profile/email-verification-code/verify', [ProfileController::class, 'verifyEmailVerificationCode'])->middleware('throttle:10,10');
     Route::put('/api/profile', [ProfileController::class, 'update'])->middleware('throttle:10,1');
     Route::put('/api/profile/password', [ProfileController::class, 'changePassword'])->middleware('throttle:5,1');
 

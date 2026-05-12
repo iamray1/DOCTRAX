@@ -98,6 +98,7 @@
         .toast.show{transform:translateX(0)}
         .toast.success{border-left:3px solid #16a34a}
         .toast.error{border-left:3px solid #dc2626}
+@include('partials.profile-email-change-modal-styles')
 
         /* ─── Mobile ─── */
         .mob-topbar{display:flex;position:sticky;top:0;z-index:100;background:#0056b3;padding:14px 18px;align-items:center;justify-content:space-between;gap:14px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
@@ -296,7 +297,9 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="email">Email Address <span style="color:#dc2626">*</span></label>
-                        <input type="email" id="email" value="{{ $user->email }}" autocomplete="email" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false">
+                        <input type="email" id="email" value="{{ $user->email }}" autocomplete="email" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" readonly>
+                        <button type="button" class="change-email-link" id="changeEmailBtn"><i class="fas fa-shield-alt"></i> Change email</button>
+                        <div class="email-change-note" id="emailChangeVerifiedNote">Verified. You can edit your email address now.</div>
                         <div class="field-err" id="err-email"><i class="fas fa-exclamation-circle"></i><span></span></div>
                     </div>
                     <div class="form-group">
@@ -379,6 +382,8 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+@include('partials.profile-email-change-modal')
+
 <footer class="site-footer">
     <div class="footer-left">
         <span>&copy; {{ date('Y') }} DepEd Document Tracking System</span>
@@ -390,6 +395,7 @@
 (function() {
     var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     var currentProfileEmail = @json($user->email);
+    var emailChangeVerified = false;
     var officeName = @json($navOfficeName);
 
     window.toggleProfileMiddle = function() {
@@ -445,37 +451,143 @@
         return (value || '').trim().toLowerCase();
     }
 
-    async function getEmailVerificationCodeIfNeeded(email) {
-        if (normalizedEmail(email) === normalizedEmail(currentProfileEmail)) {
-            return null;
-        }
+    var emailInput = document.getElementById('email');
+    var emailChangeModal = document.getElementById('emailChangeModal');
+    var emailChangeStartStep = document.getElementById('emailChangeStartStep');
+    var emailChangeCodeStep = document.getElementById('emailChangeCodeStep');
+    var emailChangeCodeInput = document.getElementById('emailChangeCode');
+    var emailChangeError = document.getElementById('emailChangeError');
+    var emailChangeCurrentEmail = document.getElementById('emailChangeCurrentEmail');
+    var emailChangeVerifiedNote = document.getElementById('emailChangeVerifiedNote');
 
-        var response = await fetch('/api/profile/email-verification-code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
-            body: JSON.stringify({ email: email })
-        });
-        var data = await response.json().catch(function() { return {}; });
-
-        if (!response.ok || !data.success) {
-            if (data.errors) showFieldErrors(data.errors);
-            throw new Error(data.message || 'Verification code could not be sent.');
-        }
-
-        showToast(data.message || 'Verification code sent.', 'success');
-
-        var code = window.prompt('Enter the 6-digit verification code sent to ' + email + '.');
-        if (code === null) {
-            throw new Error('Email change was not verified.');
-        }
-
-        code = code.trim();
-        if (!/^\d{6}$/.test(code)) {
-            throw new Error('Enter the 6-digit verification code sent to your new email.');
-        }
-
-        return code;
+    function showEmailChangeError(message) {
+        if (!emailChangeError) return;
+        emailChangeError.textContent = message || '';
+        emailChangeError.classList.toggle('show', !!message);
     }
+
+    function showEmailChangeStep(step) {
+        if (emailChangeStartStep) emailChangeStartStep.style.display = step === 'start' ? '' : 'none';
+        if (emailChangeCodeStep) emailChangeCodeStep.classList.toggle('show', step === 'code');
+    }
+
+    function openEmailChangeModal() {
+        if (!emailChangeModal) return;
+        showEmailChangeError('');
+        showEmailChangeStep('start');
+        if (emailChangeCodeInput) emailChangeCodeInput.value = '';
+        if (emailChangeCurrentEmail) emailChangeCurrentEmail.textContent = currentProfileEmail;
+        emailChangeModal.classList.add('show');
+        emailChangeModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeEmailChangeModal() {
+        if (!emailChangeModal) return;
+        emailChangeModal.classList.remove('show');
+        emailChangeModal.setAttribute('aria-hidden', 'true');
+    }
+
+    async function sendEmailChangeCode(e) {
+        var btn = e && e.currentTarget ? e.currentTarget : document.getElementById('emailSendCodeBtn');
+        if (btn) btn.disabled = true;
+        showEmailChangeError('');
+
+        try {
+            var response = await fetch('/api/profile/email-verification-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                body: JSON.stringify({})
+            });
+            var data = await response.json().catch(function() { return {}; });
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Verification code could not be sent.');
+            }
+
+            showToast(data.message || 'Verification code sent.', 'success');
+            showEmailChangeStep('code');
+            setTimeout(function() { if (emailChangeCodeInput) emailChangeCodeInput.focus(); }, 50);
+        } catch (error) {
+            showEmailChangeError(error.message);
+            showToast(error.message, 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function verifyEmailChangeCode() {
+        var code = (emailChangeCodeInput && emailChangeCodeInput.value ? emailChangeCodeInput.value : '').trim();
+        var btn = document.getElementById('emailVerifyCodeBtn');
+
+        if (!/^\d{6}$/.test(code)) {
+            showEmailChangeError('Enter the 6-digit verification code sent to your email.');
+            return;
+        }
+
+        if (btn) btn.disabled = true;
+        showEmailChangeError('');
+
+        try {
+            var response = await fetch('/api/profile/email-verification-code/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                body: JSON.stringify({ code: code })
+            });
+            var data = await response.json().catch(function() { return {}; });
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Invalid verification code.');
+            }
+
+            emailChangeVerified = true;
+            if (emailInput) {
+                emailInput.readOnly = false;
+                emailInput.focus();
+                emailInput.select();
+            }
+            if (emailChangeVerifiedNote) emailChangeVerifiedNote.classList.add('show');
+            closeEmailChangeModal();
+            showToast(data.message || 'Email change verified.', 'success');
+        } catch (error) {
+            showEmailChangeError(error.message);
+            showToast(error.message, 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    function bindEmailChangeButton(id, handler) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('click', handler);
+    }
+
+    bindEmailChangeButton('changeEmailBtn', openEmailChangeModal);
+    bindEmailChangeButton('emailChangeClose', closeEmailChangeModal);
+    bindEmailChangeButton('emailChangeCancel', closeEmailChangeModal);
+    bindEmailChangeButton('emailSendCodeBtn', sendEmailChangeCode);
+    bindEmailChangeButton('emailResendCodeBtn', sendEmailChangeCode);
+    bindEmailChangeButton('emailVerifyCodeBtn', verifyEmailChangeCode);
+    if (emailChangeCodeInput) {
+        emailChangeCodeInput.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+        });
+        emailChangeCodeInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                verifyEmailChangeCode();
+            }
+        });
+    }
+    if (emailChangeModal) {
+        emailChangeModal.addEventListener('click', function(e) {
+            if (e.target === emailChangeModal) closeEmailChangeModal();
+        });
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && emailChangeModal && emailChangeModal.classList.contains('show')) {
+            closeEmailChangeModal();
+        }
+    });
 
     // ─── Save Profile ───
     document.getElementById('profileForm').addEventListener('submit', async function(e) {
@@ -512,13 +624,10 @@
         var btn = document.getElementById('btnSaveProfile');
         btn.disabled = true;
 
-        var emailVerificationCode = null;
-        try {
-            emailVerificationCode = await getEmailVerificationCodeIfNeeded(emailVal);
-        } catch (error) {
+        if (normalizedEmail(emailVal) !== normalizedEmail(currentProfileEmail) && !emailChangeVerified) {
             btn.disabled = false;
-            setErr('email', error.message);
-            showToast(error.message, 'error');
+            setErr('email', 'Click Change email and verify your current email before saving.');
+            openEmailChangeModal();
             return;
         }
 
@@ -527,9 +636,6 @@
             email: emailVal,
             mobile: mobileVal
         };
-        if (emailVerificationCode) {
-            payload.email_verification_code = emailVerificationCode;
-        }
 
         fetch('/api/profile', {
             method: 'PUT',
@@ -546,6 +652,13 @@
                 document.getElementById('infoEmail').textContent = u.email;
                 document.getElementById('infoMobile').textContent = u.mobile || 'No number provided';
                 currentProfileEmail = u.email;
+                emailChangeVerified = false;
+                if (emailInput) {
+                    emailInput.value = u.email;
+                    emailInput.readOnly = true;
+                }
+                if (emailChangeCurrentEmail) emailChangeCurrentEmail.textContent = u.email;
+                if (emailChangeVerifiedNote) emailChangeVerifiedNote.classList.remove('show');
             } else {
                 if (res.data.errors) showFieldErrors(res.data.errors);
                 showToast(res.data.message || 'Failed to update.', 'error');

@@ -23,7 +23,7 @@
                                 Hi <strong>{{ $user->name }}</strong>,
                             </p>
                             <p style="margin: 0 0 20px; color: #334155; font-size: 14px; line-height: 1.7;">
-                                Use this verification code to confirm changing your DocTrax account email address to <strong>{{ $newEmail }}</strong>.
+                                Use this verification code to confirm that it is you before changing your DocTrax account email address.
                             </p>
                             <p style="margin: 0 0 20px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; color: #0f172a; font-size: 28px; font-weight: 700; letter-spacing: 6px; text-align: center;">
                                 {{ $code }}
