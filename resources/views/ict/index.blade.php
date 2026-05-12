@@ -633,13 +633,14 @@
                         : (!$canHandleDoc ? 'Only the assigned handler can update this document' : 'This document is not eligible for bulk status update');
                     $canManageDoc = $canActOnDoc && $canHandleDoc && $canStatusUpdateDoc && in_array($doc->status, ['in_review', 'for_pickup', 'returned'], true);
                     $canBulkAct = ($canActOnDoc && $canHandleDoc) || (!$user->office_id && (int) $doc->current_handler_id === (int) $user->id);
-                    $canBulkSelect = $canBulkAct && $canStatusUpdateDoc && in_array($doc->status, ['received', 'in_review', 'on_hold', 'for_pickup', 'returned'], true);
-                    $canBulkEnd = $canBulkSelect && $doc->canCompleteTransactionFromCurrentStatus();
-                    $endRemarksType = $doc->isInternalOfficeSubmission() ? 'office' : 'release';
+                    $canBulkStatus = $canBulkAct && $canStatusUpdateDoc && in_array($doc->status, ['received', 'in_review', 'on_hold', 'for_pickup', 'returned'], true);
+                    $canBulkEnd = $canBulkAct && $doc->canCompleteTransactionFromCurrentStatus();
+                    $canBulkSelect = ($canBulkStatus || $canBulkEnd) && !in_array($doc->status, ['completed', 'cancelled', 'archived'], true);
+                    $endRemarksType = in_array($doc->status, ['received', 'in_review', 'on_hold'], true) ? 'office' : 'release';
                 @endphp
                 <tr class="doc-row" data-search="{{ strtolower(trim(($doc->reference_number ?? '').' '.($doc->tracking_number ?? '').' '.$doc->subject.' '.$sender.' '.($doc->type ?? ''))) }}" data-status="{{ $doc->status }}" onclick='openDocDetail("{{ $doc->reference_number ?: $doc->tracking_number }}")'>
                     <td class="td-select" onclick="event.stopPropagation()">
-                        <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
+                        <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-status="{{ $canBulkStatus ? '1' : '0' }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
                     </td>
                     <td class="t-ref"><div class="cell-ellipsis" title="{{ $doc->reference_number ?: 'N/A' }}">{{ $doc->reference_number ?: 'N/A' }}</div></td>
                     <td class="t-track"><div class="cell-ellipsis" title="{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}">{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div></td>
@@ -678,9 +679,10 @@
                     : (!$canHandleDoc ? 'Only the assigned handler can update this document' : 'This document is not eligible for bulk status update');
                 $canManageDoc = $canActOnDoc && $canHandleDoc && $canStatusUpdateDoc && in_array($doc->status, ['in_review', 'for_pickup', 'returned'], true);
                 $canBulkAct = ($canActOnDoc && $canHandleDoc) || (!$user->office_id && (int) $doc->current_handler_id === (int) $user->id);
-                $canBulkSelect = $canBulkAct && $canStatusUpdateDoc && in_array($doc->status, ['received', 'in_review', 'on_hold', 'for_pickup', 'returned'], true);
-                $canBulkEnd = $canBulkSelect && $doc->canCompleteTransactionFromCurrentStatus();
-                $endRemarksType = $doc->isInternalOfficeSubmission() ? 'office' : 'release';
+                $canBulkStatus = $canBulkAct && $canStatusUpdateDoc && in_array($doc->status, ['received', 'in_review', 'on_hold', 'for_pickup', 'returned'], true);
+                $canBulkEnd = $canBulkAct && $doc->canCompleteTransactionFromCurrentStatus();
+                $canBulkSelect = ($canBulkStatus || $canBulkEnd) && !in_array($doc->status, ['completed', 'cancelled', 'archived'], true);
+                $endRemarksType = in_array($doc->status, ['received', 'in_review', 'on_hold'], true) ? 'office' : 'release';
             @endphp
             <div class="mob-card" data-search="{{ strtolower(trim(($doc->reference_number ?? '').' '.($doc->tracking_number ?? '').' '.$doc->subject.' '.$sender.' '.($doc->type ?? ''))) }}" data-status="{{ $doc->status }}" onclick='openDocDetail("{{ $doc->reference_number ?: $doc->tracking_number }}")'>
                 <div class="mob-card-top">
@@ -689,7 +691,7 @@
                         <div class="mob-card-track">Document Control #: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
                     </div>
                     <span class="mob-card-top-actions">
-                        <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onclick="event.stopPropagation()" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
+                        <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-status="{{ $canBulkStatus ? '1' : '0' }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onclick="event.stopPropagation()" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
                         <span class="mob-card-arrow"><i class="fas fa-chevron-right"></i></span>
                     </span>
                 </div>
@@ -1025,7 +1027,12 @@ function selectedAllHaveStatus(status){
 }
 
 function selectedCanOnlyEnd(){
-    return selectedAllHaveStatus('for_pickup') || selectedAllHaveStatus('returned');
+    var selected = getSelectedBulkChecks();
+    return selected.length > 0 && (
+        selectedAllHaveStatus('for_pickup')
+        || selectedAllHaveStatus('returned')
+        || selected.every(function(chk){ return chk.dataset.canStatus !== '1'; })
+    );
 }
 
 function selectedEndRemarksType(){
@@ -1048,7 +1055,10 @@ function selectedStatusCount(){
 
 function canBulkUpdateSelected(){
     var selected = getSelectedBulkChecks();
-    return selected.length > 0 && selectedStatusCount() === 1 && !selectedCanOnlyEnd();
+    return selected.length > 0
+        && selected.every(function(chk){ return chk.dataset.canStatus === '1'; })
+        && selectedStatusCount() === 1
+        && !selectedCanOnlyEnd();
 }
 
 function refreshBulkStatusOptions(){
@@ -1117,7 +1127,7 @@ function updateBulkState(){
     if (endBtn) {
         endBtn.disabled = selectedCount === 0 || endEligibleCount !== selectedCount;
         endBtn.title = selectedCount > 0 && endEligibleCount !== selectedCount
-            ? 'Select eligible office-to-office, For Pick up, or For Return documents only'
+            ? 'Select eligible active, For Pick up, or For Return documents only'
             : '';
     }
     if (selectVisibleBtn) {
@@ -1233,7 +1243,7 @@ function openBulkEndModal(){
     var endEligible = selected.filter(function(chk){ return chk.dataset.canEnd === '1'; });
     if (!selected.length) { showQueueToast('Please select at least one document.', 'error'); return; }
     if (endEligible.length !== selected.length) {
-        showQueueToast('Select eligible office-to-office, For Pick up, or For Return documents only.', 'error');
+        showQueueToast('Select eligible active, For Pick up, or For Return documents only.', 'error');
         return;
     }
     document.getElementById('bulkEndCount').textContent = selected.length;
@@ -1292,7 +1302,7 @@ async function confirmBulkStatus(){
 async function confirmBulkEnd(){
     var selected = getSelectedBulkChecks();
     if (!selected.length || selected.some(function(chk){ return chk.dataset.canEnd !== '1'; })) {
-        showBulkErr('bulkEndError', 'Select eligible office-to-office, For Pick up, or For Return documents only.');
+        showBulkErr('bulkEndError', 'Select eligible active, For Pick up, or For Return documents only.');
         return;
     }
     var remarks = getBulkRemarksValue('bulkEndRemarksSelect', 'bulkEndRemarks');
@@ -1654,12 +1664,11 @@ async function confirmBulkEnd(){
         }
 
         var currentHandlerId = doc.current_handler_id ? parseInt(doc.current_handler_id, 10) : null;
-        var directOfficeEnd = doc.is_external === false && ['received','in_review','on_hold'].indexOf(doc.status) !== -1;
+        var directOfficeEnd = ['received','in_review','on_hold'].indexOf(doc.status) !== -1;
         var canEndFromDrawer = (['for_pickup','returned'].indexOf(doc.status) !== -1 || directOfficeEnd)
-            && doc.is_external === false
             && (!currentHandlerId || currentHandlerId === currentUserId);
         var endCopy = directOfficeEnd
-            ? 'End this office-to-office transaction once your office has finished processing it.'
+            ? 'End this transaction once your office has finished processing it.'
             : 'This document is ready for release or return. End the transaction once the recipient has actually claimed it.';
 
         document.getElementById('drawerBody').innerHTML =

@@ -1652,14 +1652,6 @@ class AdminController extends Controller
             return response()->json(['success' => false, 'message' => 'This document is not tagged to you.'], 403);
         }
 
-        // Outside-submitted documents can only be status-updated by Records Section.
-        if ($document->isExternal()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Outside-submitted documents can only have status updates from Records Section.',
-            ], 422);
-        }
-
         if ($document->current_handler_id && (int) $document->current_handler_id !== (int) $user->id) {
             $handlerName = optional($document->currentHandler)->name ?: 'another admin';
             return response()->json([
@@ -1684,7 +1676,7 @@ class AdminController extends Controller
         if ($request->status === 'completed' && !$document->canCompleteTransactionFromCurrentStatus()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only For Pickup, For Return, or active office-to-office documents can be ended.',
+                'message' => 'Only For Pickup, For Return, or active documents can be ended.',
             ], 422);
         }
 
@@ -1773,7 +1765,7 @@ class AdminController extends Controller
                     continue;
                 }
 
-                if ($document->isExternal()) {
+                if ($document->isExternal() && !$user->isRecords() && $newStatus !== 'completed') {
                     $failures[] = ['id' => $id, 'message' => "{$label} can only have status updates from Records Section."];
                     continue;
                 }
@@ -1795,7 +1787,7 @@ class AdminController extends Controller
                 }
 
                 if ($newStatus === 'completed' && !$document->canCompleteTransactionFromCurrentStatus()) {
-                    $failures[] = ['id' => $id, 'message' => "{$label} must be For Pickup, For Return, or an active office-to-office transaction before ending."];
+                    $failures[] = ['id' => $id, 'message' => "{$label} must be For Pickup, For Return, or active before ending."];
                     continue;
                 }
 
