@@ -527,7 +527,7 @@
                         <input type="email" id="email"
                                value="{{ $user->email }}"
                                maxlength="255" autocomplete="email" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" readonly>
-                        <button type="button" class="change-email-link" id="changeEmailBtn"><i class="fas fa-shield-alt"></i> Change email</button>
+                        <button type="button" class="change-email-link" id="changeEmailBtn">Change email</button>
                         <div class="email-change-note" id="emailChangeVerifiedNote">Verified. You can edit your email address now.</div>
                         <div class="field-err" id="err-email"><i class="fas fa-exclamation-circle"></i><span></span></div>
                     </div>

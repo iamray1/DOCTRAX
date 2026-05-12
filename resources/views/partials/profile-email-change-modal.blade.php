@@ -1,12 +1,9 @@
 <div class="email-modal-overlay" id="emailChangeModal" aria-hidden="true">
     <div class="email-modal" role="dialog" aria-modal="true" aria-labelledby="emailChangeTitle">
         <button type="button" class="email-modal-close" id="emailChangeClose" aria-label="Close email verification">
-            <i class="fas fa-times"></i>
+            &times;
         </button>
 
-        <div class="email-modal-icon">
-            <i class="fas fa-envelope-open-text"></i>
-        </div>
         <h2 id="emailChangeTitle">First, let's make sure it's you</h2>
         <p>Before we make any changes, we'll just need a quick confirmation.</p>
 
@@ -18,9 +15,7 @@
         <div id="emailChangeStartStep">
             <div class="email-modal-actions">
                 <button type="button" class="email-modal-secondary" id="emailChangeCancel">Cancel</button>
-                <button type="button" class="email-modal-primary" id="emailSendCodeBtn">
-                    <i class="fas fa-paper-plane"></i> Email a code
-                </button>
+                <button type="button" class="email-modal-primary" id="emailSendCodeBtn">Email a code</button>
             </div>
         </div>
 
@@ -29,9 +24,7 @@
             <div class="email-modal-error" id="emailChangeError"></div>
             <div class="email-modal-actions">
                 <button type="button" class="email-modal-secondary" id="emailResendCodeBtn">Resend code</button>
-                <button type="button" class="email-modal-primary" id="emailVerifyCodeBtn">
-                    <i class="fas fa-check"></i> Verify code
-                </button>
+                <button type="button" class="email-modal-primary" id="emailVerifyCodeBtn">Verify code</button>
             </div>
         </div>
     </div>

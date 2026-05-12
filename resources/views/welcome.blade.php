@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>DepEd Document Tracking System</title>
+    @include('partials.link-preview', [
+        'title' => 'DepEd DOCTRAX | Document Tracking System',
+        'description' => 'Submit and track documents online through the official DepEd City of San Jose del Monte Document Tracking System.',
+        'image' => asset('images/landingpage.svg'),
+        'url' => url('/')
+    ])
     <!-- Preconnect for faster font loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
