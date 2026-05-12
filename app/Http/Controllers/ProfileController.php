@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\AccountUpdateMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
@@ -52,6 +55,7 @@ class ProfileController extends Controller
 
         $newName = $request->name;
         $newEmail = $request->email;
+        $oldEmail = $user->email;
 
         $hasChanges = $user->name  !== $newName
                || $user->email !== $newEmail
@@ -73,6 +77,14 @@ class ProfileController extends Controller
         $user->email  = $newEmail;
         $user->mobile = $request->mobile;
         $user->save();
+
+        if ($oldEmail !== $user->email) {
+            try {
+                Mail::to($user->email)->send(new AccountUpdateMail($user, 'email_changed', $oldEmail, $user->email));
+            } catch (\Exception $e) {
+                Log::warning('Account email change notice failed for ' . $user->email . ': ' . $e->getMessage());
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -107,6 +119,12 @@ class ProfileController extends Controller
 
         $user->password = $request->password; // auto-hashed via cast
         $user->save();
+
+        try {
+            Mail::to($user->email)->send(new AccountUpdateMail($user, 'password_changed'));
+        } catch (\Exception $e) {
+            Log::warning('Account password change notice failed for ' . $user->email . ': ' . $e->getMessage());
+        }
 
         return response()->json([
             'success' => true,
