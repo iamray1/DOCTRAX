@@ -105,11 +105,11 @@ class AuthController extends Controller
             // Generate activation token (outside transaction — safe to retry)
             $rawToken = $this->activationService->createToken($user);
 
-            // Send activation email; log but never crash on mail failure
+            // Queue activation email; log but never crash on queue dispatch failure.
             try {
-                Mail::to($user->email)->send(new ActivationMail($user, $rawToken));
+                Mail::to($user->email)->queue(new ActivationMail($user, $rawToken));
             } catch (\Exception $mailEx) {
-                \Log::warning('Activation email could not be sent to ' . $user->email . ': ' . $mailEx->getMessage());
+                \Log::warning('Activation email could not be queued for ' . $user->email . ': ' . $mailEx->getMessage());
             }
 
             return response()->json([
@@ -245,11 +245,21 @@ class AuthController extends Controller
         }
 
         $rawToken = $this->activationService->createToken($user);
-        Mail::to($user->email)->send(new ActivationMail($user, $rawToken));
+
+        try {
+            Mail::to($user->email)->queue(new ActivationMail($user, $rawToken));
+        } catch (\Exception $mailEx) {
+            \Log::warning('Activation email could not be queued for ' . $user->email . ': ' . $mailEx->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Activation email could not be queued right now. Please try again later.',
+            ], 500);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'A new activation email has been sent. Check your inbox.',
+            'message' => 'A new activation email has been queued. Check your inbox shortly.',
         ]);
     }
 
@@ -474,14 +484,14 @@ class AuthController extends Controller
         );
 
         try {
-            Mail::to($user->email)->send(new PasswordResetMail($user, $rawToken));
+            Mail::to($user->email)->queue(new PasswordResetMail($user, $rawToken));
         } catch (\Exception $e) {
-            \Log::warning('Password reset email failed for ' . $user->email . ': ' . $e->getMessage());
+            \Log::warning('Password reset email queueing failed for ' . $user->email . ': ' . $e->getMessage());
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'A reset link has been sent to your email address.',
+            'message' => 'A reset link has been queued for your email address.',
         ]);
     }
 

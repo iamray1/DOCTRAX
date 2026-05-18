@@ -91,9 +91,9 @@ class ProfileController extends Controller
 
         if ($oldEmail !== $user->email) {
             try {
-                Mail::to($user->email)->send(new AccountUpdateMail($user, 'email_changed', $oldEmail, $user->email));
+                Mail::to($user->email)->queue(new AccountUpdateMail($user, 'email_changed', $oldEmail, $user->email));
             } catch (\Exception $e) {
-                Log::warning('Account email change notice failed for ' . $user->email . ': ' . $e->getMessage());
+                Log::warning('Account email change notice queueing failed for ' . $user->email . ': ' . $e->getMessage());
             }
         }
 
@@ -130,9 +130,9 @@ class ProfileController extends Controller
         $code = (string) random_int(100000, 999999);
 
         try {
-            Mail::to($user->email)->send(new AccountEmailVerificationCodeMail($user, $code));
+            Mail::to($user->email)->queue(new AccountEmailVerificationCodeMail($user, $code));
         } catch (\Exception $e) {
-            Log::warning('Email change verification code failed for ' . $user->email . ': ' . $e->getMessage());
+            Log::warning('Email change verification code queueing failed for ' . $user->email . ': ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -259,9 +259,9 @@ class ProfileController extends Controller
         $user->save();
 
         try {
-            Mail::to($user->email)->send(new AccountUpdateMail($user, 'password_changed'));
+            Mail::to($user->email)->queue(new AccountUpdateMail($user, 'password_changed'));
         } catch (\Exception $e) {
-            Log::warning('Account password change notice failed for ' . $user->email . ': ' . $e->getMessage());
+            Log::warning('Account password change notice queueing failed for ' . $user->email . ': ' . $e->getMessage());
         }
 
         return response()->json([

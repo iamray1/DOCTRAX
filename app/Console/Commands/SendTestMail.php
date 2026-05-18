@@ -10,7 +10,7 @@ class SendTestMail extends Command
 {
     protected $signature = 'mail:test {email : Recipient inbox for the test message}';
 
-    protected $description = 'Send a test email using the current Laravel mail configuration';
+    protected $description = 'Queue a test email using the current Laravel mail configuration';
 
     public function handle(): int
     {
@@ -25,18 +25,18 @@ class SendTestMail extends Command
         $this->line('From: ' . config('mail.from.address') . ' (' . config('mail.from.name') . ')');
 
         try {
-            Mail::to($email)->send(
+            Mail::to($email)->queue(
                 new TestMail(
                     config('app.name', 'DepEd DOCTRAX'),
                     (string) config('app.url', 'http://localhost')
                 )
             );
         } catch (\Throwable $e) {
-            $this->error('Mail send failed: ' . $e->getMessage());
+            $this->error('Mail queueing failed: ' . $e->getMessage());
             return self::FAILURE;
         }
 
-        $this->info('Test email sent successfully to ' . $email . '.');
+        $this->info('Test email queued successfully to ' . $email . '.');
 
         return self::SUCCESS;
     }

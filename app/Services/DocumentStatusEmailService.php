@@ -100,11 +100,11 @@ class DocumentStatusEmailService
                 return;
             }
 
-            Mail::to($recipient)->send(
+            Mail::to($recipient)->queue(
                 new DocumentStatusUpdateMail($document, $this->recipientName($document))
             );
         } catch (Throwable $exception) {
-            Log::warning('Document status email failed.', [
+            Log::warning('Document status email queueing failed.', [
                 'document_id' => $document->id,
                 'status' => $status,
                 'recipient' => $recipient,
@@ -157,11 +157,11 @@ class DocumentStatusEmailService
                 return;
             }
 
-            Mail::to($recipient)->send(
+            Mail::to($recipient)->queue(
                 new DocumentBulkStatusUpdateMail($documents, (string) $firstDocument->status, $this->recipientName($firstDocument))
             );
         } catch (Throwable $exception) {
-            Log::warning('Bulk document status email failed.', [
+            Log::warning('Bulk document status email queueing failed.', [
                 'document_ids' => $documents->pluck('id')->all(),
                 'status' => (string) $firstDocument->status,
                 'recipient' => $recipient,

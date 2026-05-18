@@ -1042,13 +1042,13 @@ class AdminController extends Controller
             ], 500);
         }
 
-        $message = 'Office account created. Activation email sent to ' . $user->email . '.';
+        $message = 'Office account created. Activation email queued for ' . $user->email . '.';
         try {
             $rawToken = $this->activationService->createToken($user);
-            Mail::to($user->email)->send(new ActivationMail($user, $rawToken));
+            Mail::to($user->email)->queue(new ActivationMail($user, $rawToken));
         } catch (\Throwable $e) {
-            \Log::warning('Office account created but activation email failed for ' . $user->email . ': ' . $e->getMessage());
-            $message = 'Office account created, but activation email could not be sent right now. Please use Resend Activation.';
+            \Log::warning('Office account created but activation email could not be queued for ' . $user->email . ': ' . $e->getMessage());
+            $message = 'Office account created, but activation email could not be queued right now. Please use Resend Activation.';
         }
 
         return response()->json([
