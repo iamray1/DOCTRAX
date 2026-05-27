@@ -664,6 +664,9 @@ function logout(){
             </div>
             <div class="modal-body">
                 <p style="margin-bottom:14px">{{ $isDirectOfficeToOfficeEnd ? 'Has your office finished processing this document?' : 'Has the recipient actually claimed this document?' }} This will end the transaction and mark the document as <strong style="color:#15803d">Completed</strong>.</p>
+                @if($document->isExternal())
+                    <p style="margin-bottom:14px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px">Reminder: this document came from outside. Continue only if the transaction is truly finished.</p>
+                @endif
                 <label class="modal-label">Remarks <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
                 <select class="modal-field" id="endRemarksSelect" onchange="handleRemarksDropdown('endRemarksSelect','endRemarks')">
                     <option value="">Select a remark…</option>

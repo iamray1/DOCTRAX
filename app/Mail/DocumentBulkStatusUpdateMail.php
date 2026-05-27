@@ -29,10 +29,10 @@ class DocumentBulkStatusUpdateMail extends Mailable implements ShouldQueue
             'body' => 'The following documents have been marked For Return. Please coordinate with the releasing office to claim them.',
         ],
         'completed' => [
-            'subject' => 'DocTrax Update: Documents Completed',
+            'subject' => 'DocTrax Update: Submitted Documents Done',
             'label' => 'Completed',
-            'headline' => 'Your documents have been completed',
-            'body' => 'The following documents have been marked Completed. These transactions are now recorded as completed in DocTrax.',
+            'headline' => 'Your submitted documents are done',
+            'body' => 'The following submitted documents have been marked Completed. These transactions are now recorded as done in DocTrax.',
         ],
     ];
 

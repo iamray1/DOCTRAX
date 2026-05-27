@@ -28,10 +28,10 @@ class DocumentStatusUpdateMail extends Mailable implements ShouldQueue
             'body' => 'Your document has been marked For Return. Please coordinate with the releasing office to claim it.',
         ],
         'completed' => [
-            'subject' => 'DocTrax Update: Document Completed',
+            'subject' => 'DocTrax Update: Submitted Document Done',
             'label' => 'Completed',
-            'headline' => 'Your document transaction is completed',
-            'body' => 'Your document has been marked Completed. The transaction is now recorded as completed in DocTrax.',
+            'headline' => 'Your submitted document is done',
+            'body' => 'The document you submitted has been marked Completed. This transaction is now recorded as done in DocTrax.',
         ],
     ];
 
@@ -41,6 +41,7 @@ class DocumentStatusUpdateMail extends Mailable implements ShouldQueue
     public string $bodyText;
     public string $referenceNumber;
     public string $trackingNumber;
+    public string $documentTitle;
     public string $officeName;
     public string $updatedAt;
     public string $trackUrl;
@@ -66,6 +67,9 @@ class DocumentStatusUpdateMail extends Mailable implements ShouldQueue
         $this->bodyText = $copy['body'];
         $this->referenceNumber = $this->document->reference_number ?: 'N/A';
         $this->trackingNumber = $this->document->tracking_number ?: 'N/A';
+        $this->documentTitle = trim((string) $this->document->subject) !== ''
+            ? (string) $this->document->subject
+            : 'Submitted Document';
         $this->officeName = $this->document->currentOffice?->name
             ?: ($this->document->submittedToOffice?->name ?: 'Releasing Office');
         $this->updatedAt = $updatedAt->copy()->setTimezone('Asia/Manila')->format('M d, Y h:i A') . ' PHT';
@@ -96,8 +100,10 @@ class DocumentStatusUpdateMail extends Mailable implements ShouldQueue
 
         $lookup = $this->document->reference_number ?: $this->document->tracking_number;
 
-        return $lookup
-            ? $copy['subject'] . ' - ' . $lookup
-            : $copy['subject'];
+        if ((string) $this->document->status === 'completed' && trim((string) $this->document->subject) !== '') {
+            return $copy['subject'] . ' - ' . $this->document->subject;
+        }
+
+        return $lookup ? $copy['subject'] . ' - ' . $lookup : $copy['subject'];
     }
 }

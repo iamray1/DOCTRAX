@@ -35,6 +35,10 @@
                                     <td style="padding: 12px 16px; color: #0f172a; font-size: 13px; font-weight: 700; border-bottom: 1px solid #e2e8f0;">{{ $statusLabel }}</td>
                                 </tr>
                                 <tr>
+                                    <td style="padding: 12px 16px; background: #f8fafc; color: #64748b; font-size: 12px; border-bottom: 1px solid #e2e8f0;">Document Title</td>
+                                    <td style="padding: 12px 16px; color: #0f172a; font-size: 13px; font-weight: 700; border-bottom: 1px solid #e2e8f0;">{{ $documentTitle }}</td>
+                                </tr>
+                                <tr>
                                     <td style="padding: 12px 16px; background: #f8fafc; color: #64748b; font-size: 12px; border-bottom: 1px solid #e2e8f0;">Reference Number</td>
                                     <td style="padding: 12px 16px; color: #0f172a; font-size: 13px; font-weight: 700; border-bottom: 1px solid #e2e8f0;">{{ $referenceNumber }}</td>
                                 </tr>
@@ -42,12 +46,6 @@
                                     <td style="padding: 12px 16px; background: #f8fafc; color: #64748b; font-size: 12px; border-bottom: 1px solid #e2e8f0;">Tracking Number</td>
                                     <td style="padding: 12px 16px; color: #0f172a; font-size: 13px; border-bottom: 1px solid #e2e8f0;">{{ $trackingNumber }}</td>
                                 </tr>
-                                @if($document->subject)
-                                <tr>
-                                    <td style="padding: 12px 16px; background: #f8fafc; color: #64748b; font-size: 12px; border-bottom: 1px solid #e2e8f0;">Subject</td>
-                                    <td style="padding: 12px 16px; color: #0f172a; font-size: 13px; border-bottom: 1px solid #e2e8f0;">{{ $document->subject }}</td>
-                                </tr>
-                                @endif
                                 <tr>
                                     <td style="padding: 12px 16px; background: #f8fafc; color: #64748b; font-size: 12px; border-bottom: 1px solid #e2e8f0;">Office</td>
                                     <td style="padding: 12px 16px; color: #0f172a; font-size: 13px; border-bottom: 1px solid #e2e8f0;">{{ $officeName }}</td>

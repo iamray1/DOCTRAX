@@ -50,6 +50,35 @@ class AdminController extends Controller
         });
     }
 
+    private function whereInternalSubmittedDocument($query)
+    {
+        return $query->where(function ($internal) {
+            $internal->whereHas('user', function ($userQuery) {
+                $userQuery->where('role', 'superadmin')
+                    ->orWhere(function ($officeAccount) {
+                        $officeAccount->whereIn('account_type', ['office', 'representative'])
+                            ->whereNotNull('office_id')
+                            ->whereHas('office', function ($officeQuery) {
+                                $officeQuery->where(function ($office) {
+                                    $office->where('is_school', false)
+                                        ->orWhereNull('is_school');
+                                });
+                            });
+                    });
+            })->orWhere(function ($legacy) {
+                $legacy->whereNull('user_id')
+                    ->where(function ($email) {
+                        $email->whereNull('sender_email')
+                            ->orWhere('sender_email', '');
+                    })
+                    ->whereNotNull('sender_office')
+                    ->where('sender_office', '!=', '')
+                    ->whereNotNull('recipient_office')
+                    ->where('recipient_office', '!=', '');
+            });
+        });
+    }
+
     private function officeQueueBuilderForUser(User $user, bool $includeCompleted = false)
     {
         $office = $user->office;
@@ -80,7 +109,8 @@ class AdminController extends Controller
                 $q->where('current_office_id', $office->id)
                   ->orWhere(function ($sub) use ($office) {
                       $sub->where('status', 'submitted')
-                          ->where('submitted_to_office_id', $office->id);
+                          ->where('submitted_to_office_id', $office->id)
+                          ->where(fn ($internal) => $this->whereInternalSubmittedDocument($internal));
                   });
             }
         })->whereNotIn('status', $excludedStatuses);
@@ -109,7 +139,8 @@ class AdminController extends Controller
                     $q->where('current_office_id', $office->id)
                       ->orWhere(function ($sub) use ($office) {
                           $sub->where('status', 'submitted')
-                              ->where('submitted_to_office_id', $office->id);
+                              ->where('submitted_to_office_id', $office->id)
+                              ->where(fn ($internal) => $this->whereInternalSubmittedDocument($internal));
                       });
                 }
             })

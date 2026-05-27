@@ -32,9 +32,9 @@
                             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse: collapse; margin: 0 0 28px; border: 1px solid #e2e8f0;">
                                 <thead>
                                     <tr>
+                                        <th align="left" style="padding: 11px 12px; background: #f8fafc; color: #475569; font-size: 11px; border-bottom: 1px solid #e2e8f0;">Document Title</th>
                                         <th align="left" style="padding: 11px 12px; background: #f8fafc; color: #475569; font-size: 11px; border-bottom: 1px solid #e2e8f0;">Reference No.</th>
                                         <th align="left" style="padding: 11px 12px; background: #f8fafc; color: #475569; font-size: 11px; border-bottom: 1px solid #e2e8f0;">Tracking No.</th>
-                                        <th align="left" style="padding: 11px 12px; background: #f8fafc; color: #475569; font-size: 11px; border-bottom: 1px solid #e2e8f0;">Subject</th>
                                         <th align="left" style="padding: 11px 12px; background: #f8fafc; color: #475569; font-size: 11px; border-bottom: 1px solid #e2e8f0;">Office</th>
                                     </tr>
                                 </thead>
@@ -45,11 +45,11 @@
                                             $trackUrl = $lookup ? url('/track?ref=' . urlencode((string) $lookup)) : url('/track');
                                         @endphp
                                         <tr>
+                                            <td style="padding: 12px; color: #0f172a; font-size: 12px; font-weight: 700; border-bottom: 1px solid #e2e8f0;">{{ $document->subject ?: 'Submitted Document' }}</td>
                                             <td style="padding: 12px; color: #0f172a; font-size: 12px; font-weight: 700; border-bottom: 1px solid #e2e8f0;">
                                                 <a href="{{ $trackUrl }}" target="_blank" style="color: #0056b3; text-decoration: none;">{{ $document->reference_number ?: 'N/A' }}</a>
                                             </td>
                                             <td style="padding: 12px; color: #0f172a; font-size: 12px; border-bottom: 1px solid #e2e8f0;">{{ $document->tracking_number ?: 'N/A' }}</td>
-                                            <td style="padding: 12px; color: #0f172a; font-size: 12px; border-bottom: 1px solid #e2e8f0;">{{ $document->subject ?: 'N/A' }}</td>
                                             <td style="padding: 12px; color: #0f172a; font-size: 12px; border-bottom: 1px solid #e2e8f0;">{{ $document->currentOffice?->name ?: ($document->submittedToOffice?->name ?: 'Office') }}</td>
                                         </tr>
                                     @endforeach

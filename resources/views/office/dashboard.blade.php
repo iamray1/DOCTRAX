@@ -163,7 +163,7 @@
         .queue-panel .col-subject{width:23%}
         .queue-panel .col-submitted{width:20%}
         .queue-panel .col-status{width:12%}
-        .queue-panel .col-cta{width:92px}
+        .queue-panel .col-cta{width:150px}
         .queue-panel .col-action{width:44px}
         .queue-panel .t-ref,.queue-panel .t-track{font-family:monospace;font-size:12px;font-weight:600;white-space:nowrap}
         .queue-panel .t-ref{color:var(--primary)}
@@ -586,7 +586,7 @@
                     @endphp
                     <tr class="doc-row" onclick='openDocDetail(@json($docLookup))' data-status="{{ $doc->status }}" data-search="{{ strtolower(($docLookup ?: '') . ' ' . ($doc->reference_number ?? '') . ' ' . $doc->subject . ' ' . $doc->type . ' ' . $doc->sender_name) }}">
                         <td class="td-select" onclick="event.stopPropagation()">
-                            <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-status="{{ $canStatusUpdateDoc ? '1' : '0' }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
+                            <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-status="{{ $canStatusUpdateDoc ? '1' : '0' }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-is-external="{{ $doc->isExternal() ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
                         </td>
                         <td class="t-ref"><div class="cell-ellipsis" title="{{ $doc->reference_number ?: 'N/A' }}">{{ $doc->reference_number ?: 'N/A' }}</div></td>
                         <td class="t-track"><div class="cell-ellipsis" title="{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}">{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div></td>
@@ -614,6 +614,11 @@
                                 <a class="btn-manage" href="/office/documents/{{ $doc->id }}?from=office-queue" onclick="event.stopPropagation()" title="Manage document">
                                     <i class="fas fa-pen"></i> Manage
                                 </a>
+                            @endif
+                            @if($canBulkEnd)
+                                <button type="button" class="btn-manage" onclick="event.stopPropagation(); openSingleEndModal({{ $doc->id }})" title="End transaction">
+                                    <i class="fas fa-check-circle"></i> End
+                                </button>
                             @endif
                         </td>
                         <td class="td-action">
@@ -654,7 +659,7 @@
                                 <div class="mob-card-track">Document Control #: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
                             </div>
                             <span class="mob-card-top-actions">
-                                <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-status="{{ $canStatusUpdateDoc ? '1' : '0' }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onclick="event.stopPropagation()" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
+                                <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-status="{{ $canStatusUpdateDoc ? '1' : '0' }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-is-external="{{ $doc->isExternal() ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onclick="event.stopPropagation()" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
                                 <span class="mob-card-arrow"><i class="fas fa-chevron-right"></i></span>
                             </span>
                         </div>
@@ -676,11 +681,18 @@
                             <i class="fas fa-user"></i>
                             <span class="cell-ellipsis" title="{{ $doc->sender_name }}">{{ $doc->sender_name }}</span>
                         </div>
-                        @if($canUpdateRemarks)
+                        @if($canUpdateRemarks || $canBulkEnd)
                         <div class="mob-card-actions">
+                            @if($canUpdateRemarks)
                             <a class="btn-manage" href="/office/documents/{{ $doc->id }}?from=office-queue" onclick="event.stopPropagation()" title="Manage document">
                                 <i class="fas fa-pen"></i> Manage
                             </a>
+                            @endif
+                            @if($canBulkEnd)
+                            <button type="button" class="btn-manage" onclick="event.stopPropagation(); openSingleEndModal({{ $doc->id }})" title="End transaction">
+                                <i class="fas fa-check-circle"></i> End
+                            </button>
+                            @endif
                         </div>
                         @endif
                     </div>
@@ -781,6 +793,7 @@
         </div>
         <div class="modal-body">
             <p style="margin-bottom:14px"><span id="bulkEndCount">0</span> selected document(s) will be marked as completed after you confirm.</p>
+            <p id="bulkEndExternalWarning" style="display:none;margin-bottom:14px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px">Reminder: one or more selected documents came from outside. Continue only if the transaction is truly finished.</p>
             <label class="modal-label">Remarks <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
             <select class="modal-field" id="bulkEndRemarksSelect" onchange="handleBulkRemarksDropdown('bulkEndRemarksSelect','bulkEndRemarks')">
                 <option value="">Select a remark...</option>
@@ -1018,6 +1031,12 @@ function selectedEndRemarksType(){
     return keys.length === 1 ? keys[0] : 'mixed';
 }
 
+function selectedHasExternalDocument(){
+    return getSelectedBulkChecks().some(function(chk){
+        return chk.dataset.isExternal === '1';
+    });
+}
+
 function selectedStatusCount(){
     var statuses = {};
     getSelectedBulkChecks().forEach(function(chk){
@@ -1220,6 +1239,8 @@ function openBulkEndModal(){
         return;
     }
     document.getElementById('bulkEndCount').textContent = selected.length;
+    var warning = document.getElementById('bulkEndExternalWarning');
+    if (warning) warning.style.display = selectedHasExternalDocument() ? '' : 'none';
     updateBulkEndRemarks();
     hideBulkErr('bulkEndError');
     document.getElementById('bulkEndModal').classList.add('show');

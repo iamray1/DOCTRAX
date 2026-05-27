@@ -235,7 +235,7 @@
         .queue-panel .col-subject{width:23%}
         .queue-panel .col-submitted{width:20%}
         .queue-panel .col-status{width:12%}
-        .queue-panel .col-cta{width:92px}
+        .queue-panel .col-cta{width:150px}
         .queue-panel .col-action{width:44px}
         .queue-panel .t-ref,.queue-panel .t-track{font-family:monospace;font-size:12px;font-weight:600;white-space:nowrap}
         .queue-panel .t-ref{color:var(--primary)}
@@ -642,7 +642,7 @@
                 @endphp
                 <tr class="doc-row" data-search="{{ strtolower(trim(($doc->reference_number ?? '').' '.($doc->tracking_number ?? '').' '.$doc->subject.' '.$sender.' '.($doc->type ?? ''))) }}" data-status="{{ $doc->status }}" onclick='openDocDetail("{{ $doc->reference_number ?: $doc->tracking_number }}")'>
                     <td class="td-select" onclick="event.stopPropagation()">
-                        <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-status="{{ $canBulkStatus ? '1' : '0' }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
+                        <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-status="{{ $canBulkStatus ? '1' : '0' }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-is-external="{{ $doc->isExternal() ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
                     </td>
                     <td class="t-ref"><div class="cell-ellipsis" title="{{ $doc->reference_number ?: 'N/A' }}">{{ $doc->reference_number ?: 'N/A' }}</div></td>
                     <td class="t-track"><div class="cell-ellipsis" title="{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}">{{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div></td>
@@ -659,6 +659,11 @@
                             <a class="btn-manage" href="/office/documents/{{ $doc->id }}?from=ict-queue" title="Manage document">
                                 <i class="fas fa-pen"></i> Manage
                             </a>
+                        @endif
+                        @if($canBulkEnd)
+                            <button type="button" class="btn-manage" onclick="openIctPickupModal({{ $doc->id }}, {{ $doc->isExternal() ? 'true' : 'false' }})" title="End transaction">
+                                <i class="fas fa-check-circle"></i> End
+                            </button>
                         @endif
                     </td>
                     <td class="td-action"><span class="row-arrow"><i class="fas fa-chevron-right"></i></span></td>
@@ -693,7 +698,7 @@
                         <div class="mob-card-track">Document Control #: {{ $doc->tracking_number ?: ($doc->reference_number ?: 'N/A') }}</div>
                     </div>
                     <span class="mob-card-top-actions">
-                        <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-status="{{ $canBulkStatus ? '1' : '0' }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onclick="event.stopPropagation()" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
+                        <input type="checkbox" class="bulk-doc-check" value="{{ $doc->id }}" data-status="{{ $doc->status }}" data-can-status="{{ $canBulkStatus ? '1' : '0' }}" data-can-end="{{ $canBulkEnd ? '1' : '0' }}" data-is-external="{{ $doc->isExternal() ? '1' : '0' }}" data-end-remarks="{{ $endRemarksType }}" onclick="event.stopPropagation()" onchange="handleBulkCheckChange(this)" {{ $canBulkSelect ? '' : 'disabled' }} title="{{ $canBulkSelect ? 'Select document' : $bulkDisabledTitle }}">
                         <span class="mob-card-arrow"><i class="fas fa-chevron-right"></i></span>
                     </span>
                 </div>
@@ -706,11 +711,18 @@
                     <i class="fas fa-user"></i>
                     <span class="cell-ellipsis" title="{{ $sender }}">{{ $sender }}</span>
                 </div>
-                @if($canManageDoc)
+                @if($canManageDoc || $canBulkEnd)
                 <div class="mob-card-actions">
+                    @if($canManageDoc)
                     <a class="btn-manage" href="/office/documents/{{ $doc->id }}?from=ict-queue" onclick="event.stopPropagation()" title="Manage document">
                         <i class="fas fa-pen"></i> Manage
                     </a>
+                    @endif
+                    @if($canBulkEnd)
+                    <button type="button" class="btn-manage" onclick="event.stopPropagation(); openIctPickupModal({{ $doc->id }}, {{ $doc->isExternal() ? 'true' : 'false' }})" title="End transaction">
+                        <i class="fas fa-check-circle"></i> End
+                    </button>
+                    @endif
                 </div>
                 @endif
             </div>
@@ -765,6 +777,7 @@
     <div class="modal">
         <h3><i class="fas fa-check-circle" style="color:#0056b3;margin-right:6px"></i>End Transaction</h3>
         <p>Are you sure you want to end this transaction? This action cannot be undone.</p>
+        <p id="ictPickupExternalWarning" style="display:none;margin-bottom:14px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px">Reminder: this document came from outside. Continue only if the transaction is truly finished.</p>
         <div style="margin-bottom:14px">
             <label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:6px">Remarks (Optional)</label>
             <textarea id="ictPickupRemarks" style="width:100%;padding:9px 12px;font-family:Poppins,sans-serif;font-size:12px;border:1.5px solid var(--border);border-radius:8px;resize:vertical;min-height:60px;outline:none" placeholder="Add any remarks about the transaction completion..."></textarea>
@@ -807,6 +820,7 @@
     <div class="modal" style="width:420px">
         <h3><i class="fas fa-check-circle" style="color:#0056b3;margin-right:6px"></i>Confirm End Transaction</h3>
         <p><span id="bulkEndCount">0</span> selected document(s) will be marked as completed after you confirm.</p>
+        <p id="bulkEndExternalWarning" style="display:none;margin-bottom:14px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px">Reminder: one or more selected documents came from outside. Continue only if the transaction is truly finished.</p>
         <div style="margin-bottom:14px">
             <label class="modal-label">Remarks <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
             <select class="modal-field" id="bulkEndRemarksSelect" onchange="handleBulkRemarksDropdown('bulkEndRemarksSelect','bulkEndRemarks')">
@@ -1047,6 +1061,12 @@ function selectedEndRemarksType(){
     return keys.length === 1 ? keys[0] : 'mixed';
 }
 
+function selectedHasExternalDocument(){
+    return getSelectedBulkChecks().some(function(chk){
+        return chk.dataset.isExternal === '1';
+    });
+}
+
 function selectedStatusCount(){
     var statuses = {};
     getSelectedBulkChecks().forEach(function(chk){
@@ -1249,6 +1269,8 @@ function openBulkEndModal(){
         return;
     }
     document.getElementById('bulkEndCount').textContent = selected.length;
+    var warning = document.getElementById('bulkEndExternalWarning');
+    if (warning) warning.style.display = selectedHasExternalDocument() ? '' : 'none';
     updateBulkEndRemarks();
     hideBulkErr('bulkEndError');
     document.getElementById('bulkEndModal').classList.add('open');
@@ -1481,9 +1503,11 @@ async function confirmBulkEnd(){
     window.receiveByReference = receiveByReference;
 
     var _ictPickupDocId = null;
-    window.openIctPickupModal = function(docId) {
+    window.openIctPickupModal = function(docId, isExternal) {
         _ictPickupDocId = docId;
         document.getElementById('ictPickupRemarks').value = '';
+        var warning = document.getElementById('ictPickupExternalWarning');
+        if (warning) warning.style.display = isExternal ? '' : 'none';
         document.getElementById('ictPickupModal').classList.add('open');
     };
     window.closeIctPickupModal = function() {
@@ -1676,7 +1700,7 @@ async function confirmBulkEnd(){
         document.getElementById('drawerBody').innerHTML =
             '<div class="drawer-tl-head"><i class="fas fa-history"></i> Routing History</div>' +
             '<div class="drawer-timeline"><div class="tl">' + tlHtml + '</div></div>' +
-            (canEndFromDrawer ? '<div style="padding:20px"><div class="action-section" style="border-top:1px solid var(--border);padding-top:16px"><h3 style="font-size:13px;font-weight:600;color:var(--text-dark);margin-bottom:8px">End Transaction</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">' + escapeHtml(endCopy) + '</p><button class="btn btn-primary" onclick="openIctPickupModal(' + escapeAttr(doc.id) + ')">End Transaction</button></div></div>' : '');
+            (canEndFromDrawer ? '<div style="padding:20px"><div class="action-section" style="border-top:1px solid var(--border);padding-top:16px"><h3 style="font-size:13px;font-weight:600;color:var(--text-dark);margin-bottom:8px">End Transaction</h3><p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">' + escapeHtml(endCopy) + '</p><button class="btn btn-primary" onclick="openIctPickupModal(' + escapeAttr(doc.id) + ',' + (doc.is_external ? 'true' : 'false') + ')">End Transaction</button></div></div>' : '');
     }
 
     // ─── Live Stats (silent update every 30s) ───
