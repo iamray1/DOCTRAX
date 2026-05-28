@@ -688,6 +688,11 @@ class RepresentativeController extends Controller
         }
     }
 
+    private function excludeUnsubmittedReportDocuments($query): void
+    {
+        $query->where('status', '!=', 'submitted');
+    }
+
     public function search(Request $request)
     {
         $user = $this->rep();
@@ -705,6 +710,8 @@ class RepresentativeController extends Controller
 
         $query = Document::query()
             ->with(['user', 'submittedToOffice', 'currentOffice', 'currentHandler']);
+
+        $this->excludeUnsubmittedReportDocuments($query);
 
         // Scope to the user's office — only show documents that touched this office OR were handled by this user
         if ($office) {
@@ -824,7 +831,7 @@ class RepresentativeController extends Controller
         $statusOptions = Document::STATUSES;
 
         $statusGroups = [
-            'pending'   => ['submitted', 'received', 'in_review', 'on_hold'],
+            'pending'   => ['received', 'in_review', 'on_hold'],
             'processed' => ['completed'],
         ];
         $reportStatusOptions = [
@@ -852,7 +859,7 @@ class RepresentativeController extends Controller
                 $q->whereIn('status', ['in_review'])
             ])
             ->withCount(['handledDocuments as handled_pending_count' => fn ($q) =>
-                $q->whereIn('status', ['submitted', 'in_review', 'on_hold'])
+                $q->whereIn('status', ['received', 'in_review', 'on_hold'])
             ])
             ->withCount(['handledDocuments as handled_processed_count' => fn ($q) =>
                 $q->whereIn('status', ['completed'])
@@ -906,6 +913,8 @@ class RepresentativeController extends Controller
 
         $query = Document::with(['submittedToOffice', 'currentOffice', 'currentHandler']);
 
+        $this->excludeUnsubmittedReportDocuments($query);
+
         // Only show documents handled/processed by this staff member (not their own submissions)
         $query->where(function ($q) use ($id, $u) {
             $q->where('current_handler_id', $id);
@@ -920,7 +929,7 @@ class RepresentativeController extends Controller
 
         if ($status !== '') {
             $statusGroups = [
-                'pending'   => ['submitted', 'received', 'in_review', 'on_hold'],
+                'pending'   => ['received', 'in_review', 'on_hold'],
                 'processed' => ['completed'],
             ];
             if (isset($statusGroups[$status])) {
@@ -967,7 +976,7 @@ class RepresentativeController extends Controller
             ],
             'stats' => [
                 'total_docs'  => $docs->count(),
-                'pending'     => $docs->whereIn('status', ['submitted', 'received', 'in_review', 'on_hold'])->count(),
+                'pending'     => $docs->whereIn('status', ['received', 'in_review', 'on_hold'])->count(),
                 'processed'   => $docs->whereIn('status', ['completed'])->count(),
                 'actions'     => $actionsCount,
             ],
@@ -1003,6 +1012,8 @@ class RepresentativeController extends Controller
 
         $query = Document::with(['submittedToOffice', 'currentOffice', 'currentHandler']);
 
+        $this->excludeUnsubmittedReportDocuments($query);
+
         // Only show documents handled/processed by this staff member
         $query->where(function ($q) use ($id, $u) {
             $q->where('current_handler_id', $id);
@@ -1017,7 +1028,7 @@ class RepresentativeController extends Controller
 
         if ($status !== '') {
             $statusGroups = [
-                'pending'   => ['submitted', 'received', 'in_review', 'on_hold'],
+                'pending'   => ['received', 'in_review', 'on_hold'],
                 'processed' => ['completed'],
             ];
             if (isset($statusGroups[$status])) {
